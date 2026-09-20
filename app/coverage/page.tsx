@@ -1,0 +1,14 @@
+import { fetchTeamAggregates } from "@/services/couchbase";
+
+export default async function CoveragePage() {
+  const teams = await fetchTeamAggregates();
+  const observedMatches = teams.reduce((total, team) => total + team.matches, 0);
+  const completeTeams = teams.filter((team) => team.matches > 0 && team.rank > 0 && team.fuelAccuracy > 0).length;
+  const quality = teams.length === 0 ? 0 : Math.round((completeTeams / teams.length) * 100);
+
+  return <div className="mx-auto max-w-[900px]">
+    <div className="mb-9 max-w-2xl"><div className="mb-3 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--green)]">05 / ADMINISTRATION</div><h1 className="text-3xl font-medium tracking-tight">Coverage</h1><p className="mt-2 text-sm leading-6 text-[var(--muted)]">A read-only data quality view for the current event. Administrative controls can be added without changing the scouting workflows.</p></div>
+    <div className="mb-5 grid grid-cols-2 gap-px border border-[var(--line)] bg-[var(--line)] sm:grid-cols-3">{[[String(teams.length), "teams with aggregates"], [String(observedMatches), "observed matches"], [`${quality}%`, "complete records"]].map(([value, label]) => <div key={label} className="bg-[var(--panel)] px-4 py-4"><div className="font-mono text-xl text-[var(--green)]">{value}</div><div className="mt-1 text-[10px] uppercase tracking-wider text-[var(--muted)]">{label}</div></div>)}</div>
+    <section className="overflow-hidden border border-[var(--line)] bg-[var(--panel)]"><div className="border-b border-[var(--line)] px-5 py-4"><div className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--muted)]">Aggregate record health</div></div>{teams.length === 0 ? <div className="px-5 py-12 text-center text-sm text-[var(--muted)]">No live records are available. Configure Couchbase to inspect event coverage.</div> : <div className="overflow-x-auto"><table className="w-full min-w-[580px] text-left text-xs"><thead className="bg-[#101613] font-mono text-[10px] uppercase tracking-wider text-[var(--muted)]"><tr><th className="px-5 py-3 font-normal">Team</th><th className="px-4 py-3 font-normal">Matches</th><th className="px-4 py-3 font-normal">Rank</th><th className="px-4 py-3 text-right font-normal">Record</th></tr></thead><tbody>{teams.map((team) => { const complete = team.matches > 0 && team.rank > 0 && team.fuelAccuracy > 0; return <tr key={team.team} className="border-t border-[var(--line)]"><td className="px-5 py-3"><span className="font-mono text-[var(--green)]">{team.team}</span><span className="ml-3 text-[var(--foreground)]">{team.name}</span></td><td className="px-4 py-3 font-mono text-[var(--muted)]">{team.matches}</td><td className="px-4 py-3 font-mono text-[var(--muted)]">{team.rank || "--"}</td><td className={`px-4 py-3 text-right font-mono ${complete ? "text-[var(--green)]" : "text-amber-400"}`}>{complete ? "READY" : "CHECK"}</td></tr>; })}</tbody></table></div>}</section>
+  </div>;
+}

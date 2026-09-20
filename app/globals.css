@@ -1,8 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0d1110;
+  --foreground: #edf2ee;
+  --panel: #141a18;
+  --panel-raised: #19211e;
+  --line: #2b3732;
+  --muted: #8d9b93;
+  --green: #78c091;
+  --green-strong: #3f9b61;
 }
 
 @theme inline {
@@ -12,15 +18,29 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), "Avenir Next", sans-serif;
+}
+
+* {
+  border-color: var(--line);
+}
+
+::selection {
+  background: rgba(120, 192, 145, 0.25);
+}
+
+button,
+a,
+input,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.data-grid {
+  background-image: linear-gradient(rgba(120, 192, 145, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(120, 192, 145, 0.035) 1px, transparent 1px);
+  background-size: 32px 32px;
 }
