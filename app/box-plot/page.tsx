@@ -1,3 +1,5 @@
+'use client';
+
 import { useMemo, useState, useEffect } from "react";
 import type { TeamAggregate } from "@/types/scouting";
 import { fetchTeamAggregates } from "@/services/couchbase";

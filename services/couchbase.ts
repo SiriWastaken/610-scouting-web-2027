@@ -1,5 +1,3 @@
-import "server-only";
-
 import type { TeamAggregate } from "@/types/scouting";
 
 interface CouchbaseDocument {

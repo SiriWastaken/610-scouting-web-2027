@@ -1,21 +1,55 @@
-import { useState, useEffect } from "react";
-import { DataTable } from "@/components/data-table";
-import { fetchTeamAggregates } from "@/services/couchbase";
+// app/teams/page.tsx
+import { fetchTeamAggregates } from '@/services/couchbase';
+import TeamsClientView from '@/components/teamClientView';
 
-export default function TeamsPage() {
-  const [teams, setTeams] = useState([]);
+export default async function TeamsPage() {
+  // 1. Fetch team aggregates from Couchbase (Server-side)
+  const teamStats = await fetchTeamAggregates();
 
-  useEffect(() => {
-    fetchTeamAggregates().then(setTeams);
-  }, []);
+  // 2. Fetch team nicknames from The Blue Alliance securely on the server
+  const teamNames: Record<number, string> = {};
+  const tbaApiKey = process.env.TBA_API_KEY;
 
-  return <div className="mx-auto max-w-[1320px]">
-    <PageIntro eyebrow="01 / TEAM INDEX" title="Teams" description="A working view of teams observed at the event, with the core scouting signals used for match planning." />
+  if (tbaApiKey && teamStats.length > 0) {
+    await Promise.all(
+      teamStats.map(async (t) => {
+        try {
+          const res = await fetch(
+            `https://www.thebluealliance.com/api/v3/team/frc${t.team}`,
+            {
+              headers: { 'X-TBA-Auth-Key': tbaApiKey },
+              next: { revalidate: 3600 }, 
+            }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            if (data.nickname) {
+              teamNames[t.team] = data.nickname;
+            }
+          }
+        } catch {
+          // Fallback silently if individual team fetch fails
+        }
+      })
+    );
+  }
 
-    <DataTable teams={teams} />
-  </div>;
-}
+  return (
+    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] data-grid p-6 md:p-10 font-sans selection:bg-[rgba(120,192,145,0.25)]">
+      <div className="max-w-7xl mx-auto space-y-8">
+        
+        {/* Header Section */}
+        <header className="bg-[var(--panel)] p-6 rounded-2xl border border-[var(--line)] shadow-xl">
+          <h1 className="text-3xl font-bold tracking-tight text-[var(--foreground)]">Team Analytics Hub</h1>
+          <p className="text-[var(--muted)] text-sm mt-1">
+            Web scouting dashboard powered by Couchbase & The Blue Alliance.
+          </p>
+        </header>
 
-function PageIntro({ eyebrow, title, description }: { eyebrow: string; title: string; description: string }) {
-  return <div className="mb-7 max-w-2xl"><div className="mb-3 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--green)]">{eyebrow}</div><h1 className="text-3xl font-medium tracking-tight text-[var(--foreground)]">{title}</h1><p className="mt-2 text-sm leading-6 text-[var(--muted)]">{description}</p></div>;
+        {/* Pass server-fetched data to the client interactive view */}
+        <TeamsClientView initialTeams={teamStats} teamNames={teamNames} />
+
+      </div>
+    </main>
+  );
 }

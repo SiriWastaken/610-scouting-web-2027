@@ -20,8 +20,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
       <main className="min-w-0">
         <header className="flex h-14 items-center justify-between border-b border-[var(--line)] px-5 lg:px-8">
-          <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">Crescent Valley Regional</div>
-          <div className="flex items-center gap-3 text-xs text-[var(--muted)]"><span className="h-2 w-2 rounded-full bg-[var(--green-strong)]" />Local dataset</div>
         </header>
         <div className="data-grid min-h-[calc(100vh-3.5rem)] px-5 py-7 lg:px-8 lg:py-9">{children}</div>
       </main>

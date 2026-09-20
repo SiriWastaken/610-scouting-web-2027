@@ -1,3 +1,5 @@
+'use client';
+
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { TeamAggregate, TeamSortKey } from "@/types/scouting";
@@ -15,6 +17,7 @@ export function DataTable({ teams, compact = false }: { teams: TeamAggregate[]; 
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<TeamSortKey>("rank");
   const [ascending, setAscending] = useState(true);
+  
   const filtered = useMemo(() => teams.filter((team) => `${team.team} ${team.name}`.toLowerCase().includes(query.toLowerCase())).sort((a, b) => {
     const result = a[sortKey] - b[sortKey];
     return ascending ? result : -result;
