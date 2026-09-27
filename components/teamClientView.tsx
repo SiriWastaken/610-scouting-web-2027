@@ -7,10 +7,11 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
-import { queryDocsByIdPrefix, queryDocsByType } from '@/services/couchbase';
+import type { TeamAggregate } from '@/types/scouting';
+import { useAggregateRealtime, useRealtimeDocuments, useRealtimeResync } from '@/lib/use-realtime';
 
 /**
- * Shape of the raw values coming back from Couchbase via `queryDocsByType`.
+ * Shape of the documents returned by `/api/dashboard-documents` (and the realtime feed).
  * Wraps loosely-typed document data without resorting to `any`.
  */
 type RawDoc = {
@@ -25,6 +26,13 @@ function unwrapDoc(r: RawDoc): Record<string, unknown> {
   return (r._default ?? r) as Record<string, unknown>;
 }
 
+async function queryDashboardDocuments(kind: 'matches' | 'pit' | 'reports', team: number): Promise<RawDoc[]> {
+  const response = await fetch(`/api/dashboard-documents?kind=${kind}&team=${team}`, { cache: 'no-store' });
+  if (!response.ok) throw new Error(`Unable to load ${kind} data (${response.status})`);
+  const payload = await response.json() as { documents?: RawDoc[] };
+  return payload.documents ?? [];
+}
+
 /**
  * Your scouting docs are keyed like `scouting_<teamNumber>_<matchNumber>`,
  * `pit_<teamNumber>`, and `aggregate_<teamNumber>` rather than by an explicit
@@ -33,7 +41,7 @@ function unwrapDoc(r: RawDoc): Record<string, unknown> {
  */
 function parseScoutingId(id: unknown): { team?: string; match?: string } {
   if (typeof id !== 'string') return {};
-  const match = id.match(/^(?:scouting|pit|aggregate)_(\d+)(?:_(\d+))?/);
+  const match = id.match(/^(?:scouting|pit|aggregate|report(?:_card)?)_(\d+)(?:_(.+))?/);
   if (!match) return {};
   return { team: match[1], match: match[2] };
 }
@@ -45,6 +53,32 @@ function docTeam(doc: Record<string, unknown>): string | undefined {
   return parseScoutingId(doc._id).team;
 }
 
+/** Stable empty input for realtime merges while REST data is loading. */
+const NO_DOCS: Record<string, unknown>[] = [];
+
+function toMatchData(doc: Record<string, unknown>): MatchData {
+  const data = (doc.data ?? doc) as MatchData;
+  // Fill in the match number from the doc id (`scouting_<team>_<match>`) if it
+  // isn't already in the data. Documents may be shared with the realtime store,
+  // so build a copy rather than mutating them.
+  const { match: matchNum } = parseScoutingId(doc._id);
+  const start = data.start?.match === undefined && matchNum ? { ...data.start, match: Number(matchNum) } : data.start;
+  return { ...data, start, _id: typeof doc._id === 'string' ? doc._id : undefined };
+}
+
+function toCardReport(doc: Record<string, unknown>): CardReport {
+  const data = (doc.data ?? {}) as Record<string, unknown>;
+  return {
+    sourceId: String(doc._id ?? ''),
+    match: (doc.match as string | number) ?? (data.matchNumber as string | number) ?? 'N/A',
+    team: (doc.team as string | number) ?? (data.teamNumber as string | number) ?? 'N/A',
+    cardType: (data.cardType as string) ?? 'Unknown',
+    ruleViolation: (data.ruleViolation as string) ?? 'N/A',
+    notes: (data.notes as string) ?? 'None',
+    timestamp: (doc.timestamp as string) ?? (data.timestamp as string),
+  };
+}
+
 /**
  * Your scouting-match docs are keyed `scouting_<teamNumber>_<matchNumber>`
  * (not distinguished by a `type` field), so we fetch by `_id` prefix instead.
@@ -54,24 +88,6 @@ const MATCH_DOC_ID_PREFIX = 'scouting_';
 /* ============================================================================
  * TYPES
  * ==========================================================================*/
-
-interface TeamAggregate {
-  team: number;
-  name: string;
-  recordedAt?: string;
-  sourceId?: string;
-  rawData?: Record<string, unknown>;
-  rank: number;
-  matches: number;
-  autoPpg: number;
-  teleopPpg: number;
-  endgamePpg: number;
-  fuelPerMatch: number;
-  fuelAccuracy: number;
-  defenseRating: number;
-  driverSkill: number;
-  breakRate: number;
-}
 
 interface MatchStart {
   match?: number;
@@ -108,6 +124,7 @@ interface MatchTeleop {
 }
 
 interface MatchData {
+  _id?: string;
   start?: MatchStart;
   auto?: MatchAuto;
   teleop?: MatchTeleop;
@@ -169,6 +186,7 @@ interface PitData {
 }
 
 interface CardReport {
+  sourceId?: string;
   match: string | number;
   team: string | number;
   cardType: string;
@@ -812,8 +830,11 @@ function ExpertScoutReport({ pitData, teamNumber }: { pitData?: PitData; teamNum
  * ==========================================================================*/
 
 function CardReportsTable({ teamNumber }: { teamNumber: string | number }) {
-  const [reports, setReports] = useState<CardReport[]>([]);
+  const teamKey = String(teamNumber);
+  const [loaded, setLoaded] = useState<{ team: string; docs: Record<string, unknown>[] } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [reloads, setReloads] = useState(0);
+  useRealtimeResync(() => setReloads((count) => count + 1));
 
   useEffect(() => {
     let isMounted = true;
@@ -825,22 +846,8 @@ function CardReportsTable({ teamNumber }: { teamNumber: string | number }) {
       }
       try {
         setLoading(true);
-        const allReports = await queryDocsByType('report_card');
-        const teamReports = (allReports as RawDoc[])
-          .map(unwrapDoc)
-          .filter((doc) => docTeam(doc) === String(teamNumber))
-          .map((doc): CardReport => {
-            const data = (doc.data ?? {}) as Record<string, unknown>;
-            return {
-              match: (doc.match as string | number) ?? (data.matchNumber as string | number) ?? 'N/A',
-              team: (doc.team as string | number) ?? (data.teamNumber as string | number) ?? 'N/A',
-              cardType: (data.cardType as string) ?? 'Unknown',
-              ruleViolation: (data.ruleViolation as string) ?? 'N/A',
-              notes: (data.notes as string) ?? 'None',
-              timestamp: (doc.timestamp as string) ?? (data.timestamp as string),
-            };
-          });
-        if (isMounted) setReports(teamReports);
+        const allReports = await queryDashboardDocuments('reports', Number(teamNumber));
+        if (isMounted) setLoaded({ team: String(teamNumber), docs: allReports.map(unwrapDoc) });
       } catch (error) {
         console.error('Error loading card reports:', error);
       } finally {
@@ -852,9 +859,15 @@ function CardReportsTable({ teamNumber }: { teamNumber: string | number }) {
     return () => {
       isMounted = false;
     };
-  }, [teamNumber]);
+  }, [teamNumber, reloads]);
 
-  if (loading) {
+  const reportDocs = useRealtimeDocuments(loaded?.team === teamKey ? loaded.docs : NO_DOCS, new RegExp(`^report_(?:card_)?${teamKey}_`));
+  const reports = useMemo(
+    () => reportDocs.filter((doc) => docTeam(doc) === teamKey).map(toCardReport),
+    [reportDocs, teamKey]
+  );
+
+  if (loading && !reports.length) {
     return (
       <Card className="p-6 items-center mt-2 text-center">
         <p className="text-yellow-400 text-xs uppercase tracking-widest">Pulling Card Data...</p>
@@ -889,8 +902,8 @@ function CardReportsTable({ teamNumber }: { teamNumber: string | number }) {
             </tr>
           </thead>
           <tbody>
-            {reports.map((r, i) => (
-              <tr key={`card-${r.team}-${r.match}-${i}`} className="border-b border-[var(--line)] last:border-b-0">
+            {reports.map((r) => (
+              <tr key={r.sourceId} className="border-b border-[var(--line)] last:border-b-0">
                 <td className={tdCls}>{r.match}</td>
                 <td className={tdCls}>{r.team}</td>
                 <td className={`${tdCls} font-bold ${r.cardType === 'Yellow' ? 'text-yellow-400' : 'text-red-400'}`}>
@@ -1209,68 +1222,34 @@ function TeamStatSummary({ team }: { team: TeamAggregate }) {
  * ==========================================================================*/
 
 export default function TeamsClientView({ initialTeams, teamNames = {} }: TeamsClientViewProps) {
-  const [selectedTeam, setSelectedTeam] = useState<TeamAggregate | null>(initialTeams[0] ?? null);
-  const [matches, setMatches] = useState<MatchData[]>([]);
-  const [selectedMatch, setSelectedMatch] = useState<MatchData | null>(null);
-  const [pitData, setPitData] = useState<PitData | undefined>(undefined);
+  const liveTeams = useAggregateRealtime(initialTeams);
+  const [selectedTeamId, setSelectedTeamId] = useState<number | null>(initialTeams[0]?.team ?? null);
+  const selectedTeam = liveTeams.find((team) => team.team === selectedTeamId) ?? liveTeams[0] ?? null;
+  const selectedTeamNumber = selectedTeam?.team;
+  const [detail, setDetail] = useState<{ team: number; matches: Record<string, unknown>[]; pit: Record<string, unknown>[] } | null>(null);
+  const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [reloads, setReloads] = useState(0);
+  useRealtimeResync(() => setReloads((count) => count + 1));
 
   useEffect(() => {
     let isMounted = true;
 
     const loadTeamDetail = async () => {
-      if (!selectedTeam) return;
+      if (!selectedTeamNumber) return;
       setLoadingDetail(true);
       try {
         const [matchDocs, pitDocs] = await Promise.all([
-          queryDocsByIdPrefix(MATCH_DOC_ID_PREFIX) as Promise<RawDoc[]>,
-          queryDocsByType('pit') as Promise<RawDoc[]>,
+          queryDashboardDocuments('matches', selectedTeamNumber),
+          queryDashboardDocuments('pit', selectedTeamNumber),
         ]);
-
-        const unwrappedMatches = matchDocs.map(unwrapDoc);
-        const teamMatches: MatchData[] = unwrappedMatches
-          .filter((doc) => docTeam(doc) === String(selectedTeam.team))
-          .map((doc) => {
-            const matchData = (doc.data ?? doc) as MatchData;
-            // Fill in the match number from the doc id
-            // (`scouting_<team>_<match>`) if it isn't already in the data.
-            if (matchData.start?.match === undefined) {
-              const { match: matchNum } = parseScoutingId(doc._id);
-              if (matchNum) {
-                matchData.start = { ...matchData.start, match: Number(matchNum) };
-              }
-            }
-            return matchData;
-          })
-          .sort((a, b) => (a.start?.match ?? 0) - (b.start?.match ?? 0));
-
-        if (unwrappedMatches.length === 0) {
-          console.warn(
-            `[TeamsClientView] No docs found with id prefix "${MATCH_DOC_ID_PREFIX}". ` +
-              'Double check your Couchbase doc ids actually start with that prefix.'
-          );
-        } else if (teamMatches.length === 0) {
-          console.warn(
-            `[TeamsClientView] Found ${unwrappedMatches.length} "${MATCH_DOC_ID_PREFIX}*" docs, but none matched team ${selectedTeam.team}. ` +
-              'Sample doc:',
-            unwrappedMatches[0]
-          );
+        if (matchDocs.length === 0) {
+          console.warn(`[TeamsClientView] No "${MATCH_DOC_ID_PREFIX}${selectedTeamNumber}_*" docs found.`);
         }
-
-        const teamPit = pitDocs.map(unwrapDoc).find((doc) => docTeam(doc) === String(selectedTeam.team));
-
-        if (isMounted) {
-          setMatches(teamMatches);
-          setSelectedMatch(teamMatches[0] ?? null);
-          setPitData((teamPit?.data ?? teamPit) as PitData | undefined);
-        }
+        if (isMounted) setDetail({ team: selectedTeamNumber, matches: matchDocs.map(unwrapDoc), pit: pitDocs.map(unwrapDoc) });
       } catch (error) {
         console.error('Error loading team detail:', error);
-        if (isMounted) {
-          setMatches([]);
-          setSelectedMatch(null);
-          setPitData(undefined);
-        }
+        if (isMounted) setDetail({ team: selectedTeamNumber, matches: [], pit: [] });
       } finally {
         if (isMounted) setLoadingDetail(false);
       }
@@ -1280,13 +1259,29 @@ export default function TeamsClientView({ initialTeams, teamNames = {} }: TeamsC
     return () => {
       isMounted = false;
     };
-  }, [selectedTeam]);
+  }, [selectedTeamNumber, reloads]);
+
+  // REST results for the selected team, with realtime creates, updates, and
+  // deletes applied on top. Only the affected documents change.
+  const loadedDetail = detail?.team === selectedTeamNumber ? detail : null;
+  const matchDocs = useRealtimeDocuments(loadedDetail?.matches ?? NO_DOCS, new RegExp(`^${MATCH_DOC_ID_PREFIX}${selectedTeamNumber}_\\d+$`));
+  const pitDocs = useRealtimeDocuments(loadedDetail?.pit ?? NO_DOCS, new RegExp(`^pit_${selectedTeamNumber}$`));
+  const matches = useMemo(
+    () => matchDocs
+      .filter((doc) => docTeam(doc) === String(selectedTeamNumber))
+      .map(toMatchData)
+      .sort((a, b) => (a.start?.match ?? 0) - (b.start?.match ?? 0)),
+    [matchDocs, selectedTeamNumber]
+  );
+  const teamPit = pitDocs.find((doc) => docTeam(doc) === String(selectedTeamNumber));
+  const pitData = (teamPit?.data ?? teamPit) as PitData | undefined;
+  const selectedMatch = matches.find((match) => match._id === selectedMatchId) ?? matches[0] ?? null;
 
   return (
     <div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-        <TeamSelector teams={initialTeams} selectedTeam={selectedTeam} teamNames={teamNames} onSelectTeam={setSelectedTeam} />
-        <MatchSelector matches={matches} selectedMatch={selectedMatch} onSelectMatch={setSelectedMatch} />
+        <TeamSelector teams={liveTeams} selectedTeam={selectedTeam} teamNames={teamNames} onSelectTeam={(team) => { setSelectedTeamId(team.team); setSelectedMatchId(null); }} />
+        <MatchSelector matches={matches} selectedMatch={selectedMatch} onSelectMatch={(match) => setSelectedMatchId(match._id ?? null)} />
       </div>
 
       {!selectedTeam ? (

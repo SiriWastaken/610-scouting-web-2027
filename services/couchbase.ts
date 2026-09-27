@@ -1,4 +1,8 @@
+import "server-only";
+import { projectDashboardDocument } from "@/lib/realtime-protocol";
+import { getCouchbaseChangesConfig as makeChangesConfig, readCouchbaseConfig } from "@/lib/couchbase-config";
 import type { TeamAggregate } from "@/types/scouting";
+import { getDocumentTeam, getDocumentTeamName, normalizeAggregateDocument } from "@/lib/normalize-aggregate";
 
 interface CouchbaseDocument {
   _id?: string;
@@ -9,31 +13,14 @@ interface CouchbaseDocument {
   [key: string]: unknown;
 }
 
-interface CouchbaseConfig {
-  baseUrl: string;
-  database: string;
-  username: string;
-  password: string;
-  scope: string;
-  collection: string;
+type CouchbaseConfig = NonNullable<ReturnType<typeof readCouchbaseConfig>>;
+
+export function getCouchbaseChangesConfig() {
+  return makeChangesConfig();
 }
 
 function getConfig(): CouchbaseConfig | null {
-  const values = {
-    baseUrl: 'wss://iwtskh1-eltt8mf7.apps.cloud.couchbase.com:4984',
-    database: "scoutingapp2026",
-    username: "FRC610",
-    password: 'FRCTeam61)',
-    scope: "_default",
-    collection: "_default",
-    test: "testValue"
-  };
-
-  if (!values.baseUrl || !values.database || !values.username || !values.password) {
-    return null;
-  }
-
-  return values as CouchbaseConfig;
+  return readCouchbaseConfig();
 }
 
 function collectionUrl(config: CouchbaseConfig): string {
@@ -41,7 +28,25 @@ function collectionUrl(config: CouchbaseConfig): string {
   return `${baseUrl}/${encodeURIComponent(config.database)}`;
 }
 
-async function fetchAllDocuments(config: CouchbaseConfig): Promise<CouchbaseDocument[]> {
+type DocumentSnapshot = { documents: CouchbaseDocument[]; lastSeq: unknown };
+let snapshotCache: { value: DocumentSnapshot; expiresAt: number } | undefined;
+let snapshotInFlight: Promise<DocumentSnapshot> | undefined;
+const SNAPSHOT_CACHE_MS = 20_000;
+
+async function getCachedSnapshot(config: CouchbaseConfig): Promise<DocumentSnapshot> {
+  if (snapshotCache && snapshotCache.expiresAt > Date.now()) return snapshotCache.value;
+  if (snapshotInFlight) return snapshotInFlight;
+  snapshotInFlight = fetchAllDocuments(config);
+  try {
+    const value = await snapshotInFlight;
+    snapshotCache = { value, expiresAt: Date.now() + SNAPSHOT_CACHE_MS };
+    return value;
+  } finally {
+    snapshotInFlight = undefined;
+  }
+}
+
+async function fetchAllDocuments(config: CouchbaseConfig): Promise<{ documents: CouchbaseDocument[]; lastSeq: unknown }> {
   const response = await fetch(`${collectionUrl(config)}/_changes?include_docs=true&style=all_docs`, {
     headers: {
       Authorization: `Basic ${Buffer.from(`${config.username}:${config.password}`).toString("base64")}`,
@@ -54,55 +59,11 @@ async function fetchAllDocuments(config: CouchbaseConfig): Promise<CouchbaseDocu
     throw new Error(`Couchbase _changes request failed with status ${response.status}`);
   }
 
-  const payload = (await response.json()) as { results?: Array<{ id?: string; doc?: CouchbaseDocument; deleted?: boolean }> };
-  return (payload.results ?? [])
+  const payload = (await response.json()) as { results?: Array<{ id?: string; doc?: CouchbaseDocument; deleted?: boolean }>; last_seq?: unknown };
+  const documents = (payload.results ?? [])
     .filter((row) => row.doc && !row.deleted && !row.id?.startsWith("_"))
     .map((row) => ({ ...row.doc, _id: row.doc?._id ?? row.id }));
-}
-
-function asNumber(value: unknown, fallback = 0): number {
-  const result = Number(value);
-  return Number.isFinite(result) ? result : fallback;
-}
-
-function asPercentage(value: unknown, fallback = 0): number {
-  return Math.round(asNumber(value, fallback));
-}
-
-function teamNumber(document: CouchbaseDocument): number {
-  return asNumber(document.team ?? document.data?.team ?? document.data?.teamNumber);
-}
-
-function teamName(document: CouchbaseDocument): string | undefined {
-  const data = document.data ?? document;
-  const value = data.teamName ?? data.team_name ?? data.name;
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
-
-function normalizeAggregate(document: CouchbaseDocument, names: Map<number, string>): TeamAggregate | null {
-  const data = document.data;
-  if (!data) return null;
-
-  const team = teamNumber({ ...document, data });
-  if (!team) return null;
-
-  return {
-    team,
-    name: names.get(team) ?? `Team ${team}`,
-    recordedAt: document.timestamp,
-    sourceId: document._id,
-    rawData: data,
-    rank: asNumber(data.standing),
-    matches: asNumber(data.matchesPlayed),
-    autoPpg: asNumber(data.autoPPG),
-    teleopPpg: asNumber(data.teleopPPG),
-    endgamePpg: asNumber(data.endgamePPG),
-    fuelPerMatch: asNumber(data.fuelscored),
-    fuelAccuracy: asPercentage(data.teleopFuelaccuracy ?? data.autoFuelaccuracy),
-    defenseRating: asNumber(data.avgDefenseSkill),
-    driverSkill: asNumber(data.avgDriverSkill),
-    breakRate: asPercentage(data.brokePercentage),
-  };
+  return { documents, lastSeq: payload.last_seq ?? 0 };
 }
 
 /**
@@ -117,7 +78,7 @@ export async function queryDocsByType(type: string): Promise<{ _default: Couchba
   if (!config) return [];
 
   try {
-    const documents = await fetchAllDocuments(config);
+    const { documents } = await getCachedSnapshot(config);
     return documents
       .filter((document) => document.type === type)
       .map((document) => ({ _default: document }));
@@ -140,7 +101,7 @@ export async function listDocumentTypes(): Promise<
   if (!config) return [];
 
   try {
-    const documents = await fetchAllDocuments(config);
+    const { documents } = await getCachedSnapshot(config);
     const byType = new Map<string, { count: number; sample: CouchbaseDocument }>();
 
     documents.forEach((document) => {
@@ -173,7 +134,7 @@ export async function queryDocsByIdPrefix(prefix: string): Promise<{ _default: C
   if (!config) return [];
 
   try {
-    const documents = await fetchAllDocuments(config);
+    const { documents } = await getCachedSnapshot(config);
     return documents
       .filter((document) => typeof document._id === 'string' && document._id.startsWith(prefix))
       .map((document) => ({ _default: document }));
@@ -183,29 +144,55 @@ export async function queryDocsByIdPrefix(prefix: string): Promise<{ _default: C
   }
 }
 
-export async function fetchTeamAggregates(): Promise<TeamAggregate[]> {
+export async function queryDashboardDocuments(kind: "matches" | "pit" | "reports", teamNumber: number): Promise<{ _default: Record<string, unknown> }[]> {
   const config = getConfig();
-  if (!config) return [];
+  if (!config || !Number.isSafeInteger(teamNumber) || teamNumber <= 0) return [];
+  try {
+    const { documents } = await getCachedSnapshot(config);
+    return documents.flatMap((document) => {
+      const id = document._id;
+      if (!id) return [];
+      const isMatch = kind === "matches" && new RegExp(`^scouting_${teamNumber}_\\d+$`).test(id);
+      const isPit = kind === "pit" && id === `pit_${teamNumber}`;
+      const isReport = kind === "reports" && new RegExp(`^report_(?:card_)?${teamNumber}_[A-Za-z0-9 ._-]{1,128}$`).test(id);
+      if (!isMatch && !isPit && !isReport) return [];
+      const safe = projectDashboardDocument(id, document);
+      return safe ? [{ _default: safe }] : [];
+    });
+  } catch (error) {
+    console.error(`Unable to load ${kind} dashboard documents.`, error);
+    return [];
+  }
+}
+
+export async function fetchTeamAggregates(): Promise<TeamAggregate[]> {
+  return (await fetchTeamAggregatesSnapshot()).teams;
+}
+
+export async function fetchTeamAggregatesSnapshot(): Promise<{ teams: TeamAggregate[]; lastSeq: unknown }> {
+  const config = getConfig();
+  if (!config) return { teams: [], lastSeq: 0 };
 
   try {
-    const documents = await fetchAllDocuments(config);
+    const { documents, lastSeq } = await getCachedSnapshot(config);
     const names = new Map<number, string>();
 
     documents
       .filter((document) => document.type === "pit")
       .forEach((document) => {
-        const team = teamNumber(document);
-        const name = teamName(document);
+        const team = getDocumentTeam(document);
+        const name = getDocumentTeamName(document);
         if (team && name) names.set(team, name);
       });
 
-    return documents
+    const teams = documents
       .filter((document) => document.type === "aggregate_data")
-      .map((document) => normalizeAggregate(document, names))
+      .map((document) => normalizeAggregateDocument(document, names))
       .filter((team): team is TeamAggregate => team !== null)
       .sort((left, right) => (left.rank || Number.MAX_SAFE_INTEGER) - (right.rank || Number.MAX_SAFE_INTEGER) || left.team - right.team);
+    return { teams, lastSeq };
   } catch (error) {
     console.error("Unable to fetch team aggregates from Couchbase.", error);
-    return [];
+    return { teams: [], lastSeq: 0 };
   }
 }

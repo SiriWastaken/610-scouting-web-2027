@@ -3,6 +3,8 @@ export interface TeamAggregate {
   name: string;
   recordedAt?: string;
   sourceId?: string;
+  /** Couchbase revision of the source document, used to order realtime updates. */
+  rev?: string;
   rawData: Record<string, unknown>;
   rank: number;
   matches: number;

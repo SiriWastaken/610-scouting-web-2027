@@ -1,10 +1,13 @@
 import { MetricBoard } from "@/components/metrics/metric-board";
-import { fetchTeamAggregates } from "@/services/couchbase";
+import { fetchTeamAggregatesSnapshot } from "@/services/couchbase";
+import { RealtimeConnection } from "@/components/realtime/realtime-connection";
 
 export default async function BoxPlotPage() {
-  const teams = await fetchTeamAggregates();
+  const { teams, lastSeq } = await fetchTeamAggregatesSnapshot();
 
   return (
+    <>
+    <RealtimeConnection initialCursor={lastSeq} />
     <MetricBoard
       teams={teams}
       initialStat="fuelscored"
@@ -12,5 +15,6 @@ export default async function BoxPlotPage() {
       title="Box Plot"
       description="Compare the spread of a scouting statistic across the event. Select a column heading to reorder the board."
     />
+    </>
   );
 }
