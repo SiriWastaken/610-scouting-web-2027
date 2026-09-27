@@ -1,5 +1,6 @@
 'use client';
 
+
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { TeamAggregate, TeamSortKey } from "@/types/scouting";
@@ -18,6 +19,7 @@ export function DataTable({ teams, compact = false }: { teams: TeamAggregate[]; 
   const [sortKey, setSortKey] = useState<TeamSortKey>("rank");
   const [ascending, setAscending] = useState(true);
   
+
   const filtered = useMemo(() => teams.filter((team) => `${team.team} ${team.name}`.toLowerCase().includes(query.toLowerCase())).sort((a, b) => {
     const result = a[sortKey] - b[sortKey];
     return ascending ? result : -result;
@@ -36,8 +38,14 @@ export function DataTable({ teams, compact = false }: { teams: TeamAggregate[]; 
     {teams.length === 0 ? <div className="border-t border-[var(--line)] px-4 py-12 text-center text-sm text-[var(--muted)]">No live aggregate data is available. Configure Couchbase to populate this table.</div> : <div className="overflow-x-auto">
       <table className="w-full min-w-[760px] border-collapse text-left text-xs">
         <thead className="bg-[#101613] font-mono text-[10px] uppercase tracking-wider text-[var(--muted)]">
+        
+        
           <tr><th className="px-4 py-3 font-normal">Team</th>{!compact && <th className="px-3 py-3 font-normal">Matches</th>}{columns.map((column) => <th key={column.key} className="px-3 py-3 text-right font-normal"><button onClick={() => changeSort(column.key)} className="hover:text-[var(--green)]">{column.label} {sortKey === column.key ? (ascending ? "↑" : "↓") : ""}</button></th>)}</tr>
+       
+       
         </thead>
+        
+        
         <tbody>{filtered.map((team, index) => <tr key={team.team} className="border-t border-[var(--line)] hover:bg-[var(--panel-raised)]">
           <td className="px-4 py-3"><Link href={`/teams/${team.team}`} className="flex items-center gap-3 hover:text-[var(--green)]"><span className="font-mono text-[var(--green)]">{team.team}</span><span className="text-[var(--foreground)]">{team.name}</span></Link></td>
           {!compact && <td className="px-3 py-3 font-mono text-[var(--muted)]">{team.matches}</td>}

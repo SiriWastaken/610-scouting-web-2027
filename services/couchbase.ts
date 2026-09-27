@@ -104,6 +104,84 @@ function normalizeAggregate(document: CouchbaseDocument, names: Map<number, stri
   };
 }
 
+/**
+ * Fetches every Couchbase doc whose `type` field matches, wrapped as
+ * `{ _default: doc }` so callers can pull the raw doc via `r._default`
+ * (this matches the shape CardReportsTable / TeamsClientView expect).
+ *
+ * e.g. queryDocsByType('report_card'), queryDocsByType('match'), queryDocsByType('pit')
+ */
+export async function queryDocsByType(type: string): Promise<{ _default: CouchbaseDocument }[]> {
+  const config = getConfig();
+  if (!config) return [];
+
+  try {
+    const documents = await fetchAllDocuments(config);
+    return documents
+      .filter((document) => document.type === type)
+      .map((document) => ({ _default: document }));
+  } catch (error) {
+    console.error(`Unable to query Couchbase docs of type "${type}".`, error);
+    return [];
+  }
+}
+
+/**
+ * Diagnostic helper: returns every distinct `type` value present in the
+ * bucket along with how many docs have it (plus one sample doc per type),
+ * so you can find the real name your match-scouting docs use without
+ * guessing. Call this from the browser console or a component effect.
+ */
+export async function listDocumentTypes(): Promise<
+  { type: string; count: number; sample: CouchbaseDocument }[]
+> {
+  const config = getConfig();
+  if (!config) return [];
+
+  try {
+    const documents = await fetchAllDocuments(config);
+    const byType = new Map<string, { count: number; sample: CouchbaseDocument }>();
+
+    documents.forEach((document) => {
+      const key = document.type ?? '(no type field)';
+      const existing = byType.get(key);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        byType.set(key, { count: 1, sample: document });
+      }
+    });
+
+    return Array.from(byType.entries())
+      .map(([type, { count, sample }]) => ({ type, count, sample }))
+      .sort((a, b) => b.count - a.count);
+  } catch (error) {
+    console.error('Unable to list Couchbase document types.', error);
+    return [];
+  }
+}
+
+/**
+ * Fetches every doc whose `_id` starts with the given prefix, wrapped as
+ * `{ _default: doc }`. Your scouting docs are keyed like
+ * `scouting_<teamNumber>_<matchNumber>` rather than by a `type` field, so
+ * this is how TeamsClientView finds match entries — `queryDocsByIdPrefix('scouting_')`.
+ */
+export async function queryDocsByIdPrefix(prefix: string): Promise<{ _default: CouchbaseDocument }[]> {
+  const config = getConfig();
+  if (!config) return [];
+
+  try {
+    const documents = await fetchAllDocuments(config);
+    return documents
+      .filter((document) => typeof document._id === 'string' && document._id.startsWith(prefix))
+      .map((document) => ({ _default: document }));
+  } catch (error) {
+    console.error(`Unable to query Couchbase docs with id prefix "${prefix}".`, error);
+    return [];
+  }
+}
+
 export async function fetchTeamAggregates(): Promise<TeamAggregate[]> {
   const config = getConfig();
   if (!config) return [];

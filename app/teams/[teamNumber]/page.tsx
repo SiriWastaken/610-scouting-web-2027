@@ -2,10 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { fetchTeamAggregates } from "@/services/couchbase";
 
-export default async function TeamDetailPage({ params }: { params: Promise<{ team: string }> }) {
-  const { team: teamParam } = await params;
-  const teamNumber = Number(teamParam);
-  const team = (await fetchTeamAggregates()).find((candidate) => candidate.team === teamNumber);
+export default async function TeamDetailPage({ params }: { params: Promise<{ teamNumber: string }> }) {
+  const { teamNumber } = await params;
+  const teamId = Number(teamNumber);
+  const team = (await fetchTeamAggregates()).find((candidate) => candidate.team === teamId);
   if (!team) notFound();
 
   const metrics = [
