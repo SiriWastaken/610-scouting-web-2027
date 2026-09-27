@@ -26,6 +26,7 @@ function getConfig(): CouchbaseConfig | null {
     password: 'FRCTeam61)',
     scope: "_default",
     collection: "_default",
+    test: "testValue"
   };
 
   if (!values.baseUrl || !values.database || !values.username || !values.password) {
