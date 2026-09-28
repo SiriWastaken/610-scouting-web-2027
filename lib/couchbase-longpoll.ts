@@ -1,4 +1,5 @@
 import { parseChangesFrame, isCursor, type RealtimeFrame } from "./realtime-protocol.ts";
+import { recordUpstreamPoll } from "./ops/metrics.ts";
 
 export interface CouchbaseChangesConfig { url: string; authorization: string }
 export type FeedFrameHandler = (frame: RealtimeFrame) => void;
@@ -52,6 +53,7 @@ export function startCouchbaseLongPoll(
     }
   };
   const deliver = (payload: { results?: unknown[]; last_seq?: unknown }) => {
+    recordUpstreamPoll(true, { lastSeq: payload.last_seq });
     for (const frame of parseChangesFrame(payload.results ?? [])) onFrame(frame);
     if (isCursor(payload.last_seq)) {
       cursor = payload.last_seq;
@@ -72,6 +74,7 @@ export function startCouchbaseLongPoll(
       }
     } catch (error) {
       if (stopped) return;
+      recordUpstreamPoll(false, { error });
       onError(error instanceof FeedError ? error : new FeedError(error instanceof Error ? error.message : "Sync Gateway changes feed failed"));
     }
   })();

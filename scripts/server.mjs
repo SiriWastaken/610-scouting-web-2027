@@ -5,6 +5,7 @@ import { EventEmitter } from "node:events";
 import { createServer } from "node:http";
 import next from "next";
 import { createRealtimeUpgradeHandler } from "../lib/realtime-server.ts";
+import { recordHttpRequest } from "../lib/ops/metrics.ts";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOST;
@@ -19,7 +20,12 @@ await app.prepare();
 
 const handle = app.getRequestHandler();
 const handleRealtimeUpgrade = createRealtimeUpgradeHandler();
-const server = createServer((request, response) => handle(request, response));
+const server = createServer((request, response) => {
+  // Request counts, status classes, and latency for the admin panel's API view.
+  const started = performance.now();
+  response.once("finish", () => recordHttpRequest(request.method ?? "GET", request.url ?? "/", response.statusCode, performance.now() - started));
+  return handle(request, response);
+});
 
 server.on("upgrade", (request, socket, head) => {
   if (handleRealtimeUpgrade(request, socket, head)) return;
