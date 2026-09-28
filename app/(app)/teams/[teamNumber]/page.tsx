@@ -1,4 +1,6 @@
 import { connection } from "next/server";
+import { requirePage } from "@/lib/auth/next";
+import { AccessDenied } from "@/components/auth/access-denied";
 import { notFound } from "next/navigation";
 import { fetchTeamAggregatesSnapshot } from "@/services/couchbase";
 import { RealtimeConnection } from "@/components/realtime/realtime-connection";
@@ -7,6 +9,7 @@ import { TeamDetailLive } from "@/components/teams/team-detail-live";
 export default async function TeamDetailPage({ params }: { params: Promise<{ teamNumber: string }> }) {
   // Live data: render per request even when the build had no Couchbase settings.
   await connection();
+  if (!(await requirePage("dashboard:read")).allowed) return <AccessDenied />;
   const { teamNumber } = await params;
   const teamId = Number(teamNumber);
   const { teams, lastSeq, names } = await fetchTeamAggregatesSnapshot();

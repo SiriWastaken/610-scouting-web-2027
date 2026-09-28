@@ -1,4 +1,6 @@
 import { connection } from "next/server";
+import { requirePage } from "@/lib/auth/next";
+import { AccessDenied } from "@/components/auth/access-denied";
 import { StrategyTools } from "@/components/strategy/strategy-tools";
 import { fetchTeamAggregatesSnapshot } from "@/services/couchbase";
 import { RealtimeConnection } from "@/components/realtime/realtime-connection";
@@ -6,6 +8,7 @@ import { RealtimeConnection } from "@/components/realtime/realtime-connection";
 export default async function StrategyPage() {
   // Live data: render per request even when the build had no Couchbase settings.
   await connection();
+  if (!(await requirePage("dashboard:read")).allowed) return <AccessDenied />;
   const { teams, lastSeq, names } = await fetchTeamAggregatesSnapshot();
   return <div className="mx-auto max-w-[1080px]">
     <RealtimeConnection initialCursor={lastSeq} initialNames={names} />

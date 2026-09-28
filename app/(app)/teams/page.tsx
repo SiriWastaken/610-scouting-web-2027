@@ -1,5 +1,7 @@
 // app/teams/page.tsx
 import { connection } from 'next/server';
+import { requirePage } from '@/lib/auth/next';
+import { AccessDenied } from '@/components/auth/access-denied';
 import { fetchTeamAggregatesSnapshot } from '@/services/couchbase';
 import TeamsClientView from '@/components/teamClientView';
 import { RealtimeConnection } from '@/components/realtime/realtime-connection';
@@ -7,6 +9,7 @@ import { RealtimeConnection } from '@/components/realtime/realtime-connection';
 export default async function TeamsPage() {
   // Live data: render per request even when the build had no Couchbase settings.
   await connection();
+  if (!(await requirePage("dashboard:read")).allowed) return <AccessDenied />;
   // 1. Fetch team aggregates from Couchbase (Server-side)
   const { teams: teamStats, lastSeq, names } = await fetchTeamAggregatesSnapshot();
 

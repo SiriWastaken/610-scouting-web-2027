@@ -44,3 +44,35 @@ select {
     linear-gradient(90deg, rgba(120, 192, 145, 0.035) 1px, transparent 1px);
   background-size: 32px 32px;
 }
+
+/* Welcome screen: a slow scan across the field grid. */
+@keyframes grid-scan {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(100vh); }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.welcome-scan::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 30vh;
+  background: linear-gradient(180deg, transparent, rgba(120, 192, 145, 0.06), transparent);
+  animation: grid-scan 9s linear infinite;
+  pointer-events: none;
+}
+
+.rise-in {
+  animation: rise-in 0.5s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-scan::after,
+  .rise-in {
+    animation: none;
+  }
+}
