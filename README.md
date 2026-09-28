@@ -2,13 +2,103 @@
 
 Next.js web platform for Team 610 scouting analysis. The Teams, Averages, and Box Plot pages read aggregate data from Couchbase through the server-only repository at `services/couchbase.ts`.
 
-Everyone signs in with Google or Apple first. Accounts have roles (member, scout, scout lead, admin, root) enforced by the server, and admins get an operations panel for system health, realtime, sync, users, and the audit log.
+Everyone signs in with Google (or Apple) first. The server enforces five roles: **Owner** (set in configuration; everything, including names), **Mentor**, **Scout lead**, **Scout**, and **Member**. Mentors and the Owner get an operations panel for system health, realtime, sync, users, and the audit log.
 
 | Guide | What's in it |
 |---|---|
 | [docs/authentication.md](docs/authentication.md) | Sign-in setup (Google, Apple, the account store), environment variables, roles and permissions, sessions, account management, audit log, security, local development, troubleshooting |
 | [docs/operations.md](docs/operations.md) | The admin panel: health checks, WebSocket and sync monitoring, API metrics, diagnostics, limitations, event-day troubleshooting |
 | [tests/README.md](tests/README.md) | The test bench |
+
+## Project map
+
+Every file, grouped by what it's for. Pages and API routes live where Next.js
+requires (one folder per URL); everything else is grouped by topic.
+
+**Pages** (`app/`)
+
+| File | What it is |
+|---|---|
+| `app/layout.tsx`, `app/globals.css` | The HTML shell, fonts, and colours for every page |
+| `app/welcome/page.tsx` | The sign-in page (and "waiting for approval") |
+| `app/(app)/layout.tsx` | Everything behind sign-in: the sidebar shell and the signed-in user |
+| `app/(app)/page.tsx` | `/` sends you to Teams |
+| `app/(app)/teams/page.tsx`, `teams/[teamNumber]/page.tsx` | Teams list and one team |
+| `app/(app)/averages/page.tsx`, `box-plot/page.tsx`, `strategy/page.tsx`, `coverage/page.tsx` | The other dashboard tabs |
+| `app/(app)/account/page.tsx` | Your account |
+| `app/(app)/admin/layout.tsx` | The admin area's header, tabs, and access check |
+| `app/(app)/admin/**/page.tsx` | One file per admin tab (overview, realtime, sync, api, users, users/[id], audit, diagnostics) |
+
+**API routes** (`app/api/`, each `route.ts` is one URL)
+
+| Route | What it does |
+|---|---|
+| `auth/signin/[provider]`, `auth/callback/[provider]`, `auth/signout`, `auth/session` | Start sign-in, finish it, sign out, "who am I" |
+| `account`, `account/sessions` | Your own account; sign out other devices |
+| `admin/overview`, `admin/diagnostics` | Health and metrics; run all checks now |
+| `admin/users`, `admin/users/[id]`, `admin/users/[id]/sessions` | List, view/change one account, sign it out everywhere |
+| `admin/audit` | Read the audit log |
+| `dashboard-documents` | Team match, pit, and card-report documents for the dashboard |
+| `realtime` | The live-updates WebSocket on Vercel (locally, `scripts/server.mjs` serves it) |
+
+**Components** (`components/`)
+
+| File | What it is |
+|---|---|
+| `ui/kit.tsx` | Shared building blocks: panels, fields, buttons, status pills, stat tiles, empty and access-denied states, date formatting |
+| `layout/app-shell.tsx`, `layout/nav-links.tsx` | The sidebar and its tab links |
+| `dashboard/teams-view.tsx` | The Teams tab (match log, card reports, team switcher) |
+| `dashboard/team-detail.tsx`, `metric-board.tsx`, `coverage.tsx`, `strategy-tools.tsx` | One team, the Averages/Box Plot board, Coverage, Strategy |
+| `dashboard/live-status.tsx` | The "Live updates on" bar that keeps a page connected |
+| `auth/identity.tsx` | Avatars, Google/Apple icons, role and status badges |
+| `auth/session.tsx` | The signed-in user in the browser, and the account chip with sign-out |
+| `auth/sign-in.tsx` | The sign-in buttons |
+| `auth/account-panel.tsx` | The Account page |
+| `admin/shell.tsx` | What all admin tabs share: the one overview request, tabs, refresh bar |
+| `admin/health.tsx` | Overview, Sync, API, and Diagnostics tabs |
+| `admin/realtime.tsx` | Realtime tab and the WebSocket self-test |
+| `admin/users.tsx` | Users list and one user's page |
+| `admin/audit-log.tsx` | Audit log tab |
+| `charts/box-plot-chart.tsx`, `dataTable.tsx` | Not used by any page yet (kept from the earlier app) |
+
+**Server logic** (`lib/`, `services/`, root files)
+
+| File | What it is |
+|---|---|
+| `lib/auth/roles.ts` | The roles and every permission rule (the only place they're decided) |
+| `lib/auth/config.ts` | Sign-in settings from the environment, with checks |
+| `lib/auth/sign-in.ts` | Google/Apple sign-in: tokens, ID-token verification, state/nonce/PKCE |
+| `lib/auth/accounts.ts` | Accounts: finding or creating one at sign-in, the Owner, manager edits |
+| `lib/auth/sessions.ts` | Sessions: create, check, expire, revoke |
+| `lib/auth/audit.ts` | The audit log |
+| `lib/auth/store.ts` | Where accounts live: Sync Gateway, or a local file in development |
+| `lib/auth/requests.ts` | "Who is asking?" for every request, and the API route guard |
+| `lib/auth/pages.ts` | The access check for pages |
+| `lib/realtime/protocol.ts` | The live-updates message format and the field allow-list (privacy) |
+| `lib/realtime/documents.ts` | The browser's latest copy of each document |
+| `lib/realtime/client.ts`, `hooks.ts` | The browser's WebSocket connection and the React hooks that use it |
+| `lib/realtime/server.ts`, `bridge.ts`, `couchbase-feed.ts` | The WebSocket server: upgrade checks, per-connection relay, Sync Gateway long-poll |
+| `lib/data/couchbase-config.ts` | Couchbase connection settings |
+| `lib/data/aggregates.ts`, `match-data.ts` | Turning scouting documents into team rows and match rows |
+| `lib/ops/metrics.ts` | Counters for the admin panel (connections, requests, errors) |
+| `services/couchbase.ts` | Reading scouting data from Sync Gateway (with a 20 s cache) and Sync Gateway health probes |
+| `services/health.ts` | The admin panel's health checks |
+| `tba/blueAlliance.ts` | The Blue Alliance API client (not used yet) |
+| `types/scouting.ts` | Shared scouting data types |
+| `proxy.ts` | Sends signed-out visitors to the sign-in page (pages re-check for real) |
+| `instrumentation.ts` | Records server errors for the admin panel |
+| `next.config.ts` | Build info and security headers |
+
+**Scripts and tests**
+
+| File | What it is |
+|---|---|
+| `scripts/server.mjs` | The Node server `npm run dev` / `npm start` run (Next.js plus WebSockets) |
+| `scripts/check-auth.mjs` | `npm run auth:check`: diagnose sign-in setup |
+| `scripts/test-bench/*` | The test runner, its manifest of required tests and coverage floors, and hygiene checks |
+| `scripts/test-infra/*` | Start/stop a real Couchbase + Sync Gateway in Docker for tests |
+| `tests/` | The test suites; each folder's README lists its files ([tests/README.md](tests/README.md)) |
+| `.env.example` | Every setting, with placeholders; copy to `.env.local` |
 
 ## Development
 

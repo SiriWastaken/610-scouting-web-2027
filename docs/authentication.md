@@ -43,14 +43,13 @@ No authentication library is added: the flow is ~300 lines in `lib/auth/` on
 |---|---|
 | Role model and every permission rule | `lib/auth/roles.ts` |
 | Settings from the environment | `lib/auth/config.ts` |
-| OAuth/OIDC flow, return-path safety | `lib/auth/oidc.ts`, `lib/auth/jwt.ts`, `lib/auth/crypto.ts` |
-| Accounts: sign-in resolution, admin edits, ROOT safeguards | `lib/auth/accounts.ts` |
+| Google/Apple sign-in: tokens, ID-token verification, state/nonce/PKCE, return paths | `lib/auth/sign-in.ts` |
+| Accounts: sign-in resolution, the Owner, manager edits, Owner-only names | `lib/auth/accounts.ts` |
 | Sessions | `lib/auth/sessions.ts` |
 | Audit log | `lib/auth/audit.ts` |
-| Account store (Sync Gateway REST) | `lib/auth/store.ts` |
-| Request authentication (shared by Next.js and the WebSocket server) | `lib/auth/runtime.ts` |
-| API route guard (401/403/503, CSRF, audited denials) | `lib/auth/http.ts` |
-| Page guard (redirect to the welcome screen, access-denied state) | `lib/auth/next.ts` |
+| Account store (Sync Gateway REST, or a local file in development) | `lib/auth/store.ts` |
+| Who is asking (shared by Next.js and the WebSocket server), the API route guard (401/403/503, CSRF, audited denials) | `lib/auth/requests.ts` |
+| Page guard (redirect to the sign-in page, access-denied state) | `lib/auth/pages.ts` |
 | Optimistic redirect for signed-out visitors | `proxy.ts` |
 
 **Where the checks happen.** `proxy.ts` only sends visitors *without a session
@@ -80,8 +79,8 @@ real values.
 | `AUTH_STORE_URL` | no | Sync Gateway public URL for that database. Defaults to `COUCHBASE_SYNC_GATEWAY_URL`. |
 | `AUTH_STORE_SCOPE`, `AUTH_STORE_COLLECTION` | no | Keep accounts in a named collection instead (e.g. `app` / `auth`), which may be in the same database as the scouting data. Or write the whole keyspace in `AUTH_STORE_DATABASE`, e.g. `scoutingapp2027.app.auth`. Default `_default`. |
 | `AUTH_STORE=local` | development only | Keep accounts, sessions, and the audit log in `.data/auth-store.json` (or `AUTH_STORE_LOCAL_PATH`) instead of Sync Gateway, with real Google/Apple sign-in. For working on the app before the account collection is reachable. Refused when `NODE_ENV=production`; delete the line once `npm run auth:check` passes against Sync Gateway. |
-| `AUTH_ROOT_EMAILS` | recommended | Comma-separated emails that are always active `ROOT`. Bootstraps the first admin and can't be demoted or disabled from the app. |
-| `AUTH_AUTO_APPROVE` | no | Comma-separated emails or `@domains` that are active `MEMBER`s on first sign-in. Everyone else is `pending` until a scout lead or admin approves them. |
+| `AUTH_OWNER_EMAILS` | recommended | Comma-separated emails that are always the active **Owner** (every permission; the only one who manages mentors and changes names). Can't be changed or disabled from the app. The earlier name `AUTH_ROOT_EMAILS` still works. |
+| `AUTH_AUTO_APPROVE` | no | Comma-separated emails or `@domains` that are active `MEMBER`s on first sign-in. Everyone else is `pending` until a scout lead, mentor, or the Owner approves them. |
 | `AUTH_SESSION_MAX_AGE_HOURS` | no | Absolute session lifetime. Default 720 (30 days). |
 | `AUTH_SESSION_IDLE_HOURS` | no | Sign out after this long without activity. Default 168 (7 days). |
 | `AUTH_OIDC_ENDPOINT_OVERRIDE` | **tests only** | Points Google/Apple endpoints at a local stand-in (`tests/helpers/fake-oidc.ts`). Never set in production. |
@@ -144,21 +143,22 @@ Document ids: `user_<id>`, `identity_<provider>_<hash>`, `email_<hash>`,
 `session_<userId>_<hash>`, `audit_<ms>_<random>`, and short-lived `diag_*`
 documents from the diagnostics round trip.
 
-### The first admin
+### The Owner
 
-Put your email in `AUTH_ROOT_EMAILS`, deploy, and sign in: you are `ROOT`. Then
-promote others from **Admin → Users**. Roots from `AUTH_ROOT_EMAILS` are
-permanent until removed from the variable.
+Put your email in `AUTH_OWNER_EMAILS`, deploy, and sign in: you are the **Owner**.
+Then give mentors and scout leads their roles from **Admin → Users**. Ownership
+lives only in that variable: it can't be granted, removed, or disabled from the
+app, and a role stored in the database never makes anyone an Owner.
 
 ## Roles and permissions
 
-| Role | Can |
-|---|---|
-| `MEMBER` | Read every scouting page and the live feed. |
-| `SCOUT` | Same as member (the role records who scouts; tablets write to Sync Gateway directly). |
-| `SCOUT_LEAD` | + see the user list; approve pending accounts; manage **members and scouts** (names, role, disable, sign out). |
-| `ADMIN` | + the operations panel, diagnostics, and audit log; manage everyone **below admin** (up to scout lead). |
-| `ROOT` | + manage admins and other roots, grant any role. |
+| Role | Can | Who gives it |
+|---|---|---|
+| `MEMBER` | Read every scouting page and the live feed. Everyone starts here. | automatic |
+| `SCOUT` | Same as member (the role records who scouts; tablets write to Sync Gateway directly). | scout lead, mentor, Owner |
+| `SCOUT_LEAD` | + the user list; approve pending accounts; manage **members and scouts** (role, status, note, sign-out). | mentor, Owner |
+| `MENTOR` | + the operations panel, diagnostics, and audit log; manage everyone **below mentor**. | Owner |
+| `OWNER` | Everything, bypassing every check; the only role that manages mentors and **changes names**. | `AUTH_OWNER_EMAILS` only |
 
 Permissions (`lib/auth/roles.ts`, the only place these are decided):
 
@@ -167,21 +167,23 @@ Permissions (`lib/auth/roles.ts`, the only place these are decided):
 | `dashboard:read` | MEMBER | every scouting page, `GET /api/dashboard-documents`, the realtime WebSocket |
 | `users:read` | SCOUT_LEAD | `/admin/users`, `GET /api/admin/users[/:id]` |
 | `users:manage` | SCOUT_LEAD | `PATCH /api/admin/users/:id`, `DELETE /api/admin/users/:id/sessions` (further limited below) |
-| `ops:read` | ADMIN | `/admin`, `/admin/realtime`, `/admin/sync`, `/admin/api`, `GET /api/admin/overview` |
-| `ops:diagnose` | ADMIN | `/admin/diagnostics`, `POST /api/admin/diagnostics` |
-| `audit:read` | ADMIN | `/admin/audit`, `GET /api/admin/audit` |
+| `users:rename` | OWNER | changing any display or scout name, including your own (`PATCH /api/admin/users/:id`, `PATCH /api/account`) |
+| `ops:read` | MENTOR | `/admin`, `/admin/realtime`, `/admin/sync`, `/admin/api`, `GET /api/admin/overview` |
+| `ops:diagnose` | MENTOR | `/admin/diagnostics`, `POST /api/admin/diagnostics` |
+| `audit:read` | MENTOR | `/admin/audit`, `GET /api/admin/audit` |
 
-Every permission also requires the account to be **active**: `pending` and
-`disabled` accounts can do nothing except see their own status and sign out.
+Every permission also requires the account to be **active** (`pending` and
+`disabled` accounts can only see their status and sign out), except for the
+Owner, who passes every check.
 
 Rules for changing another account (`canManageUser`, `assignableRoles`):
 
-- **Nobody changes their own account** through the admin routes (no self-elevation, no self-lockout). Your own profile route accepts display name and scout name only; any other field, such as `role`, is refused with 400 and audited.
-- You may manage an account only if its role is **strictly below yours**; ROOT may also manage other ROOTs.
-- You may grant only roles strictly below yours; ROOT may grant any role.
-- Roots from `AUTH_ROOT_EMAILS` can't be changed from the app at all.
-- The **last active ROOT** can't be demoted or disabled (409 `last_root`); configured roots that haven't signed in yet count.
-- The admin UI additionally asks you to type the person's email before a change that grants or removes admin-level access or disables an account.
+- **Nobody changes their own role or status** (no self-elevation, no self-lockout). The profile route accepts display and scout name only (Owner only); any other field, such as `role`, is refused with 400 and audited.
+- You may manage an account only if its role is **strictly below yours**; nobody manages the Owner.
+- You may grant only roles strictly below yours; `OWNER` is never grantable.
+- **Only the Owner changes names**, anyone's. Mentors and scout leads can still keep a private note on accounts they manage.
+- Roles saved before the Owner/Mentor model (`ADMIN`, `ROOT`) read as `MENTOR`.
+- The admin UI additionally asks you to type the person's email before a change that grants or removes mentor access or disables an account.
 
 ## Sessions
 
@@ -202,19 +204,19 @@ Pending accounts have an **Approve** button right in the list.
 
 An account's page lets permitted managers:
 
-- edit **display name**, **scout name** (links their tablet submissions), and a private **admin note**;
+- edit a private **admin note**, and (Owner only) the **display name** and **scout name** (links their tablet submissions);
 - change the **role** (only to roles they may grant);
 - **approve**, **disable** (ends all their sessions immediately), or **re-enable**;
 - **sign them out everywhere**;
-- see their sign-in methods, sessions (device, last active, expiry), and recent audit history (admins).
+- see their sign-in methods, sessions (device, last active, expiry), and recent audit history (mentors and the Owner).
 
 Edits carry the revision they were based on; if someone else changed the account
 in the meantime, the edit is refused (409) instead of overwriting.
 Email addresses can't be edited: they come from the provider and link sign-ins.
 
-Users edit their own display and scout name in **Account** (the avatar in the
-sidebar's bottom corner), see their role and sessions there, and can sign out
-other devices.
+Everyone sees their names, role, and sessions in **Account** (the avatar in the
+sidebar's bottom corner) and can sign out other devices there. Only the Owner
+can edit names, their own included.
 
 ## Audit log
 
@@ -263,8 +265,8 @@ node --experimental-strip-types tests/helpers/run-fake-auth.ts > .env.auth.local
 npm run dev
 ```
 
-With the fake provider, **Continue with Google** signs in as the configured root
-(`root@team610.test`) and **Continue with Apple** as a new, pending scout. Its
+With the fake provider, **Continue with Google** signs in as the configured Owner
+(`owner@team610.test`) and **Continue with Apple** as a new, pending scout. Its
 accounts live in memory and disappear when the process stops.
 
 ## Troubleshooting
@@ -289,7 +291,8 @@ It prints what to fix, never secrets. When sign-in fails after the provider appr
 | Apple: return URL error at Apple | Return URL and domain must be registered on the **Services ID**; Apple rejects `http` and `localhost`. |
 | "That sign-in link expired or was opened in a different browser" (`state_mismatch`) | Cookies blocked, sign-in started in another browser/tab profile, or `AUTH_URL` differs from the address in use (the state cookie is set for one origin). |
 | "Accounts are temporarily unavailable" | The account store isn't reachable: check `AUTH_STORE_*` and Sync Gateway. |
-| Signed in but "Waiting for approval" | Expected for emails not in `AUTH_AUTO_APPROVE`: a scout lead or admin approves them in Admin → Users. |
-| Lost every ROOT | Add your email to `AUTH_ROOT_EMAILS` and redeploy. |
+| Signed in but "Waiting for approval" | Expected for emails not in `AUTH_AUTO_APPROVE`: a scout lead, mentor, or the Owner approves them in Admin → Users. |
+| Can't open Admin, or you're not the Owner | Your sign-in email must be in `AUTH_OWNER_EMAILS` exactly (case doesn't matter). Fix it and restart the server. |
+| A mentor or scout lead can't change someone's name | Expected: only the Owner changes names. |
 | Role change not visible yet | Sessions are cached for up to 10 s per server process; reload after that. |
 | Live updates stop with "Disconnected" after a while | The session ended (revoked or expired): the page sends the user to sign in again. |

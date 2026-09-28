@@ -1,6 +1,6 @@
 # Operations: the admin panel
 
-**Admin** (the `06` item in the sidebar, shown to scout leads and above) is where
+**Admin** (the `06` item in the sidebar, shown to scout leads, mentors, and the Owner) is where
 you answer "is everything working?" at an event, manage who has access, and see
 what changed. Access rules are in [authentication.md](authentication.md#roles-and-permissions);
 scout leads see only **Users**.
@@ -45,7 +45,7 @@ unknown, or unconfigured, otherwise **ok**. Idle does not lower it.
 
 ## WebSocket monitoring
 
-Recorded by `lib/realtime-bridge.ts` and `lib/realtime-server.ts` into `lib/ops/metrics.ts`:
+Recorded by `lib/realtime/bridge.ts` and `lib/realtime/server.ts` into `lib/ops/metrics.ts`:
 
 - **Active connections** with account role and id, age, starting sequence, frames and changes sent, last frame time.
 - **Connected / closed** totals and **connection length** (median and p95 of the last 200 closed connections).
