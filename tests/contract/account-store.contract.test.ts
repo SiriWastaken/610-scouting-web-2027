@@ -14,7 +14,7 @@ const created = new Set<string>();
 
 before(async () => {
   target = await startGatewayTarget();
-  store = new AuthStore({ url: target.origin, database: target.database, username: target.username, password: target.password });
+  store = new AuthStore({ url: target.origin, database: target.database, username: target.username, password: target.password, scope: "_default", collection: "_default" });
 });
 after(async () => {
   for (const id of created) { const doc = await store.get(id).catch(() => null); if (doc) await store.remove(id, doc.rev).catch(() => {}); }
@@ -71,9 +71,23 @@ test("account store contract: database info reports Online and a sequence", asyn
   assert.ok(info.latencyMs >= 0);
 });
 
+test("account store contract: a database that does not exist is a configuration error, never 'no such account'", async () => {
+  // Sync Gateway answers 404 for a missing database as well as a missing document; treating the first
+  // as "not found" once let sign-in continue until its first write failed with an unexplained 404.
+  const missing = new AuthStore({ url: target.origin, database: `no_such_db_${process.env.TEST_SEED ?? 0}`, username: target.username, password: target.password, scope: "_default", collection: "_default" });
+  for (const call of [() => missing.get("user_u0"), () => missing.info(), () => missing.create(`${prefix}x`, { type: "t" })]) {
+    await assert.rejects(call(), (error: unknown) => error instanceof StoreUnavailableError && /does not exist|HTTP 40[13]/.test(error.message));
+  }
+});
+
+test("account store contract: a document Sync Gateway refuses is an error that carries its reason, not a silent failure", async () => {
+  await assert.rejects(store.create(`${prefix}reserved`, { type: "t", _reserved: true }), (error: unknown) => error instanceof StoreUnavailableError && /HTTP 400: .*beginning with '_'/.test(error.message));
+  assert.equal(await store.get(`${prefix}reserved`), null, "nothing was written");
+});
+
 test("account store contract: wrong credentials and an unreachable server are 'unavailable', never 'not found'", async () => {
-  const wrong = new AuthStore({ url: target.origin, database: target.database, username: target.username, password: "wrong-password" });
+  const wrong = new AuthStore({ url: target.origin, database: target.database, username: target.username, password: "wrong-password", scope: "_default", collection: "_default" });
   await assert.rejects(wrong.get(`${prefix}unique`), StoreUnavailableError);
-  const nowhere = new AuthStore({ url: "http://127.0.0.1:9", database: target.database, username: "x", password: "y" });
+  const nowhere = new AuthStore({ url: "http://127.0.0.1:9", database: target.database, username: "x", password: "y", scope: "_default", collection: "_default" });
   await assert.rejects(nowhere.get("anything"), StoreUnavailableError);
 });

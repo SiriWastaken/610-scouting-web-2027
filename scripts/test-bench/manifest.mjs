@@ -21,7 +21,7 @@ export const suites = {
       "tests/unit/realtime/protocol-and-privacy.test.ts": 15,
       "tests/unit/realtime/session-bound-connections.test.ts": 3,
       "tests/unit/auth/roles-and-permissions.test.ts": 6,
-      "tests/unit/auth/auth-helpers.test.ts": 12,
+      "tests/unit/auth/auth-helpers.test.ts": 15,
     },
   },
   integration: {
@@ -33,7 +33,7 @@ export const suites = {
       "tests/integration/realtime/live-sync-over-sockets.test.ts": 12,
       "tests/integration/resilience/concurrent-writes.test.ts": 6,
       "tests/integration/resilience/failure-injection.test.ts": 13,
-      "tests/integration/auth/sign-in-flow.test.ts": 13,
+      "tests/integration/auth/sign-in-flow.test.ts": 16,
       "tests/integration/auth/sessions.test.ts": 10,
       "tests/integration/auth/user-management.test.ts": 10,
       "tests/integration/auth/audit-log.test.ts": 6,
@@ -56,7 +56,7 @@ export const suites = {
     timeoutMs: 120_000,
     files: {
       "tests/contract/sync-gateway.contract.test.ts": 13,
-      "tests/contract/account-store.contract.test.ts": 6,
+      "tests/contract/account-store.contract.test.ts": 8,
     },
   },
   stress: {

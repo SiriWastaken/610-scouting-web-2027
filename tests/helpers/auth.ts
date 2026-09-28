@@ -12,6 +12,8 @@ import { FakeOidcProvider, type Provider } from "./fake-oidc.ts";
 
 export const TEST_AUTH_SECRET = "test-auth-secret-0123456789abcdef-0123456789";
 export const AUTH_DATABASE = "scouting_auth";
+export const AUTH_SCOPE = "app";
+export const AUTH_COLLECTION = "auth";
 export const CONFIGURED_ROOT = "root@team610.test";
 
 export interface TestUser { userId: string; email: string; role: Role; status: AccountStatus; token: string; cookie: string }
@@ -31,7 +33,10 @@ export interface TestAuth {
 let counter = 0;
 
 export async function startTestAuth(options: { baseUrl?: string } = {}): Promise<TestAuth> {
-  const store = new FakeSyncGateway(AUTH_DATABASE);
+  // Accounts in a named collection of the database, the way the team's Couchbase is set up (scope `app`, collection `auth`).
+  const store = new FakeSyncGateway(AUTH_DATABASE, { scope: AUTH_SCOPE, collection: AUTH_COLLECTION });
+  // Capella App Services refuses public _all_docs; so does this store, so nothing can quietly depend on it.
+  store.publicAllDocs = false;
   await store.start();
   const oidc = new FakeOidcProvider();
   await oidc.start();
@@ -40,7 +45,8 @@ export async function startTestAuth(options: { baseUrl?: string } = {}): Promise
     store, oidc, baseUrl,
     env: () => ({
       AUTH_URL: baseUrl, AUTH_SECRET: TEST_AUTH_SECRET,
-      AUTH_STORE_URL: store.origin, AUTH_STORE_DATABASE: AUTH_DATABASE, AUTH_STORE_USERNAME: FAKE_USERNAME, AUTH_STORE_PASSWORD: FAKE_PASSWORD,
+      AUTH_STORE_URL: store.origin, AUTH_STORE_DATABASE: AUTH_DATABASE, AUTH_STORE_SCOPE: AUTH_SCOPE, AUTH_STORE_COLLECTION: AUTH_COLLECTION,
+      AUTH_STORE_USERNAME: FAKE_USERNAME, AUTH_STORE_PASSWORD: FAKE_PASSWORD,
       AUTH_ROOT_EMAILS: CONFIGURED_ROOT, AUTH_AUTO_APPROVE: "@team610.test",
       ...oidc.appEnv(),
     }),

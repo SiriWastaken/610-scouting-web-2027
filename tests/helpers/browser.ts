@@ -17,7 +17,9 @@ export async function launchBrowser(): Promise<Browser> {
  * cookie (made by tests/helpers/auth.ts through the real account code).
  */
 export async function openPage(browser: Browser, base: string, path: string, user?: { cookie: string } | null): Promise<{ page: Page; errors: string[] }> {
-  const context = await browser.newContext();
+  // Reduced motion switches off decorative animations (the app honours it), so elements are
+  // stable to click even on a loaded machine. Behaviour is otherwise identical.
+  const context = await browser.newContext({ reducedMotion: "reduce" });
   if (user) {
     const [name, ...value] = user.cookie.split("=");
     await context.addCookies([{ name, value: value.join("="), url: base, httpOnly: true, sameSite: "Lax" }]);
@@ -29,10 +31,21 @@ export async function openPage(browser: Browser, base: string, path: string, use
   return { page, errors };
 }
 
-export const liveStatus = (page: Page) => page.locator("[data-realtime-status]").getAttribute("data-realtime-status");
+/**
+ * The realtime status the page shows right now, or null if it shows none. Reads the DOM directly: a
+ * Playwright locator would wait up to 30 s for the element, which once stretched a 20 s wait past two
+ * minutes and hid that the page was not the one expected.
+ */
+export const liveStatus = (page: Page) => page.evaluate(() => document.querySelector("[data-realtime-status]")?.getAttribute("data-realtime-status") ?? null).catch(() => null);
 
 export async function waitForLive(page: Page, timeoutMs = 20_000) {
-  await waitFor(async () => (await liveStatus(page)) === "connected", "page shows live updates", timeoutMs);
+  let status: string | null = null;
+  let text = "";
+  await waitFor(async () => {
+    status = await liveStatus(page);
+    if (status !== "connected") text = await page.locator("body").innerText({ timeout: 2_000 }).catch(() => "(page text unavailable)");
+    return status === "connected";
+  }, "page shows live updates", timeoutMs, () => `URL: ${page.url()}\nRealtime status: ${status ?? "(no status element: not a live dashboard page)"}\nPage text:\n${text.slice(0, 1500)}`);
 }
 
 /** Waits until the page's visible text satisfies `check`. Text is as rendered, so CSS uppercase applies (use /i regexes). */

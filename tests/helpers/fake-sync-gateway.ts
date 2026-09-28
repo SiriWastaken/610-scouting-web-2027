@@ -48,8 +48,19 @@ export class FakeSyncGateway {
   /** Writes (PUT/DELETE) to matching document ids are answered with 503, as when the bucket rejects mutations. */
   rejectWrites: RegExp | null = null;
 
+  /**
+   * Like Capella App Services (Sync Gateway's `disable_public_all_docs`), refuse `_all_docs` on the
+   * public API with 403. The account store must work without it.
+   */
+  publicAllDocs = true;
+
   readonly database: string;
-  constructor(database = FAKE_DATABASE) { this.database = database; }
+  /** Where documents live: the database name, or `database.scope.collection` for a named collection. */
+  readonly keyspace: string;
+  constructor(database = FAKE_DATABASE, collection?: { scope: string; collection: string }) {
+    this.database = database;
+    this.keyspace = collection ? `${database}.${collection.scope}.${collection.collection}` : database;
+  }
 
   get lastSeq() { return this.seq; }
 
@@ -57,7 +68,7 @@ export class FakeSyncGateway {
     this.server = createServer((request, response) => { void this.handle(request, response); });
     await new Promise<void>((resolve) => this.server!.listen(port, "127.0.0.1", resolve));
     const address = this.server.address() as AddressInfo;
-    return `http://127.0.0.1:${address.port}/${this.database}/_changes`;
+    return `http://127.0.0.1:${address.port}/${this.keyspace}/_changes`;
   }
 
   get origin() {
@@ -123,12 +134,21 @@ export class FakeSyncGateway {
     // Like Sync Gateway, the server root answers without credentials.
     if (url.pathname === "/") return json(200, { couchdb: "Welcome", vendor: { name: "Couchbase Sync Gateway", version: "3.2" }, version: "Couchbase Sync Gateway/3.2.1(fake)" });
     if (request.headers.authorization !== FAKE_AUTH) return json(401, { error: "Unauthorized", reason: "Login required" });
+    // Sync Gateway 3.x: database endpoints at /{db}/, documents at /{keyspace}/ where the keyspace is
+    // {db} for the default collection or {db}.{scope}.{collection} for a named one.
     const db = this.database;
+    const keyspace = this.keyspace;
+    const first = decodeURIComponent(url.pathname.split("/")[1] ?? "");
     if (url.pathname === `/${db}/` || url.pathname === `/${db}`) return json(200, { db_name: db, update_seq: this.seq, state: this.state });
-    if (url.pathname === `/${db}/_all_docs`) return this.handleAllDocs(request, url, json);
-    const docId = url.pathname.startsWith(`/${db}/`) ? decodeURIComponent(url.pathname.slice(db.length + 2)) : "";
+    // Real Sync Gateway 4 (Capella): a database serving only named collections answers "keyspace <db> not found" for the default one.
+    if (first !== keyspace && (first.startsWith(`${db}.`) || first === db)) return json(404, { error: "not_found", reason: `keyspace ${first} not found` });
+    if (url.pathname === `/${keyspace}/_all_docs`) {
+      if (!this.publicAllDocs) return json(403, { error: "Forbidden", reason: "public access to _all_docs is disabled for this database" });
+      return this.handleAllDocs(request, url, json);
+    }
+    const docId = url.pathname.startsWith(`/${keyspace}/`) ? decodeURIComponent(url.pathname.slice(keyspace.length + 2)) : "";
     if (docId && docId !== "_changes") return this.handleDocument(docId, request, url, json);
-    if (url.pathname !== `/${db}/_changes`) return json(404, { error: "not_found", reason: "no such database" });
+    if (url.pathname !== `/${keyspace}/_changes`) return json(404, { error: "not_found", reason: "no such database" });
 
     const fault = this.faults.shift();
     if (fault?.kind === "status") return json(fault.status, { error: "injected failure" });
@@ -215,6 +235,10 @@ export class FakeSyncGateway {
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return json(400, { error: "Bad Request", reason: "Document body must be a JSON object" });
         body = parsed as Record<string, unknown>;
       } catch { return json(400, { error: "Bad Request", reason: "Bad JSON" }); }
+      // Sync Gateway reserves top-level properties that start with an underscore.
+      if (Object.keys(body).some((key) => key.startsWith("_") && !["_id", "_rev", "_deleted", "_attachments"].includes(key))) {
+        return json(400, { error: "Bad Request", reason: "user defined top level properties beginning with '_' are not allowed in document body" });
+      }
     }
     const baseRev = url.searchParams.get("rev") ?? (typeof body._rev === "string" ? body._rev : undefined);
     const live = current && !current.deleted;

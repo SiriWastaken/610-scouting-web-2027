@@ -1,9 +1,10 @@
 // Pure pieces of the sign-in and account code: configuration, encrypted state,
 // redirect targets, cookies, profile edits, and what is allowed into logs.
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { cleanText, parsePatch, safePicture } from "../../../lib/auth/accounts.ts";
-import { isAutoApproved, readAuthConfig } from "../../../lib/auth/config.ts";
+import { isAutoApproved, readAuthConfig, storeKeyspace } from "../../../lib/auth/config.ts";
 import { pkceChallenge, seal, unseal } from "../../../lib/auth/crypto.ts";
 import { safeReturnTo } from "../../../lib/auth/oidc.ts";
 import { isTrustedOrigin } from "../../../lib/auth/runtime.ts";
@@ -43,9 +44,61 @@ test("config: missing or unsafe settings are reported, never guessed", () => {
   assert.ok(!shortSecret.ok && shortSecret.problems.some((problem) => problem.includes("AUTH_SECRET")));
   // Accounts must never live in the database the scouting tablets replicate.
   const sameDb = readAuthConfig({ ...baseEnv, AUTH_STORE_URL: "", COUCHBASE_SYNC_GATEWAY_URL: "https://sg.example.org:4984", COUCHBASE_DATABASE: "auth" });
-  assert.ok(!sameDb.ok && sameDb.problems.some((problem) => problem.includes("different Sync Gateway database")));
+  assert.ok(!sameDb.ok && sameDb.problems.some((problem) => problem.includes("different collection (or database) from the scouting data")));
   const badUrl = readAuthConfig({ ...baseEnv, AUTH_URL: "javascript:alert(1)" });
   assert.ok(!badUrl.ok);
+});
+
+test("config: the account store URL must be the Sync Gateway / App Services endpoint, never a Couchbase connection string", () => {
+  const withUrl = (url: string, database = "auth") => readAuthConfig({ ...baseEnv, AUTH_STORE_URL: url, AUTH_STORE_DATABASE: database });
+  const problemsFor = (url: string) => { const result = withUrl(url); return result.ok ? [] : result.problems; };
+  // Once, a Capella connection string made the store address "null" and every sign-in fail after Google approved it.
+  assert.ok(problemsFor("couchbases://cb.abc123.cloud.couchbase.com").some((problem) => problem.startsWith("AUTH_STORE_URL is a Couchbase connection string")));
+  assert.ok(problemsFor("couchbase://localhost").some((problem) => problem.includes("connection string")));
+  assert.ok(problemsFor("ftp://sg.example.org").some((problem) => problem.includes("expected https:// or wss://")));
+  assert.ok(problemsFor("https://admin:pw@sg.example.org:4984").some((problem) => problem.includes("must not contain a username or password")));
+  assert.ok(problemsFor("wss://sg.example.org:4984/some/path").some((problem) => problem.includes("without a path")));
+  assert.ok(problemsFor("not a url").some((problem) => problem.includes("not a valid URL")));
+  // A copied App Endpoint URL (wss://host:4984/<database>) is fine: trimmed to the server address.
+  const copied = withUrl("wss://abc.apps.cloud.couchbase.com:4984/auth/", "auth");
+  assert.ok(copied.ok);
+  assert.equal(copied.config.store.url, "https://abc.apps.cloud.couchbase.com:4984");
+  const fallback = readAuthConfig({ ...baseEnv, AUTH_STORE_URL: "", COUCHBASE_SYNC_GATEWAY_URL: "couchbases://cb.abc123.cloud.couchbase.com" });
+  assert.ok(!fallback.ok && fallback.problems.some((problem) => problem.startsWith("COUCHBASE_SYNC_GATEWAY_URL is a Couchbase connection string")), "names the variable the URL actually came from");
+});
+
+test("config: accounts in a named collection of the scouting database (scope/collection or a full keyspace)", () => {
+  const shared = { ...baseEnv, AUTH_STORE_URL: "", COUCHBASE_SYNC_GATEWAY_URL: "wss://sg.example.org:4984/", COUCHBASE_DATABASE: "scoutingapp2027", AUTH_STORE_DATABASE: "scoutingapp2027" };
+  const byParts = readAuthConfig({ ...shared, AUTH_STORE_SCOPE: "app", AUTH_STORE_COLLECTION: "auth" });
+  assert.ok(byParts.ok);
+  assert.deepEqual({ ...byParts.config.store, password: "" }, { url: "https://sg.example.org:4984", database: "scoutingapp2027", scope: "app", collection: "auth", username: "u", password: "" });
+  assert.equal(storeKeyspace(byParts.config.store), "scoutingapp2027.app.auth");
+  const byKeyspace = readAuthConfig({ ...shared, AUTH_STORE_DATABASE: "scoutingapp2027.app.auth" });
+  assert.ok(byKeyspace.ok);
+  assert.equal(storeKeyspace(byKeyspace.config.store), "scoutingapp2027.app.auth");
+  assert.equal(storeKeyspace({ database: "accounts", scope: "_default", collection: "_default" }), "accounts", "a separate database's default collection has no keyspace suffix");
+  // Same database and same collection as the scouting data: refused.
+  const sameCollection = readAuthConfig({ ...shared, COUCHBASE_SCOPE: "app", COUCHBASE_COLLECTION: "auth", AUTH_STORE_SCOPE: "app", AUTH_STORE_COLLECTION: "auth" });
+  assert.ok(!sameCollection.ok && sameCollection.problems.some((problem) => problem.includes("different collection")));
+  for (const bad of ["scoutingapp2027.auth", "a.b.c.d", "scoutingapp2027.app.a/uth", "scoutingapp2027..auth"]) {
+    assert.equal(readAuthConfig({ ...shared, AUTH_STORE_DATABASE: bad }).ok, false, bad);
+  }
+});
+
+test("config: values left unchanged from .env.example are named before anyone is sent to Google", () => {
+  // Once, AUTH_STORE_URL=https://your-sync-gateway-host:4984 passed every check; sign-in then failed after
+  // Google approved the user with "Accounts are temporarily unavailable".
+  const template = Object.fromEntries(readFileSync(".env.example", "utf8").split("\n")
+    .filter((line) => /^[A-Z_]+=/.test(line)).map((line) => [line.slice(0, line.indexOf("=")), line.slice(line.indexOf("=") + 1)]));
+  const copied = readAuthConfig({ ...template, AUTH_STORE_URL: "https://your-sync-gateway-host:4984" });
+  assert.ok(!copied.ok);
+  for (const name of ["AUTH_SECRET", "AUTH_GOOGLE_CLIENT_ID", "AUTH_GOOGLE_CLIENT_SECRET", "AUTH_APPLE_PRIVATE_KEY", "AUTH_STORE_PASSWORD", "AUTH_ROOT_EMAILS", "AUTH_STORE_URL"]) {
+    assert.ok(!copied.ok && copied.problems.includes(`${name} is still the placeholder from .env.example`), name);
+  }
+  assert.equal("AUTH_STORE_URL" in template, false, "the optional store URL is commented out in the template");
+  const fallback = readAuthConfig({ ...baseEnv, AUTH_STORE_URL: "", COUCHBASE_SYNC_GATEWAY_URL: template.COUCHBASE_SYNC_GATEWAY_URL });
+  assert.ok(!fallback.ok && fallback.problems.some((problem) => problem.startsWith("COUCHBASE_SYNC_GATEWAY_URL (also used for the account store)")));
+  assert.ok(readAuthConfig(baseEnv).ok, "real-looking values are not flagged");
 });
 
 test("config: provider endpoints can be redirected for tests, and Apple is enabled with its four variables", () => {

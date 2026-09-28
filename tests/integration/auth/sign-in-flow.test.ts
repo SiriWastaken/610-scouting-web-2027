@@ -2,7 +2,7 @@
 // against the fake provider and a fake account store over real HTTP. Every
 // forged or broken response must end on the welcome screen with no session.
 import assert from "node:assert/strict";
-import { after, before, beforeEach, test } from "node:test";
+import { after, before, beforeEach, mock, test } from "node:test";
 import { GET as sessionRoute } from "../../../app/api/auth/session/route.ts";
 import { clearJwksCache } from "../../../lib/auth/jwt.ts";
 import { AUDIT_PREFIX } from "../../../lib/auth/audit.ts";
@@ -148,6 +148,62 @@ test("signing in again replaces the old session (no session fixation)", async ()
   assert.notEqual(second.cookie, first.cookie);
   assert.equal((await whoAmI(first.cookie)).status, 401, "the earlier session no longer works");
   assert.equal((await whoAmI(second.cookie)).status, 200);
+});
+
+test("account store misconfigured after Google approves: welcome says unavailable, the server log names the cause", async () => {
+  auth.oidc.setIdentity("google", { sub: unique("g"), email: `${unique("store")}@team610.test`, emailVerified: true });
+  const logged = mock.method(console, "error", () => {});
+  process.env.AUTH_STORE_DATABASE = "scouting_auth_typo";
+  try {
+    const result = await signIn(fetcher, base, "google", { next: "/teams" });
+    assert.equal(result.status, 303);
+    assert.equal(errorCode(result.location), "store_unavailable", "not sent to /teams without a session");
+    assert.equal(result.cookie, null);
+    const lines = logged.mock.calls.map((call) => String(call.arguments[0]));
+    assert.ok(lines.some((line) => line.includes('database "scouting_auth_typo" does not exist')), `server log explains the cause:\n${lines.join("\n")}`);
+    assert.equal(lines.join("\n").includes(TEST_AUTH_SECRET), false);
+  } finally { logged.mock.restore(); auth.apply(); }
+  // Fixed configuration: the same sign-in now completes and lands on the page.
+  const fixed = await signIn(fetcher, base, "google", { next: "/teams" });
+  assert.equal(fixed.location, `${base}/teams`);
+});
+
+test("accounts in a named collection: sign-in works, and a collection Sync Gateway can't see is named in the log", async () => {
+  // The whole suite already stores accounts in scouting_auth.app.auth; check a document landed there.
+  auth.oidc.setIdentity("google", { sub: unique("g"), email: `${unique("collection")}@team610.test`, emailVerified: true });
+  const ok = await signIn(fetcher, base, "google", { next: "/teams" });
+  assert.equal(ok.location, `${base}/teams`);
+  assert.equal(auth.store.keyspace, "scouting_auth.app.auth");
+  assert.ok(auth.store.requests.some((url) => url.pathname.startsWith("/scouting_auth.app.auth/user_")), "documents are addressed through the keyspace");
+  // A collection that exists in Couchbase but is not linked to the App Endpoint / Sync Gateway database.
+  const logged = mock.method(console, "error", () => {});
+  process.env.AUTH_STORE_COLLECTION = "unlinked";
+  try {
+    const result = await signIn(fetcher, base, "google");
+    assert.equal(errorCode(result.location), "store_unavailable");
+    const lines = logged.mock.calls.map((call) => String(call.arguments[0]));
+    assert.ok(lines.some((line) => line.includes('collection "scouting_auth.app.unlinked" is not available') && line.includes("link it")), lines.join("\n"));
+  } finally { logged.mock.restore(); auth.apply(); }
+  // Scope and collection left unset, on a database that only serves named collections (Capella App Endpoints):
+  // the log says to set them, instead of claiming the database does not exist.
+  const unset = mock.method(console, "error", () => {});
+  delete process.env.AUTH_STORE_SCOPE; delete process.env.AUTH_STORE_COLLECTION;
+  try {
+    const result = await signIn(fetcher, base, "google");
+    assert.equal(errorCode(result.location), "store_unavailable");
+    assert.ok(unset.mock.calls.some((call) => String(call.arguments[0]).includes('"scouting_auth" has no default collection on Sync Gateway; set AUTH_STORE_SCOPE and AUTH_STORE_COLLECTION')));
+  } finally { unset.mock.restore(); auth.apply(); }
+});
+
+test("account store rejecting writes (403 from its sync function or user) is explained, not a silent 404", async () => {
+  auth.oidc.setIdentity("google", { sub: unique("g"), email: `${unique("forbidden")}@team610.test`, emailVerified: true });
+  const logged = mock.method(console, "error", () => {});
+  auth.store.rejectWrites = /^(user|email|identity|session)_/;
+  try {
+    const result = await signIn(fetcher, base, "google");
+    assert.equal(errorCode(result.location), "store_unavailable");
+    assert.ok(logged.mock.calls.some((call) => /Account store returned HTTP 503: write rejected/.test(String(call.arguments[0]))));
+  } finally { logged.mock.restore(); auth.store.rejectWrites = null; }
 });
 
 test("unknown providers and unconfigured sign-in fail safely", async () => {
