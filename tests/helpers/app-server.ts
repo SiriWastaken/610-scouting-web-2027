@@ -30,6 +30,10 @@ export async function startAppServer(env: Record<string, string>, port?: number)
     });
     child.stdout?.on("data", (chunk) => { output += chunk; });
     child.stderr?.on("data", (chunk) => { output += chunk; });
+    // Never leave a server behind if the test process ends early (crash, forced exit).
+    const killOnExit = () => child.kill("SIGKILL");
+    process.once("exit", killOnExit);
+    child.once("exit", () => process.off("exit", killOnExit));
     let exited: number | null = null;
     child.once("exit", (code) => { exited = code ?? -1; });
     const marker = output.length;

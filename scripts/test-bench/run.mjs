@@ -76,7 +76,8 @@ function runNode(label, files, { timeoutMs, serial, withCoverage }) {
     "--test-reporter=spec", "--test-reporter-destination=stdout",
     "--test-reporter=./scripts/test-bench/reporter.mjs", `--test-reporter-destination=${report}`,
     ...(serial ? ["--test-concurrency=1"] : []),
-    ...(grep ? [`--test-name-pattern=${grep}`] : []),
+    // Filtered-out files still run their before() hooks but not after(); force exit so they cannot hang.
+    ...(grep ? [`--test-name-pattern=${grep}`, "--test-force-exit"] : []),
     ...(withCoverage ? [
       "--experimental-test-coverage",
       ...coverage.include.map((glob) => `--test-coverage-include=${glob}`),
