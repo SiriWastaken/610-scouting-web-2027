@@ -23,7 +23,9 @@ const server = createServer((request, response) => handle(request, response));
 
 server.on("upgrade", (request, socket, head) => {
   if (handleRealtimeUpgrade(request, socket, head)) return;
-  if (nextUpgrades.listenerCount("upgrade") > 0) nextUpgrades.emit("upgrade", request, socket, head);
+  // Only the dev server uses other upgrades (hot reload). In production Next.js
+  // leaves them unanswered, so refuse them rather than hold the socket open.
+  if (dev && nextUpgrades.listenerCount("upgrade") > 0) nextUpgrades.emit("upgrade", request, socket, head);
   else socket.destroy();
 });
 

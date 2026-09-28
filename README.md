@@ -36,15 +36,18 @@ How it works:
 - The browser keeps the newest revision it has seen for every document, deletions included. Duplicate, stale, or out-of-order events are ignored, and REST results are merged against that store, so every tab converges on the same data.
 - After a disconnect the browser reconnects with backoff and resumes from the last sequence it applied, so missed changes are replayed. If Sync Gateway rejects that sequence, the page reloads its data in place.
 
-`npm run dev` and `npm start` run `scripts/server.mjs`, a small Node server that handles `/api/realtime` upgrades and passes everything else to Next.js. Plain `next dev` or `next start` cannot keep a WebSocket open on an app route. Use Node.js 22.6 or later. On Vercel, `app/api/realtime/route.ts` uses Vercel's beta WebSocket support instead (Fluid Compute is enabled in `vercel.json`).
+`npm run dev` and `npm start` run `scripts/server.mjs`, a small Node server that handles `/api/realtime` upgrades and passes everything else to Next.js. Plain `next dev` or `next start` cannot keep a WebSocket open on an app route. Use Node.js 22.6 or later (the test bench needs Node 26, see `.nvmrc`). On Vercel, `app/api/realtime/route.ts` uses Vercel's beta WebSocket support instead (Fluid Compute is enabled in `vercel.json`).
 
 ## Checks
 
+Everything is described in [tests/README.md](tests/README.md). In short:
+
 ```bash
-npm run lint
-npm test          # unit and socket-level integration tests
-npm run build
-npm run test:e2e  # runs the built app against a fake Sync Gateway (E2E_MODE=dev for the dev server)
+npx playwright install chromium   # once, for the browser tests
+npm run validate:fast             # lint, types, unit, integration, security (before every push)
+npm run validate                  # the full bench: adds contract, stress, build, browser E2E, coverage
 ```
 
-To try live updates by hand without touching real data, start the fake Sync Gateway with `FAKE_SG_PORT=4985 node --experimental-strip-types tests/helpers/run-fake-sync-gateway.ts`, point the `COUCHBASE_*` variables at it (`http://127.0.0.1:4985`, database `scouting`, user `user`, password `pass`), and write documents with `PUT http://127.0.0.1:4985/scouting/<id>`.
+CI runs all of it on every pull request into `main`, plus the contract and browser suites against a real Couchbase Server + Sync Gateway in Docker.
+
+To try live updates by hand without touching real data, start the fake Sync Gateway with `FAKE_SG_PORT=4985 node --experimental-strip-types tests/helpers/run-fake-sync-gateway.ts`, point the `COUCHBASE_*` variables at it (`http://127.0.0.1:4985`, database `scouting`, user `dashboard-reader`, password `fake-sg-secret-7f3a91c2`), and write documents with `PUT http://127.0.0.1:4985/scouting/<id>` (updates need `?rev=<current revision>`).

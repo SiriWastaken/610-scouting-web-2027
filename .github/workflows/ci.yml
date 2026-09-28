@@ -1,0 +1,135 @@
+# Validation for every pull request into main (and every push to main).
+# Make the "All required checks" job a required status check in the branch
+# protection rules for main; it fails unless every other job succeeded.
+# Every suite is run through scripts/test-bench/run.mjs, which fails if a
+# required test file did not execute, ran fewer tests than its floor, or skipped anything.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  quality:
+    name: Lint, types, test hygiene
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Test hygiene (no skipped/focused tests, manifest complete, CI runs every suite)
+        run: npm run test:hygiene
+      - run: npm run lint
+      - run: npm run typecheck
+
+  tests:
+    name: Unit, integration, security, contract, stress, coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run test:unit
+      - run: npm run test:integration
+      - run: npm run test:security
+      - run: npm run test:contract
+      - run: npm run test:stress
+      - name: Coverage (per-file floors for critical modules)
+        run: npm run test:coverage
+      - name: Keep test bench results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-bench-results
+          path: .test-bench/
+          include-hidden-files: true
+          if-no-files-found: error
+
+  e2e:
+    name: Production build and browser E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: npm run test:e2e:prebuilt
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: .test-bench/
+          include-hidden-files: true
+          if-no-files-found: error
+
+  real-couchbase:
+    name: Contract + E2E against real Couchbase Server and Sync Gateway
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+      - name: Start Couchbase Server + Sync Gateway (exports TEST_SG_*)
+        run: scripts/test-infra/couchbase-up.sh
+      - run: npm run build
+      - run: npm run test:real
+      - name: Container logs
+        if: failure()
+        run: |
+          docker logs couchbase-test 2>&1 | tail -n 200
+          docker logs sync-gateway-test 2>&1 | tail -n 300
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-couchbase-results
+          path: .test-bench/
+          include-hidden-files: true
+          if-no-files-found: error
+
+  required:
+    name: All required checks
+    if: always()
+    needs: [quality, tests, e2e, real-couchbase]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every job must have succeeded (skipped or cancelled counts as failure)
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          for result in $RESULTS; do
+            if [ "$result" != "success" ]; then echo "A required job did not succeed."; exit 1; fi
+          done

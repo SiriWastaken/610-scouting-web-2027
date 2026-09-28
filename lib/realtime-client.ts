@@ -45,6 +45,7 @@ export class RealtimeClient {
   private reconnectTimer: ReturnType<typeof setTimeout> | undefined;
   private idleTimer: ReturnType<typeof setTimeout> | undefined;
   private version = 0;
+  private snapshotNames: Readonly<Record<string, string>> = {};
   private readonly storeListeners = new Set<() => void>();
   private readonly statusListeners = new Set<(status: RealtimeStatus) => void>();
   private readonly resyncListeners = new Set<() => void>();
@@ -88,6 +89,16 @@ export class RealtimeClient {
     if (!this.reconnectTimer) return;
     clearTimeout(this.reconnectTimer); this.reconnectTimer = undefined;
     this.open();
+  }
+
+  /** Pit team names from the page's server snapshot, for teams that first appear on the feed. */
+  getSnapshotNames(): Readonly<Record<string, string>> { return this.snapshotNames; }
+
+  setSnapshotNames(names: Record<string, string>) {
+    if (JSON.stringify(names) === JSON.stringify(this.snapshotNames)) return;
+    this.snapshotNames = { ...names };
+    this.version += 1;
+    this.storeListeners.forEach((listener) => listener());
   }
 
   getCursor() { return this.cursor; }

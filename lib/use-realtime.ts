@@ -20,7 +20,7 @@ export function useRealtimeVersion(): number {
 export function useAggregateRealtime(initialTeams: TeamAggregate[]): TeamAggregate[] {
   const version = useRealtimeVersion();
   // eslint-disable-next-line react-hooks/exhaustive-deps -- `version` signals store changes
-  return useMemo(() => mergeAggregates(initialTeams, realtime.store), [initialTeams, version]);
+  return useMemo(() => mergeAggregates(initialTeams, realtime.store, realtime.getSnapshotNames()), [initialTeams, version]);
 }
 
 /**

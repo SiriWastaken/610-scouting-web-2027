@@ -1,13 +1,16 @@
+import { connection } from "next/server";
 import { MetricBoard } from "@/components/metrics/metric-board";
 import { fetchTeamAggregatesSnapshot } from "@/services/couchbase";
 import { RealtimeConnection } from "@/components/realtime/realtime-connection";
 
 export default async function AveragesPage() {
-  const { teams, lastSeq } = await fetchTeamAggregatesSnapshot();
+  // Live data: render per request even when the build had no Couchbase settings.
+  await connection();
+  const { teams, lastSeq, names } = await fetchTeamAggregatesSnapshot();
 
   return (
     <>
-    <RealtimeConnection initialCursor={lastSeq} />
+    <RealtimeConnection initialCursor={lastSeq} initialNames={names} />
     <MetricBoard
       teams={teams}
       initialStat="matchesPlayed"
