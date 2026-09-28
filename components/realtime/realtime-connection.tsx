@@ -7,7 +7,7 @@ import { useRealtimeResync } from "@/lib/use-realtime";
 
 const statusLabel: Record<RealtimeStatus, string> = { disconnected: "Disconnected", connecting: "Connecting", connected: "Live updates on", reconnecting: "Reconnecting" };
 
-export function RealtimeConnection({ initialCursor }: { initialCursor: unknown }) {
+export function RealtimeConnection({ initialCursor, initialNames }: { initialCursor: unknown; initialNames?: Record<string, string> }) {
   const router = useRouter();
   const [status, setStatus] = useState<RealtimeStatus>("connecting");
   const [resyncs, setResyncs] = useState(0);
@@ -16,6 +16,7 @@ export function RealtimeConnection({ initialCursor }: { initialCursor: unknown }
 
   useEffect(() => realtime.subscribeStatus(setStatus), []);
   useEffect(() => { realtime.connect(initialCursor); }, [initialCursor]);
+  useEffect(() => { if (initialNames) realtime.setSnapshotNames(initialNames); }, [initialNames]);
   // After a resync the refreshed page normally brings a new cursor (handled
   // above). If it does not, retry with whatever cursor the page has; the client
   // applies its backoff so this cannot loop quickly.

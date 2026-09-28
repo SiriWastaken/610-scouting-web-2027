@@ -23,9 +23,15 @@ function getConfig(): CouchbaseConfig | null {
   return readCouchbaseConfig();
 }
 
+/** The same database URL the realtime feed uses (ws: -> http:, wss: -> https:). */
 function collectionUrl(config: CouchbaseConfig): string {
-  const baseUrl = config.baseUrl.replace(/^wss?:\/\//, "https://").replace(/\/$/, "");
-  return `${baseUrl}/${encodeURIComponent(config.database)}`;
+  return makeChangesConfig(config)!.url.replace(/\/_changes$/, "");
+}
+
+/** Upper bound on a snapshot request, so an unresponsive Sync Gateway cannot hang page rendering. */
+function requestTimeoutMs(): number {
+  const configured = Number(process.env.COUCHBASE_REQUEST_TIMEOUT_MS);
+  return Number.isFinite(configured) && configured > 0 ? configured : 15_000;
 }
 
 type DocumentSnapshot = { documents: CouchbaseDocument[]; lastSeq: unknown };
@@ -53,6 +59,7 @@ async function fetchAllDocuments(config: CouchbaseConfig): Promise<{ documents: 
       Accept: "application/json",
     },
     cache: "no-store",
+    signal: AbortSignal.timeout(requestTimeoutMs()),
   });
 
   if (!response.ok) {
@@ -169,9 +176,14 @@ export async function fetchTeamAggregates(): Promise<TeamAggregate[]> {
   return (await fetchTeamAggregatesSnapshot()).teams;
 }
 
-export async function fetchTeamAggregatesSnapshot(): Promise<{ teams: TeamAggregate[]; lastSeq: unknown }> {
+/**
+ * Team rows plus the feed cursor they were built from. `names` holds every pit
+ * team name in the snapshot (including teams with no aggregate yet) so the
+ * browser can name teams whose aggregate arrives over the realtime feed.
+ */
+export async function fetchTeamAggregatesSnapshot(): Promise<{ teams: TeamAggregate[]; lastSeq: unknown; names: Record<string, string> }> {
   const config = getConfig();
-  if (!config) return { teams: [], lastSeq: 0 };
+  if (!config) return { teams: [], lastSeq: 0, names: {} };
 
   try {
     const { documents, lastSeq } = await getCachedSnapshot(config);
@@ -180,19 +192,24 @@ export async function fetchTeamAggregatesSnapshot(): Promise<{ teams: TeamAggreg
     documents
       .filter((document) => document.type === "pit")
       .forEach((document) => {
-        const team = getDocumentTeam(document);
+        // Pit documents are keyed `pit_<team>`; the id wins, as it does for realtime pit changes.
+        const idTeam = document._id?.match(/^pit_(\d+)$/)?.[1];
+        const team = idTeam ? Number(idTeam) : getDocumentTeam(document);
         const name = getDocumentTeamName(document);
         if (team && name) names.set(team, name);
       });
 
     const teams = documents
       .filter((document) => document.type === "aggregate_data")
-      .map((document) => normalizeAggregateDocument(document, names))
+      // Server-rendered rows are serialised into the page, so they get the same
+      // field allow-list as realtime frames: nothing beyond the dashboard statistics.
+      .map((document) => typeof document._id === "string" ? projectDashboardDocument(document._id, document) : null)
+      .map((document) => document ? normalizeAggregateDocument(document, names) : null)
       .filter((team): team is TeamAggregate => team !== null)
       .sort((left, right) => (left.rank || Number.MAX_SAFE_INTEGER) - (right.rank || Number.MAX_SAFE_INTEGER) || left.team - right.team);
-    return { teams, lastSeq };
+    return { teams, lastSeq, names: Object.fromEntries(names) };
   } catch (error) {
     console.error("Unable to fetch team aggregates from Couchbase.", error);
-    return { teams: [], lastSeq: 0 };
+    return { teams: [], lastSeq: 0, names: {} };
   }
 }

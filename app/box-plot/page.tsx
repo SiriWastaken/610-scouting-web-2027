@@ -3,11 +3,11 @@ import { fetchTeamAggregatesSnapshot } from "@/services/couchbase";
 import { RealtimeConnection } from "@/components/realtime/realtime-connection";
 
 export default async function BoxPlotPage() {
-  const { teams, lastSeq } = await fetchTeamAggregatesSnapshot();
+  const { teams, lastSeq, names } = await fetchTeamAggregatesSnapshot();
 
   return (
     <>
-    <RealtimeConnection initialCursor={lastSeq} />
+    <RealtimeConnection initialCursor={lastSeq} initialNames={names} />
     <MetricBoard
       teams={teams}
       initialStat="fuelscored"
