@@ -9,6 +9,7 @@ import {
 } from 'react';
 import type { TeamAggregate } from '@/types/scouting';
 import { useAggregateRealtime, useRealtimeDocuments, useRealtimeResync } from '@/lib/use-realtime';
+import { sanitizeMatchData } from '@/lib/match-data';
 
 /**
  * Shape of the documents returned by `/api/dashboard-documents` (and the realtime feed).
@@ -57,13 +58,12 @@ function docTeam(doc: Record<string, unknown>): string | undefined {
 const NO_DOCS: Record<string, unknown>[] = [];
 
 function toMatchData(doc: Record<string, unknown>): MatchData {
-  const data = (doc.data ?? doc) as MatchData;
   // Fill in the match number from the doc id (`scouting_<team>_<match>`) if it
-  // isn't already in the data. Documents may be shared with the realtime store,
-  // so build a copy rather than mutating them.
+  // isn't already in the data, and drop values of the wrong type so one bad
+  // submission cannot crash the page. Builds a copy: documents may be shared
+  // with the realtime store.
   const { match: matchNum } = parseScoutingId(doc._id);
-  const start = data.start?.match === undefined && matchNum ? { ...data.start, match: Number(matchNum) } : data.start;
-  return { ...data, start, _id: typeof doc._id === 'string' ? doc._id : undefined };
+  return sanitizeMatchData(doc.data ?? doc, typeof doc._id === 'string' ? doc._id : undefined, matchNum && Number.isFinite(Number(matchNum)) ? Number(matchNum) : undefined);
 }
 
 function toCardReport(doc: Record<string, unknown>): CardReport {

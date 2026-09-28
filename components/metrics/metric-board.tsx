@@ -75,7 +75,11 @@ export function MetricBoard({
       [...liveTeams].sort((a, b) => {
         const av = a.rawData[sortKey];
         const bv = b.rawData[sortKey];
-        if (typeof av !== "number" || typeof bv !== "number") return 0;
+        const aNumeric = typeof av === "number" && Number.isFinite(av);
+        const bNumeric = typeof bv === "number" && Number.isFinite(bv);
+        // Teams without a usable value go last in either direction; returning 0
+        // for mixed pairs made the comparator inconsistent and the order arbitrary.
+        if (!aNumeric || !bNumeric) return aNumeric === bNumeric ? 0 : aNumeric ? -1 : 1;
         return ascending ? av - bv : bv - av;
       }),
     [ascending, sortKey, liveTeams]
