@@ -1,8 +1,8 @@
 import "server-only";
-import { projectDashboardDocument } from "@/lib/realtime-protocol";
-import { getCouchbaseChangesConfig as makeChangesConfig, readCouchbaseConfig } from "@/lib/couchbase-config";
+import { projectDashboardDocument } from "@/lib/realtime/protocol";
+import { getCouchbaseChangesConfig as makeChangesConfig, readCouchbaseConfig } from "@/lib/data/couchbase-config";
 import type { TeamAggregate } from "@/types/scouting";
-import { getDocumentTeam, getDocumentTeamName, normalizeAggregateDocument } from "@/lib/normalize-aggregate";
+import { getDocumentTeam, getDocumentTeamName, normalizeAggregateDocument } from "@/lib/data/aggregates";
 import { recordSnapshot } from "@/lib/ops/metrics";
 
 interface CouchbaseDocument {

@@ -5,7 +5,7 @@
 // take effect without the user signing in again.
 import { getUser, isUserId, principalFor, type UserDoc } from "./accounts.ts";
 import type { AuthConfig, ProviderId } from "./config.ts";
-import { randomToken, sha256Hex } from "./crypto.ts";
+import { randomToken, sha256Hex } from "./sign-in.ts";
 import type { Principal } from "./roles.ts";
 import type { AccountStore } from "./store.ts";
 import { authMetrics } from "../ops/metrics.ts";

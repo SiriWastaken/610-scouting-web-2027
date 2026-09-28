@@ -79,14 +79,16 @@ export interface AuditQuery { limit?: number; before?: string; action?: string; 
 const SCAN_WINDOW = 500;
 
 /**
- * Newest first. Reads ids only, then the documents for one window before
+ * Newest first. One read of the audit documents (on Sync Gateway that is one
+ * pass over the `_changes` feed), then one window of up to 500 entries before
  * `before`; filters apply within that window, and `next` continues from it.
  */
 export async function listAudit(store: AccountStore, query: AuditQuery = {}): Promise<{ entries: AuditEntry[]; next: string | null; scanned: number }> {
   const limit = Math.min(Math.max(query.limit ?? 50, 1), 200);
-  const ids = (await store.list(AUDIT_PREFIX, { includeDocs: false })).map((row) => row.id).filter((id) => !query.before || id < query.before);
-  const window = ids.slice(-SCAN_WINDOW);
-  const docs = await store.getMany<AuditEvent>(window);
+  const all = (await store.list<AuditEvent>(AUDIT_PREFIX)).filter((row) => !query.before || row.id < query.before);
+  const windowRows = all.slice(-SCAN_WINDOW);
+  const window = windowRows.map((row) => row.id);
+  const docs = windowRows.filter((row): row is { id: string; rev: string; body: AuditEvent } => row.body !== undefined);
   const search = query.search?.trim().toLowerCase();
   const entries = docs
     .filter((doc) => doc.body.type === "audit")
@@ -95,7 +97,7 @@ export async function listAudit(store: AccountStore, query: AuditQuery = {}): Pr
     .filter((entry) => !search || [entry.action, entry.actor?.email, entry.actor?.id, entry.target?.label, entry.target?.id, entry.reason].some((value) => value?.toLowerCase().includes(search)))
     .sort((a, b) => (a.id < b.id ? 1 : -1));
   const page = entries.slice(0, limit);
-  const more = entries.length > limit || ids.length > window.length;
+  const more = entries.length > limit || all.length > window.length;
   const next = more ? (entries.length > limit ? page.at(-1)!.id : window[0] ?? null) : null;
   return { entries: page, next, scanned: window.length };
 }

@@ -1,4 +1,4 @@
-import { guard } from "@/lib/auth/http";
+import { guard } from "@/lib/auth/requests";
 import { queryDashboardDocuments } from "@/services/couchbase";
 
 export const runtime = "nodejs";

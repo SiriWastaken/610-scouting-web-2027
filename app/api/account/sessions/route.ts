@@ -1,6 +1,6 @@
 import { recordAudit } from "@/lib/auth/audit";
-import { guard, json, jsonError } from "@/lib/auth/http";
-import { authRuntime } from "@/lib/auth/runtime";
+import { guard, json, jsonError } from "@/lib/auth/requests";
+import { authRuntime } from "@/lib/auth/requests";
 import { revokeUserSessions } from "@/lib/auth/sessions";
 
 export const runtime = "nodejs";

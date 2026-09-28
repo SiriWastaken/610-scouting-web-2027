@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { AccountPanel } from "@/components/auth/account-panel";
-import { requirePage } from "@/lib/auth/next";
+import { requirePage } from "@/lib/auth/pages";
 
 export const metadata: Metadata = { title: "Account · 610 Scouting" };
 

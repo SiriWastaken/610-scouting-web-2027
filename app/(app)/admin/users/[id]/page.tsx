@@ -1,6 +1,6 @@
-import { AccessDenied } from "@/components/auth/access-denied";
-import { UserDetail } from "@/components/admin/user-detail";
-import { requirePage } from "@/lib/auth/next";
+import { AccessDenied } from "@/components/ui/kit";
+import { UserDetail } from "@/components/admin/users";
+import { requirePage } from "@/lib/auth/pages";
 
 export default async function AdminUserPage({ params }: PageProps<"/admin/users/[id]">) {
   if (!(await requirePage("users:read")).allowed) return <AccessDenied />;

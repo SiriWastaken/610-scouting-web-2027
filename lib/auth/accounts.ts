@@ -3,23 +3,24 @@
 // changes is decided here with lib/auth/roles.ts, never by the caller.
 import { randomBytes } from "node:crypto";
 import { isAutoApproved, type AuthConfig, type ProviderId } from "./config.ts";
-import { sha256Hex } from "./crypto.ts";
-import { ROLES, canAssignRole, canManageUser, isAccountStatus, isRole, type AccountStatus, type Principal, type Role } from "./roles.ts";
+import { sha256Hex } from "./sign-in.ts";
+import { ASSIGNABLE_ROLES, can, canAssignRole, canManageUser, isAccountStatus, isAssignableRole, storedRole, type AccountStatus, type Principal, type Role } from "./roles.ts";
 import { ConflictError, type AccountStore, type StoredDoc } from "./store.ts";
 
 export interface UserDoc {
   type: "auth_user";
   email: string;
   emailVerified: boolean;
-  /** Shown everywhere in the app; editable by the user and by admins. */
+  /** Shown everywhere in the app; only the Owner may change it. */
   displayName: string;
   /** The name the provider reported, kept for reference. */
   providerName?: string;
   /** Profile photo URL from Google (https, Google-hosted only). Apple provides none. */
   picture?: string;
-  role: Role;
+  /** Never OWNER: ownership comes from AUTH_OWNER_EMAILS. Older values (ADMIN, ROOT) read as MENTOR. */
+  role: Exclude<Role, "OWNER">;
   status: AccountStatus;
-  /** The name this person uses on scouting tablets, linking them to their submissions. */
+  /** The name this person uses on scouting tablets, linking them to their submissions. Only the Owner may change it. */
   scoutName?: string;
   /** Visible to account managers only. */
   adminNote?: string;
@@ -45,16 +46,16 @@ const emailDocId = (email: string) => `email_${sha256Hex(email.toLowerCase()).sl
 const newUserId = () => `u${randomBytes(10).toString("hex")}`;
 
 export class AccountError extends Error {
-  readonly code: "forbidden" | "invalid" | "not_found" | "conflict" | "last_root";
+  readonly code: "forbidden" | "invalid" | "not_found" | "conflict";
   constructor(code: AccountError["code"], message: string) { super(message); this.code = code; }
 }
 
-export function isConfiguredRoot(config: AuthConfig, email: string) { return config.rootEmails.has(email.toLowerCase()); }
+export function isOwnerEmail(config: AuthConfig, email: string) { return config.ownerEmails.has(email.toLowerCase()); }
 
-/** Role and status as enforced: configured root emails are always active ROOT, whatever the stored document says. */
+/** Role and status as enforced: Owner emails are always an active OWNER, whatever the stored document says. */
 export function principalFor(config: AuthConfig, userId: string, user: UserDoc): Principal {
-  const rootLocked = isConfiguredRoot(config, user.email);
-  return { id: userId, role: rootLocked ? "ROOT" : user.role, status: rootLocked ? "active" : user.status, rootLocked };
+  if (isOwnerEmail(config, user.email)) return { id: userId, role: "OWNER", status: "active" };
+  return { id: userId, role: storedRole(user.role), status: user.status };
 }
 
 /** Only https Google profile photos are kept; anything else would let a provider profile point the app at arbitrary URLs. */
@@ -109,13 +110,14 @@ export async function resolveSignIn(store: AccountStore, config: AuthConfig, ide
       const candidate = newUserId();
       try {
         await store.create<EmailIndexDoc>(emailDocId(email), { type: "auth_email", userId: candidate });
-        const root = isConfiguredRoot(config, email);
+        // Everyone starts as a MEMBER; the Owner's power comes from configuration, not this document.
+        const approved = isOwnerEmail(config, email) || isAutoApproved(config, email);
         await store.create<UserDoc>(userDocId(candidate), {
           type: "auth_user", email, emailVerified: true, displayName: defaultName(identity), providerName: cleanText(identity.name, 80),
           picture: identity.provider === "google" ? safePicture(identity.picture) : undefined,
-          role: root ? "ROOT" : "MEMBER", status: root || isAutoApproved(config, email) ? "active" : "pending",
+          role: "MEMBER", status: approved ? "active" : "pending",
           providers: [], createdAt: now, updatedAt: now,
-          ...(root || isAutoApproved(config, email) ? { approvedBy: "configuration", approvedAt: now } : {}),
+          ...(approved ? { approvedBy: "configuration", approvedAt: now } : {}),
         });
         userId = candidate; created = true;
       } catch (error) {
@@ -142,7 +144,7 @@ export async function resolveSignIn(store: AccountStore, config: AuthConfig, ide
       ...(identity.provider === "google" && safePicture(identity.picture) ? { picture: safePicture(identity.picture) } : {}),
       lastSignInAt: now, lastSignInProvider: identity.provider, updatedAt: now,
     };
-    if (isConfiguredRoot(config, user.email)) { next.role = "ROOT"; if (next.status !== "active") { next.status = "active"; next.approvedBy = "configuration"; next.approvedAt = now; } }
+    if (isOwnerEmail(config, user.email) && next.status !== "active") { next.status = "active"; next.approvedBy = "configuration"; next.approvedAt = now; }
     if (principalFor(config, finalUserId, next).status === "disabled") return next; // leave a disabled account untouched
     await store.update(userDocId(finalUserId), current.rev, next);
     return next;
@@ -157,11 +159,7 @@ export async function getUser(store: AccountStore, userId: string): Promise<Stor
   return doc && doc.body.type === "auth_user" ? doc : null;
 }
 
-export async function listUsers(store: AccountStore): Promise<Array<{ id: string; rev: string; user: UserDoc }>> {
-  return (await store.list<UserDoc>(USER_PREFIX)).flatMap((doc) => doc.body?.type === "auth_user" ? [{ id: doc.id.slice(USER_PREFIX.length), rev: doc.rev, user: doc.body }] : []);
-}
-
-export interface AdminPatch { displayName?: string; scoutName?: string | null; adminNote?: string | null; role?: Role; status?: AccountStatus }
+export interface AdminPatch { displayName?: string; scoutName?: string | null; adminNote?: string | null; role?: Exclude<Role, "OWNER">; status?: AccountStatus }
 export interface ProfilePatch { displayName?: string; scoutName?: string | null }
 
 const ADMIN_FIELDS = new Set(["displayName", "scoutName", "adminNote", "role", "status", "expectedRev"]);
@@ -186,29 +184,33 @@ export function parsePatch(body: unknown, kind: "admin" | "profile"): { ok: true
     if (typeof input[field] !== "string") return { ok: false, error: `${field} must be text` };
     patch[field] = cleanText(input[field], max) ?? null;
   }
-  if ("role" in input) { if (!isRole(input.role)) return { ok: false, error: `role must be one of ${ROLES.join(", ")}` }; patch.role = input.role; }
+  if ("role" in input) { if (!isAssignableRole(input.role)) return { ok: false, error: `role must be one of ${ASSIGNABLE_ROLES.join(", ")} (OWNER is set in the server configuration)` }; patch.role = input.role; }
   if ("status" in input) { if (!isAccountStatus(input.status)) return { ok: false, error: "status must be active, pending, or disabled" }; patch.status = input.status; }
   if ("expectedRev" in input) { if (typeof input.expectedRev !== "string" || input.expectedRev.length > 200) return { ok: false, error: "expectedRev must be a revision string" }; patch.expectedRev = input.expectedRev; }
   if (Object.keys(patch).filter((key) => key !== "expectedRev").length === 0) return { ok: false, error: "Nothing to change" };
   return { ok: true, patch };
 }
 
+/** Whether a change touches a name; only the Owner may make those. */
+const changesNames = (patch: AdminPatch | ProfilePatch) => patch.displayName !== undefined || patch.scoutName !== undefined;
+
 /**
- * Applies an administrator's change to another account. Checks, in order: the
- * actor may manage this account at all, may grant the requested role, and the
- * change would not leave the system without an active ROOT.
+ * Applies a manager's change to another account. Checks, in order: the actor
+ * may manage this account at all, may change names (Owner only), and may grant
+ * the requested role.
  */
 export async function adminUpdateUser(store: AccountStore, config: AuthConfig, actor: Principal, targetId: string, patch: AdminPatch & { expectedRev?: string }): Promise<{ before: UserDoc; after: UserDoc; rev: string }> {
   const current = await getUser(store, targetId);
   if (!current) throw new AccountError("not_found", "No such account");
   const target = principalFor(config, targetId, current.body);
-  if (actor.id === targetId) throw new AccountError("forbidden", "You cannot change your own role, status, or admin fields");
-  if (!canManageUser(actor, target)) throw new AccountError("forbidden", target.rootLocked ? "Root accounts from AUTH_ROOT_EMAILS can only be changed in the server configuration" : "Your role cannot manage this account");
-  if (patch.role !== undefined && patch.role !== current.body.role && !canAssignRole(actor, target, patch.role)) throw new AccountError("forbidden", `Your role cannot grant ${patch.role}`);
+  if (actor.id === targetId) throw new AccountError("forbidden", "You cannot change your own role or status");
+  if (!canManageUser(actor, target)) throw new AccountError("forbidden", target.role === "OWNER" ? "The Owner is set in the server configuration (AUTH_OWNER_EMAILS) and can't be changed here" : "Your role cannot manage this account");
+  if (changesNames(patch) && !can(actor, "users:rename")) throw new AccountError("forbidden", "Only the Owner can change names");
+  if (patch.role !== undefined && patch.role !== storedRole(current.body.role) && !canAssignRole(actor, target, patch.role)) throw new AccountError("forbidden", `Your role cannot grant ${patch.role}`);
   if (patch.expectedRev && patch.expectedRev !== current.rev) throw new AccountError("conflict", "This account was changed by someone else. Reload and try again.");
 
   const now = new Date().toISOString();
-  const next: UserDoc = { ...current.body, updatedAt: now };
+  const next: UserDoc = { ...current.body, role: storedRole(current.body.role), updatedAt: now };
   if (patch.displayName !== undefined) next.displayName = patch.displayName;
   if (patch.scoutName !== undefined) { if (patch.scoutName === null) delete next.scoutName; else next.scoutName = patch.scoutName; }
   if (patch.adminNote !== undefined) { if (patch.adminNote === null) delete next.adminNote; else next.adminNote = patch.adminNote; }
@@ -216,11 +218,6 @@ export async function adminUpdateUser(store: AccountStore, config: AuthConfig, a
   if (patch.status !== undefined) {
     if (patch.status === "active" && current.body.status !== "active") { next.approvedBy = actor.id; next.approvedAt = now; }
     next.status = patch.status;
-  }
-
-  const losesRoot = target.role === "ROOT" && (next.role !== "ROOT" || next.status !== "active");
-  if (losesRoot && (await countActiveRoots(store, config, targetId)) === 0) {
-    throw new AccountError("last_root", "This is the last active root account. Make another account ROOT (or set AUTH_ROOT_EMAILS) first.");
   }
   try {
     const rev = await store.update(userDocId(targetId), current.rev, next);
@@ -231,26 +228,18 @@ export async function adminUpdateUser(store: AccountStore, config: AuthConfig, a
   }
 }
 
-/** A user editing their own profile: display and scout name only. */
-export async function updateOwnProfile(store: AccountStore, userId: string, patch: ProfilePatch): Promise<UserDoc> {
+/** Changing your own names: allowed only for the Owner, like every other name change. */
+export async function updateOwnProfile(store: AccountStore, principal: Principal, patch: ProfilePatch): Promise<UserDoc> {
+  if (changesNames(patch) && !can(principal, "users:rename")) throw new AccountError("forbidden", "Only the Owner can change names");
   return withRetry(async () => {
-    const current = await getUser(store, userId);
+    const current = await getUser(store, principal.id);
     if (!current) throw new AccountError("not_found", "No such account");
     const next: UserDoc = { ...current.body, updatedAt: new Date().toISOString() };
     if (patch.displayName !== undefined) next.displayName = patch.displayName;
     if (patch.scoutName !== undefined) { if (patch.scoutName === null) delete next.scoutName; else next.scoutName = patch.scoutName; }
-    await store.update(userDocId(userId), current.rev, next);
+    await store.update(userDocId(principal.id), current.rev, next);
     return next;
   });
-}
-
-/** Active ROOT accounts other than `excluding`, counting configured root emails that have not signed in yet. */
-export async function countActiveRoots(store: AccountStore, config: AuthConfig, excluding?: string): Promise<number> {
-  const users = await listUsers(store);
-  const emails = new Set(users.map(({ user }) => user.email));
-  const stored = users.filter(({ id, user }) => id !== excluding && principalFor(config, id, user).role === "ROOT" && principalFor(config, id, user).status === "active").length;
-  const configuredNotYetSignedIn = [...config.rootEmails].filter((email) => !emails.has(email)).length;
-  return stored + configuredNotYetSignedIn;
 }
 
 /** What the browser may know about an account. `admin` adds manager-only fields. */
@@ -258,10 +247,10 @@ export function publicUser(config: AuthConfig, userId: string, user: UserDoc, vi
   const principal = principalFor(config, userId, user);
   return {
     id: userId, email: user.email, displayName: user.displayName, picture: user.picture ?? null,
-    role: principal.role, status: principal.status, rootLocked: principal.rootLocked ?? false,
+    role: principal.role, status: principal.status,
     providers: user.providers, lastSignInProvider: user.lastSignInProvider ?? null,
     scoutName: user.scoutName ?? null, createdAt: user.createdAt, lastSignInAt: user.lastSignInAt ?? null,
-    ...(view === "admin" ? { providerName: user.providerName ?? null, adminNote: user.adminNote ?? null, approvedBy: user.approvedBy ?? null, approvedAt: user.approvedAt ?? null, updatedAt: user.updatedAt, storedRole: user.role } : {}),
+    ...(view === "admin" ? { providerName: user.providerName ?? null, adminNote: user.adminNote ?? null, approvedBy: user.approvedBy ?? null, approvedAt: user.approvedAt ?? null, updatedAt: user.updatedAt } : {}),
   };
 }
 export type PublicUser = ReturnType<typeof publicUser>;

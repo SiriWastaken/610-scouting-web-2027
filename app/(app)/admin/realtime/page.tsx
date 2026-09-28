@@ -1,6 +1,6 @@
-import { AccessDenied } from "@/components/auth/access-denied";
-import { RealtimeMonitor } from "@/components/admin/realtime-monitor";
-import { requirePage } from "@/lib/auth/next";
+import { AccessDenied } from "@/components/ui/kit";
+import { RealtimeMonitor } from "@/components/admin/realtime";
+import { requirePage } from "@/lib/auth/pages";
 
 export default async function AdminRealtimePage() {
   if (!(await requirePage("ops:read")).allowed) return <AccessDenied />;

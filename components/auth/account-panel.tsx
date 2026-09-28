@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Avatar } from "@/components/auth/avatar";
-import { providerLabel, ProviderIcon } from "@/components/auth/provider-icons";
-import { AccountStatusBadge, RoleBadge } from "@/components/auth/role-badge";
-import { useSession } from "@/components/auth/session-provider";
-import { buttonClass, dangerButtonClass, Field, formatDate, inputClass, Panel, primaryButtonClass } from "@/components/ui/panel";
+import { Avatar } from "@/components/auth/identity";
+import { providerLabel, ProviderIcon } from "@/components/auth/identity";
+import { AccountStatusBadge, RoleBadge } from "@/components/auth/identity";
+import { useSession } from "@/components/auth/session";
+import { buttonClass, dangerButtonClass, Field, formatDate, inputClass, Panel, primaryButtonClass } from "@/components/ui/kit";
 import { ROLE_DESCRIPTIONS } from "@/lib/auth/roles";
 
 interface DeviceSession { current: boolean; provider: string; device: string | null; createdAt: string; lastSeenAt: string; expiresAt: string }
@@ -15,7 +15,9 @@ interface DeviceSession { current: boolean; provider: string; device: string | n
  * preferences can be added later as another panel without touching these.
  */
 export function AccountPanel() {
-  const { session: { user, session }, refresh, signOut, signingOut } = useSession();
+  const { session: { user, session, permissions }, refresh, signOut, signingOut } = useSession();
+  // Only the Owner changes names (theirs and everyone else's); the server enforces the same rule.
+  const canRename = permissions["users:rename"] === true;
   const [sessions, setSessions] = useState<DeviceSession[] | null>(null);
   const [sessionsError, setSessionsError] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState(user.displayName);
@@ -60,7 +62,7 @@ export function AccountPanel() {
           <div className="mt-2 flex flex-wrap items-center gap-3"><span data-profile-role={user.role}><RoleBadge role={user.role} /></span><AccountStatusBadge status={user.status} /></div>
         </div>
       </div>
-      <form onSubmit={save} className="grid gap-4 border-t border-[var(--line)] px-5 py-5 sm:grid-cols-2">
+      {canRename ? <form onSubmit={save} className="grid gap-4 border-t border-[var(--line)] px-5 py-5 sm:grid-cols-2">
         <label className="text-xs text-[var(--muted)]">Display name
           <input className={`${inputClass} mt-1`} value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={80} required />
         </label>
@@ -71,18 +73,22 @@ export function AccountPanel() {
           <button type="submit" className={primaryButtonClass} disabled={saving || (displayName === user.displayName && scoutName === (user.scoutName ?? ""))}>{saving ? "Saving…" : "Save changes"}</button>
           {message && <span role="status" className={`text-sm ${message.tone === "ok" ? "text-[var(--green)]" : "text-red-300"}`}>{message.text}</span>}
         </div>
-      </form>
+      </form> : <dl className="border-t border-[var(--line)]">
+        <Field label="Display name">{user.displayName}</Field>
+        <Field label="Scout name">{user.scoutName ?? "—"}</Field>
+        <p className="border-t border-[var(--line)] px-5 py-3 text-xs text-[var(--muted)]">Only the team&apos;s Owner can change names. Ask them if yours needs fixing.</p>
+      </dl>}
     </Panel>
 
     <Panel title="Access">
       <dl>
         <Field label="Role"><div className="flex flex-wrap items-center gap-2"><RoleBadge role={user.role} /><span className="text-[var(--muted)]">{ROLE_DESCRIPTIONS[user.role]}</span></div></Field>
-        {user.rootLocked && <Field label="Root lock">Set by server configuration; it can&apos;t be changed from the app.</Field>}
+        {user.role === "OWNER" && <Field label="Owner">Set in the server configuration (AUTH_OWNER_EMAILS); it can&apos;t be changed from the app.</Field>}
         <Field label="Sign-in methods"><div className="flex flex-wrap gap-3">{user.providers.map((id) => <span key={id} className="inline-flex items-center gap-1.5"><ProviderIcon provider={id} className="h-3.5 w-3.5" />{providerLabel(id)}</span>)}</div></Field>
         <Field label="Member since">{formatDate(user.createdAt)}</Field>
         <Field label="Last sign-in">{formatDate(user.lastSignInAt)} {user.lastSignInProvider && <span className="text-[var(--muted)]">with {providerLabel(user.lastSignInProvider)}</span>}</Field>
       </dl>
-      <p className="border-t border-[var(--line)] px-5 py-3 text-xs text-[var(--muted)]">Roles are changed by a scout lead or admin. Nobody can change their own role.</p>
+      <p className="border-t border-[var(--line)] px-5 py-3 text-xs text-[var(--muted)]">Roles are assigned by scout leads, mentors, and the Owner. Nobody can change their own role.</p>
     </Panel>
 
     <Panel title="This session" action={<button type="button" className={dangerButtonClass} onClick={() => void signOut()} disabled={signingOut}>{signingOut ? "Signing out…" : "Sign out"}</button>}>

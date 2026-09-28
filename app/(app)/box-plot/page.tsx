@@ -1,9 +1,9 @@
 import { connection } from "next/server";
-import { requirePage } from "@/lib/auth/next";
-import { AccessDenied } from "@/components/auth/access-denied";
-import { MetricBoard } from "@/components/metrics/metric-board";
+import { requirePage } from "@/lib/auth/pages";
+import { AccessDenied } from "@/components/ui/kit";
+import { MetricBoard } from "@/components/dashboard/metric-board";
 import { fetchTeamAggregatesSnapshot } from "@/services/couchbase";
-import { RealtimeConnection } from "@/components/realtime/realtime-connection";
+import { RealtimeConnection } from "@/components/dashboard/live-status";
 
 export default async function BoxPlotPage() {
   // Live data: render per request even when the build had no Couchbase settings.

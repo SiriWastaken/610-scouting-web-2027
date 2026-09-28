@@ -4,7 +4,7 @@
 import { EventEmitter } from "node:events";
 import { createServer } from "node:http";
 import next from "next";
-import { createRealtimeUpgradeHandler } from "../lib/realtime-server.ts";
+import { createRealtimeUpgradeHandler } from "../lib/realtime/server.ts";
 import { recordHttpRequest } from "../lib/ops/metrics.ts";
 
 const dev = process.env.NODE_ENV !== "production";

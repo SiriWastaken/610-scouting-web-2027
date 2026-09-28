@@ -1,6 +1,6 @@
 import { recordAudit } from "@/lib/auth/audit";
-import { clearCookie, json, jsonError } from "@/lib/auth/http";
-import { authRuntime, authenticateCookieHeader, isTrustedOrigin } from "@/lib/auth/runtime";
+import { clearCookie, json, jsonError } from "@/lib/auth/requests";
+import { authRuntime, authenticateCookieHeader, isTrustedOrigin } from "@/lib/auth/requests";
 import { readCookie, revokeSession, sessionCookieName } from "@/lib/auth/sessions";
 import { authMetrics } from "@/lib/ops/metrics";
 

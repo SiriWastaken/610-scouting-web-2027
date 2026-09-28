@@ -1,9 +1,9 @@
 import { resolveSignIn } from "@/lib/auth/accounts";
 import { recordAudit } from "@/lib/auth/audit";
 import { isProviderId } from "@/lib/auth/config";
-import { clearCookie, redirectTo, serializeCookie } from "@/lib/auth/http";
-import { completeSignIn, SignInError, stateCookieName, type CallbackParams } from "@/lib/auth/oidc";
-import { authRuntime } from "@/lib/auth/runtime";
+import { clearCookie, redirectTo, serializeCookie } from "@/lib/auth/requests";
+import { completeSignIn, SignInError, stateCookieName, type CallbackParams } from "@/lib/auth/sign-in";
+import { authRuntime } from "@/lib/auth/requests";
 import { createSession, pruneExpiredSessions, readCookie, revokeSession, sessionCookieName } from "@/lib/auth/sessions";
 import { StoreUnavailableError } from "@/lib/auth/store";
 import { authMetrics, recordError, scrub } from "@/lib/ops/metrics";

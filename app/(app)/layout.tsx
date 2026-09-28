@@ -1,6 +1,6 @@
 import { AppShell } from "@/components/layout/app-shell";
-import { SessionProvider } from "@/components/auth/session-provider";
-import { requireActiveViewer, viewerForClient } from "@/lib/auth/next";
+import { SessionProvider } from "@/components/auth/session";
+import { requireActiveViewer, viewerForClient } from "@/lib/auth/pages";
 import { can, canOpenAdmin, PERMISSIONS, type Permission } from "@/lib/auth/roles";
 
 /**

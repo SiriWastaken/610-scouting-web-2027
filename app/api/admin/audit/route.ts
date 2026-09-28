@@ -1,6 +1,6 @@
 import { listAudit, type AuditResult } from "@/lib/auth/audit";
-import { guard, json, jsonError } from "@/lib/auth/http";
-import { authRuntime } from "@/lib/auth/runtime";
+import { guard, json, jsonError } from "@/lib/auth/requests";
+import { authRuntime } from "@/lib/auth/requests";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

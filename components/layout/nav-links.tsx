@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSession } from "@/components/auth/session-provider";
+import { useSession } from "@/components/auth/session";
 
 const navigation = [
   { href: "/teams", label: "Teams", number: "01" },

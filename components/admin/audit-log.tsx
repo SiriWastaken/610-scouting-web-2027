@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { EmptyRow } from "@/components/admin/status";
-import { buttonClass, formatDate, inputClass, Panel } from "@/components/ui/panel";
+import { EmptyRow } from "@/components/ui/kit";
+import { buttonClass, formatDate, inputClass, Panel } from "@/components/ui/kit";
 import type { AuditEntry } from "@/lib/auth/audit";
 
 const ACTIONS = [["", "All actions"], ["auth", "Sign-in / sign-out"], ["users", "Account changes"], ["account", "Own-profile changes"], ["ops", "Operations"], ["dashboard", "Dashboard access"], ["audit", "Audit access"]] as const;

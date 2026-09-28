@@ -1,6 +1,6 @@
-import { AccessDenied } from "@/components/auth/access-denied";
-import { SyncMonitor } from "@/components/admin/sync-monitor";
-import { requirePage } from "@/lib/auth/next";
+import { AccessDenied } from "@/components/ui/kit";
+import { SyncMonitor } from "@/components/admin/health";
+import { requirePage } from "@/lib/auth/pages";
 
 export default async function AdminSyncPage() {
   if (!(await requirePage("ops:read")).allowed) return <AccessDenied />;

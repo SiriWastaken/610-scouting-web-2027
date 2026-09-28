@@ -1,8 +1,8 @@
 import { AccountError, adminUpdateUser, getUser, parsePatch, principalFor, publicUser } from "@/lib/auth/accounts";
 import { listAudit, recordAudit } from "@/lib/auth/audit";
-import { guard, json, jsonError, readJson } from "@/lib/auth/http";
+import { guard, json, jsonError, readJson } from "@/lib/auth/requests";
 import { assignableRoles, can, canManageUser } from "@/lib/auth/roles";
-import { authRuntime } from "@/lib/auth/runtime";
+import { authRuntime } from "@/lib/auth/requests";
 import { invalidateUserSessions, listUserSessions, revokeUserSessions } from "@/lib/auth/sessions";
 import { scoutActivity } from "@/services/couchbase";
 
@@ -28,7 +28,7 @@ export async function GET(request: Request, { params }: Context) {
   return json({ user: { ...publicUser(auth.config, id, found.body, "admin"), rev: found.rev }, sessions, scouting, history, manageable, assignableRoles: manageable ? assignableRoles(actor) : [] });
 }
 
-const STATUS: Record<AccountError["code"], number> = { forbidden: 403, invalid: 400, not_found: 404, conflict: 409, last_root: 409 };
+const STATUS: Record<AccountError["code"], number> = { forbidden: 403, invalid: 400, not_found: 404, conflict: 409 };
 
 /** Changes another account. Every rule lives in adminUpdateUser; this route only translates and audits. */
 export async function PATCH(request: Request, { params }: Context) {
@@ -55,7 +55,7 @@ export async function PATCH(request: Request, { params }: Context) {
     return json({ user: { ...publicUser(auth.config, id, after, "admin"), rev } });
   } catch (error) {
     if (!(error instanceof AccountError)) throw error;
-    if (error.code === "forbidden" || error.code === "last_root") {
+    if (error.code === "forbidden") {
       await recordAudit(auth.store, { action: parsed.patch.role ? "users.role" : "users.update", result: "denied", actor, target: { type: "user", id }, reason: error.message, meta: { requestedRole: parsed.patch.role ?? null, requestedStatus: parsed.patch.status ?? null } });
     }
     return jsonError(STATUS[error.code], error.code, error.message);

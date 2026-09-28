@@ -1,7 +1,7 @@
-import { parsePatch, publicUser, updateOwnProfile } from "@/lib/auth/accounts";
+import { AccountError, parsePatch, publicUser, updateOwnProfile } from "@/lib/auth/accounts";
 import { recordAudit } from "@/lib/auth/audit";
-import { guard, json, jsonError, readJson } from "@/lib/auth/http";
-import { authRuntime, clientViewer } from "@/lib/auth/runtime";
+import { guard, json, jsonError, readJson } from "@/lib/auth/requests";
+import { authRuntime, clientViewer } from "@/lib/auth/requests";
 import { invalidateUserSessions, listUserSessions } from "@/lib/auth/sessions";
 
 export const runtime = "nodejs";
@@ -35,7 +35,14 @@ export async function PATCH(request: Request) {
     }
     return jsonError(400, "invalid", parsed.error);
   }
-  const user = await updateOwnProfile(auth.store, viewer.userId, { displayName: parsed.patch.displayName, scoutName: parsed.patch.scoutName });
+  let user;
+  try {
+    user = await updateOwnProfile(auth.store, viewer.principal, { displayName: parsed.patch.displayName, scoutName: parsed.patch.scoutName });
+  } catch (error) {
+    if (!(error instanceof AccountError) || error.code !== "forbidden") throw error;
+    await recordAudit(auth.store, { action: "account.update", result: "denied", actor: { id: viewer.userId, email: viewer.user.email, role: viewer.principal.role }, target: { type: "user", id: viewer.userId }, reason: error.message });
+    return jsonError(403, "forbidden", error.message);
+  }
   invalidateUserSessions(viewer.userId);
   await recordAudit(auth.store, { action: "account.update", result: "success", actor: { id: viewer.userId, email: viewer.user.email, role: viewer.principal.role }, target: { type: "user", id: viewer.userId, label: user.displayName }, meta: { fields: Object.keys(parsed.patch).join(",") } });
   return json({ user: publicUser(auth.config, viewer.userId, user) });

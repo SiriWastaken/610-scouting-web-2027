@@ -1,6 +1,6 @@
-import { AccessDenied } from "@/components/auth/access-denied";
-import { Overview } from "@/components/admin/overview";
-import { requirePage } from "@/lib/auth/next";
+import { AccessDenied } from "@/components/ui/kit";
+import { Overview } from "@/components/admin/health";
+import { requirePage } from "@/lib/auth/pages";
 import { redirect } from "next/navigation";
 import { can } from "@/lib/auth/roles";
 

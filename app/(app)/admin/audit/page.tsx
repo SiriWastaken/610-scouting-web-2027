@@ -1,6 +1,6 @@
-import { AccessDenied } from "@/components/auth/access-denied";
+import { AccessDenied } from "@/components/ui/kit";
 import { AuditLog } from "@/components/admin/audit-log";
-import { requirePage } from "@/lib/auth/next";
+import { requirePage } from "@/lib/auth/pages";
 
 export default async function AdminAuditPage() {
   if (!(await requirePage("audit:read")).allowed) return <AccessDenied />;

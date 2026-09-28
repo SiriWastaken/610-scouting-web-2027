@@ -1,6 +1,6 @@
 import { recordAudit } from "@/lib/auth/audit";
-import { guard, json } from "@/lib/auth/http";
-import { authRuntime } from "@/lib/auth/runtime";
+import { guard, json } from "@/lib/auth/requests";
+import { authRuntime } from "@/lib/auth/requests";
 import { metricsSnapshot } from "@/lib/ops/metrics";
 import { getHealth, overallStatus, persistenceRoundTrip, serverInfo } from "@/services/health";
 

@@ -46,7 +46,8 @@ export interface AuthConfig {
   secureCookies: boolean;
   secret: string;
   providers: Partial<Record<ProviderId, ProviderConfig>>;
-  rootEmails: Set<string>;
+  /** AUTH_OWNER_EMAILS: always OWNER, active, and unchangeable from the app. */
+  ownerEmails: Set<string>;
   /** Exact emails, or domains written as `@example.org`, that become active members on first sign-in. Everyone else waits for approval. */
   autoApprove: string[];
   sessionMaxAgeMs: number;
@@ -174,7 +175,8 @@ export function readAuthConfig(env: Record<string, string | undefined> = process
     config: {
       baseUrl, secret, providers, store, localStorePath,
       secureCookies: baseUrl.startsWith("https:"),
-      rootEmails: new Set(list(env.AUTH_ROOT_EMAILS)),
+      // AUTH_ROOT_EMAILS is the earlier name of the same setting.
+      ownerEmails: new Set(list(env.AUTH_OWNER_EMAILS ?? env.AUTH_ROOT_EMAILS)),
       autoApprove: list(env.AUTH_AUTO_APPROVE),
       sessionMaxAgeMs: hours(env.AUTH_SESSION_MAX_AGE_HOURS, 24 * 30),
       sessionIdleMs: hours(env.AUTH_SESSION_IDLE_HOURS, 24 * 7),

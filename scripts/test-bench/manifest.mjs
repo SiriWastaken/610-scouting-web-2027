@@ -40,7 +40,7 @@ export const suites = {
       "tests/integration/ops/admin-health.test.ts": 8,
       "tests/integration/ops/websocket-monitoring.test.ts": 6,
       "tests/integration/auth/id-token-verification.test.ts": 7,
-      "tests/integration/auth/local-account-store.test.ts": 4,
+      "tests/integration/auth/local-account-store.test.ts": 5,
     },
   },
   security: {
@@ -49,7 +49,7 @@ export const suites = {
     files: {
       "tests/security/adversarial-inputs.test.ts": 11,
       "tests/security/trust-boundaries.test.ts": 9,
-      "tests/security/authorization-matrix.test.ts": 7,
+      "tests/security/authorization-matrix.test.ts": 8,
     },
   },
   contract: {
@@ -77,7 +77,7 @@ export const suites = {
       "tests/e2e/server-http-and-websocket.e2e.test.ts": 8,
       "tests/e2e/browser-scouting-workflows.e2e.test.ts": 8,
       "tests/e2e/browser-failure-recovery.e2e.test.ts": 3,
-      "tests/e2e/browser-auth-and-admin.e2e.test.ts": 6,
+      "tests/e2e/browser-auth-and-admin.e2e.test.ts": 7,
     },
   },
 };
@@ -104,23 +104,23 @@ export const coverageSuites = ["unit", "integration", "security", "contract"];
 export const coverage = {
   include: ["lib/**", "services/**", "app/api/**"],
   // React hook wrappers: exercised through the browser E2E suite, which runs in a separate process.
-  exclude: ["lib/use-realtime.ts"],
+  exclude: ["lib/realtime/hooks.ts"],
   // [lines, branches, functions] %, set ~3-5 points under what the suites reach.
   files: {
     // What the browser may receive and trust: parsing, the privacy allow-list, revision order.
-    "lib/realtime-protocol.ts": { lines: 97, branches: 94, functions: 95 },
-    "lib/realtime-store.ts": { lines: 97, branches: 88, functions: 95 },
+    "lib/realtime/protocol.ts": { lines: 97, branches: 94, functions: 95 },
+    "lib/realtime/documents.ts": { lines: 97, branches: 88, functions: 95 },
     // Every dashboard statistic and team row.
-    "lib/normalize-aggregate.ts": { lines: 97, branches: 94, functions: 95 },
-    "lib/match-data.ts": { lines: 97, branches: 94, functions: 95 },
+    "lib/data/aggregates.ts": { lines: 97, branches: 94, functions: 95 },
+    "lib/data/match-data.ts": { lines: 97, branches: 94, functions: 95 },
     // The synchronisation path: server bridge, upstream long-poll, upgrade handler, browser client.
-    "lib/realtime-bridge.ts": { lines: 97, branches: 90, functions: 95 },
-    "lib/couchbase-longpoll.ts": { lines: 97, branches: 85, functions: 85 },
+    "lib/realtime/bridge.ts": { lines: 97, branches: 90, functions: 95 },
+    "lib/realtime/couchbase-feed.ts": { lines: 97, branches: 85, functions: 85 },
     // Branch floor is lower: several branches are defensive (malformed request URLs the ws server never produces).
-    "lib/realtime-server.ts": { lines: 95, branches: 65, functions: 95 },
+    "lib/realtime/server.ts": { lines: 95, branches: 65, functions: 95 },
     // defaultUrl() needs a browser `location`; the rest of the state machine is covered.
-    "lib/realtime-client.ts": { lines: 92, branches: 90, functions: 72 },
-    "lib/couchbase-config.ts": { lines: 97, branches: 95, functions: 95 },
+    "lib/realtime/client.ts": { lines: 92, branches: 90, functions: 72 },
+    "lib/data/couchbase-config.ts": { lines: 97, branches: 95, functions: 95 },
     // API input validation.
     "app/api/dashboard-documents/route.ts": { lines: 97, branches: 95, functions: 95 },
     // The upgrade itself runs only inside Vercel's runtime; its origin and configuration checks are covered.
@@ -131,18 +131,17 @@ export const coverage = {
     // Who may do what: every permission and management rule.
     "lib/auth/roles.ts": { lines: 97, branches: 95, functions: 85 },
     // Sign-in: token verification, state/PKCE/nonce, return paths, account resolution.
-    "lib/auth/jwt.ts": { lines: 97, branches: 89, functions: 95 },
-    "lib/auth/oidc.ts": { lines: 97, branches: 80, functions: 87 },
-    "lib/auth/crypto.ts": { lines: 97, branches: 95, functions: 95 },
+    // crypto + jwt + oidc, merged; measured 100 / 92 / 96.
+    "lib/auth/sign-in.ts": { lines: 97, branches: 88, functions: 92 },
     "lib/auth/config.ts": { lines: 97, branches: 88, functions: 95 },
     "lib/auth/accounts.ts": { lines: 93, branches: 83, functions: 95 },
     // Sessions and request authentication. Function floor is lower: pruning and device-summary
     // helpers have small inner callbacks that only run with expired sessions from other devices.
     "lib/auth/sessions.ts": { lines: 97, branches: 88, functions: 70 },
-    "lib/auth/runtime.ts": { lines: 97, branches: 90, functions: 95 },
-    "lib/auth/http.ts": { lines: 97, branches: 87, functions: 95 },
+    // runtime + http, merged; measured 100 / 92 / 100.
+    "lib/auth/requests.ts": { lines: 97, branches: 88, functions: 95 },
     // Account store: the remaining branches are defensive answers to malformed Sync Gateway responses.
-    "lib/auth/store.ts": { lines: 97, branches: 75, functions: 95 },
+    "lib/auth/store.ts": { lines: 97, branches: 82, functions: 95 },
     "lib/auth/audit.ts": { lines: 97, branches: 91, functions: 95 },
     // Admin and account APIs: the authorization and translation of every privileged action.
     "app/api/admin/users/route.ts": { lines: 97, branches: 85, functions: 95 },

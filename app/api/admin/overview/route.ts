@@ -1,4 +1,4 @@
-import { guard, json } from "@/lib/auth/http";
+import { guard, json } from "@/lib/auth/requests";
 import { metricsSnapshot } from "@/lib/ops/metrics";
 import { getHealth, overallStatus, serverInfo } from "@/services/health";
 

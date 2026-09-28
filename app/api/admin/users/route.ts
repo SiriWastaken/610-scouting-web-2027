@@ -1,7 +1,7 @@
-import { listUsers, principalFor, publicUser } from "@/lib/auth/accounts";
-import { guard, json, jsonError } from "@/lib/auth/http";
+import { principalFor, publicUser, USER_PREFIX, type UserDoc } from "@/lib/auth/accounts";
+import { guard, json, jsonError } from "@/lib/auth/requests";
 import { canManageUser, assignableRoles } from "@/lib/auth/roles";
-import { authRuntime } from "@/lib/auth/runtime";
+import { authRuntime } from "@/lib/auth/requests";
 import { SESSION_PREFIX, type SessionDoc } from "@/lib/auth/sessions";
 import { scoutActivity } from "@/services/couchbase";
 
@@ -19,7 +19,10 @@ export async function GET(request: Request) {
   const auth = authRuntime();
   if (!auth.ok) return jsonError(503, "auth_unavailable", "Sign-in is not configured");
   const actor = checked.viewer.principal;
-  const [users, sessions, activity] = await Promise.all([listUsers(auth.store), auth.store.list<SessionDoc>(SESSION_PREFIX), scoutActivity()]);
+  // One read of the account store for both users and sessions (on Capella each list is a full pass over _changes).
+  const [everything, activity] = await Promise.all([auth.store.list<UserDoc | SessionDoc>(""), scoutActivity()]);
+  const users = everything.flatMap((doc) => doc.id.startsWith(USER_PREFIX) && doc.body?.type === "auth_user" ? [{ id: doc.id.slice(USER_PREFIX.length), user: doc.body }] : []);
+  const sessions = everything.filter((doc) => doc.id.startsWith(SESSION_PREFIX)) as Array<{ body?: SessionDoc }>;
   const now = Date.now();
   const live = new Map<string, number>();
   for (const { body } of sessions) {

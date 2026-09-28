@@ -1,9 +1,9 @@
 import { experimental_upgradeWebSocket } from "@vercel/functions";
 import { getCouchbaseChangesConfig } from "@/services/couchbase";
-import { startCouchbaseLongPoll } from "@/lib/couchbase-longpoll";
-import { attachRealtimeBridge, isSameOriginUpgrade, type BridgeSocket } from "@/lib/realtime-bridge";
-import { sessionBridgeOptions, upgradeDecision } from "@/lib/realtime-server";
-import { authenticateCookieHeader } from "@/lib/auth/runtime";
+import { startCouchbaseLongPoll } from "@/lib/realtime/couchbase-feed";
+import { attachRealtimeBridge, isSameOriginUpgrade, type BridgeSocket } from "@/lib/realtime/bridge";
+import { sessionBridgeOptions, upgradeDecision } from "@/lib/realtime/server";
+import { authenticateCookieHeader } from "@/lib/auth/requests";
 import { realtimeMetrics } from "@/lib/ops/metrics";
 
 // Used only on Vercel, whose runtime can upgrade a Route Handler request.

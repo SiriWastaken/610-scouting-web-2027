@@ -1,10 +1,10 @@
 import { connection } from "next/server";
-import { requirePage } from "@/lib/auth/next";
-import { AccessDenied } from "@/components/auth/access-denied";
+import { requirePage } from "@/lib/auth/pages";
+import { AccessDenied } from "@/components/ui/kit";
 import { notFound } from "next/navigation";
 import { fetchTeamAggregatesSnapshot } from "@/services/couchbase";
-import { RealtimeConnection } from "@/components/realtime/realtime-connection";
-import { TeamDetailLive } from "@/components/teams/team-detail-live";
+import { RealtimeConnection } from "@/components/dashboard/live-status";
+import { TeamDetailLive } from "@/components/dashboard/team-detail";
 
 export default async function TeamDetailPage({ params }: { params: Promise<{ teamNumber: string }> }) {
   // Live data: render per request even when the build had no Couchbase settings.

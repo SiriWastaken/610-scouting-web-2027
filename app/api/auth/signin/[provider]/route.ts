@@ -1,7 +1,7 @@
 import { isProviderId } from "@/lib/auth/config";
-import { redirectTo, serializeCookie } from "@/lib/auth/http";
-import { beginSignIn, SignInError } from "@/lib/auth/oidc";
-import { authRuntime } from "@/lib/auth/runtime";
+import { redirectTo, serializeCookie } from "@/lib/auth/requests";
+import { beginSignIn, SignInError } from "@/lib/auth/sign-in";
+import { authRuntime } from "@/lib/auth/requests";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

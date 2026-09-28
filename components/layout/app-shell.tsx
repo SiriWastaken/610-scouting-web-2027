@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { NavLinks } from "@/components/layout/nav-links";
-import { AccountChip } from "@/components/auth/account-chip";
+import { AccountChip } from "@/components/auth/session";
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (

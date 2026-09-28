@@ -11,8 +11,8 @@ nextEnv.loadEnvConfig(process.cwd(), process.env.NODE_ENV !== "production", { in
 
 const { readAuthConfig, enabledProviders, storeKeyspace } = await import("../lib/auth/config.ts");
 const { AuthStore, StoreUnavailableError } = await import("../lib/auth/store.ts");
-const { LocalAuthStore } = await import("../lib/auth/local-store.ts");
-const { appleClientSecret } = await import("../lib/auth/jwt.ts");
+const { LocalAuthStore } = await import("../lib/auth/store.ts");
+const { appleClientSecret } = await import("../lib/auth/sign-in.ts");
 
 let failures = 0;
 const ok = (message) => console.log(`  ✔ ${message}`);
@@ -50,8 +50,8 @@ if (config.providers.apple?.apple) {
     bad(`AUTH_APPLE_PRIVATE_KEY cannot be used: ${error instanceof Error ? error.message : error}`, "paste the whole .p8 file, including the BEGIN/END lines (\\n line breaks are fine)");
   }
 }
-if (config.rootEmails.size === 0) note("AUTH_ROOT_EMAILS is empty: nobody will be able to open the admin panel until someone is made ROOT");
-else ok(`${config.rootEmails.size} configured root email(s)`);
+if (config.ownerEmails.size === 0) note("AUTH_OWNER_EMAILS is empty: nobody will be able to open the admin panel");
+else ok(`Owner: ${[...config.ownerEmails].map((email) => email.replace(/^(.).*@/, "$1***@")).join(", ")}`);
 
 let store;
 if (config.localStorePath) {

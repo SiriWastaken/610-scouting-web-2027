@@ -1,6 +1,6 @@
 import "server-only";
 import { enabledProviders, readAuthConfig } from "@/lib/auth/config";
-import { authRuntime } from "@/lib/auth/runtime";
+import { authRuntime } from "@/lib/auth/requests";
 import { StoreUnavailableError } from "@/lib/auth/store";
 import { metricsSnapshot } from "@/lib/ops/metrics";
 import { probeSyncGateway, snapshotStatus, type SyncGatewayProbe } from "@/services/couchbase";

@@ -1,6 +1,6 @@
 import { enabledProviders, readAuthConfig } from "@/lib/auth/config";
-import { json } from "@/lib/auth/http";
-import { authRuntime, authenticateCookieHeader, clientViewer } from "@/lib/auth/runtime";
+import { json } from "@/lib/auth/requests";
+import { authRuntime, authenticateCookieHeader, clientViewer } from "@/lib/auth/requests";
 import { assignableRoles, can, canOpenAdmin, PERMISSIONS, type Permission } from "@/lib/auth/roles";
 
 export const runtime = "nodejs";
