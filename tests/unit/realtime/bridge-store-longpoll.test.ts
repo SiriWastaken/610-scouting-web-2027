@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import test from "node:test";
-import { attachRealtimeBridge, getActiveRealtimeConnections, isSameOriginUpgrade, type BridgeSocket, type FeedStarter } from "../lib/realtime-bridge.ts";
-import { startCouchbaseLongPoll } from "../lib/couchbase-longpoll.ts";
-import { compareRevs, isDashboardDocument, parseChangesFrame, parseServerMessage, parseSubscription, type RealtimeChange } from "../lib/realtime-protocol.ts";
-import { DocumentStore } from "../lib/realtime-store.ts";
-import { mergeAggregates, normalizeAggregateDocument } from "../lib/normalize-aggregate.ts";
+import { attachRealtimeBridge, getActiveRealtimeConnections, isSameOriginUpgrade, type BridgeSocket, type FeedStarter } from "../../../lib/realtime-bridge.ts";
+import { startCouchbaseLongPoll } from "../../../lib/couchbase-longpoll.ts";
+import { compareRevs, isDashboardDocument, parseChangesFrame, parseServerMessage, parseSubscription, type RealtimeChange } from "../../../lib/realtime-protocol.ts";
+import { DocumentStore } from "../../../lib/realtime-store.ts";
+import { mergeAggregates, normalizeAggregateDocument } from "../../../lib/normalize-aggregate.ts";
 
 class FakeSocket extends EventEmitter implements BridgeSocket {
   readyState = 1; sent: string[] = []; closed?: { code?: number; reason?: string };
