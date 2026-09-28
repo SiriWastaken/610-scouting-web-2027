@@ -6,9 +6,21 @@
     "dev": "node --experimental-strip-types scripts/server.mjs",
     "build": "next build",
     "start": "NODE_ENV=production node --experimental-strip-types scripts/server.mjs",
-    "lint": "eslint",
-    "test": "node --experimental-strip-types --test tests/*.test.ts",
-    "test:e2e": "node --experimental-strip-types --test tests/e2e/*.test.ts"
+    "lint": "eslint --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/test-bench/run.mjs fast",
+    "test:unit": "node scripts/test-bench/run.mjs unit",
+    "test:integration": "node scripts/test-bench/run.mjs integration",
+    "test:security": "node scripts/test-bench/run.mjs security",
+    "test:contract": "node scripts/test-bench/run.mjs contract",
+    "test:stress": "node scripts/test-bench/run.mjs stress",
+    "test:e2e": "npm run build && node scripts/test-bench/run.mjs e2e",
+    "test:e2e:prebuilt": "node scripts/test-bench/run.mjs e2e",
+    "test:coverage": "node scripts/test-bench/run.mjs coverage",
+    "test:real": "node scripts/test-bench/run.mjs contract e2e --target=real",
+    "test:hygiene": "node scripts/test-bench/hygiene.mjs",
+    "validate:fast": "npm run test:hygiene && npm run lint && npm run typecheck && node scripts/test-bench/run.mjs fast",
+    "validate": "npm run test:hygiene && npm run lint && npm run typecheck && npm run build && node scripts/test-bench/run.mjs all && npm run test:coverage"
   },
   "dependencies": {
     "@vercel/functions": "^3.9.9",
@@ -25,6 +37,8 @@
     "@types/ws": "^8.18.1",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
+    "fast-check": "^4.10.2",
+    "playwright": "^1.63.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

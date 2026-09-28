@@ -1,0 +1,4 @@
+#!/bin/sh
+# Fast local validation before every push. Enable once with:
+#   git config core.hooksPath .githooks
+exec npm run validate:fast
