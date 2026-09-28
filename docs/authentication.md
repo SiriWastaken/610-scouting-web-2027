@@ -78,6 +78,7 @@ real values.
 | `AUTH_APPLE_TEAM_ID`, `AUTH_APPLE_KEY_ID`, `AUTH_APPLE_PRIVATE_KEY` | for Apple | Team ID, Key ID, and the contents of the downloaded `.p8` key. Literal `\n` line breaks are accepted. |
 | `AUTH_STORE_DATABASE`, `AUTH_STORE_USERNAME`, `AUTH_STORE_PASSWORD` | yes | A Sync Gateway database **separate from the scouting database** for accounts, sessions, and the audit log (see below). The server refuses to start sign-in if it is the same database. |
 | `AUTH_STORE_URL` | no | Sync Gateway public URL for that database. Defaults to `COUCHBASE_SYNC_GATEWAY_URL`. |
+| `AUTH_STORE_SCOPE`, `AUTH_STORE_COLLECTION` | no | Keep accounts in a named collection instead (e.g. `app` / `auth`), which may be in the same database as the scouting data. Or write the whole keyspace in `AUTH_STORE_DATABASE`, e.g. `scoutingapp2027.app.auth`. Default `_default`. |
 | `AUTH_ROOT_EMAILS` | recommended | Comma-separated emails that are always active `ROOT`. Bootstraps the first admin and can't be demoted or disabled from the app. |
 | `AUTH_AUTO_APPROVE` | no | Comma-separated emails or `@domains` that are active `MEMBER`s on first sign-in. Everyone else is `pending` until a scout lead or admin approves them. |
 | `AUTH_SESSION_MAX_AGE_HOURS` | no | Absolute session lifetime. Default 720 (30 days). |
@@ -129,6 +130,14 @@ Couchbase Server / Sync Gateway:
    ```
 4. Do **not** give tablet users access to this database.
 5. Set `AUTH_STORE_DATABASE=scouting_auth`, `AUTH_STORE_USERNAME`, `AUTH_STORE_PASSWORD` (and `AUTH_STORE_URL` if it is on another host).
+
+**Or: a collection next to the scouting data** (Couchbase Capella / App Services, or Sync Gateway 3.x with collections):
+
+1. In the bucket, create a collection for accounts, e.g. scope `app`, collection `auth`.
+2. **Link it to the App Endpoint** (Capella: App Services → your App Endpoint → Collections), or add it to the Sync Gateway database's config. Sync Gateway only serves linked collections.
+3. Give the dashboard's App User access to **all channels (`*`) in that collection**, and keep the collection's sync function accepting its writes (the default `channel(doc.channels)` works). Make sure tablet users have **no** access to it.
+4. Set `AUTH_STORE_DATABASE` to the App Endpoint/database name, with `AUTH_STORE_SCOPE=app` and `AUTH_STORE_COLLECTION=auth` (or `AUTH_STORE_DATABASE=<endpoint>.app.auth`), plus `AUTH_STORE_USERNAME`/`AUTH_STORE_PASSWORD`. The app refuses to use the exact collection that holds the scouting data.
+5. Run `npm run auth:check`.
 
 Document ids: `user_<id>`, `identity_<provider>_<hash>`, `email_<hash>`,
 `session_<userId>_<hash>`, `audit_<ms>_<random>`, and short-lived `diag_*`
@@ -259,8 +268,19 @@ accounts live in memory and disappear when the process stops.
 
 ## Troubleshooting
 
+Start with **`npm run auth:check`**. It reads the same environment as `npm run dev` (`.env.local`) and checks:
+
+- the configuration and the redirect URIs to register;
+- whether Sync Gateway is reachable, and whether the account database exists and accepts your credentials;
+- a create/update/read/list/delete round trip of one throwaway `diag_*` document, the same operations sign-in uses;
+- that the Apple key parses, and that each provider's signing keys can be reached.
+
+It prints what to fix, never secrets. When sign-in fails after the provider approved it, the server log (the `npm run dev` terminal, or Vercel's function logs) contains a line starting `Sign in with google failed after the provider approved it:` with the cause.
+
 | Symptom | Cause and fix |
 |---|---|
+| "Sign-in isn't configured", with "`AUTH_…` is still the placeholder from .env.example" (listed on the welcome screen in development, and by `npm run auth:check`) | A value was copied from `.env.example` unchanged. Replace it. `AUTH_STORE_URL` is optional: delete or comment out that line to use `COUCHBASE_SYNC_GATEWAY_URL`. |
+| Google/Apple approves you, then the welcome screen says **"Accounts are temporarily unavailable"** and you never reach Teams | The server could not read or write the account store right after sign-in. The server log line and `npm run auth:check` say which: the database in `AUTH_STORE_DATABASE` doesn't exist (create it, [above](#the-account-store-sync-gateway)); the user/password are wrong (401); the user may not write there (403: give it `admin_channels: ["*"]` and make sure the database's sync function doesn't reject the documents); or Sync Gateway is unreachable from the server. |
 | Welcome screen: "Sign-in isn't configured" | A required variable is missing. `GET /api/auth/session` returns 503; the admin overview's Authentication card lists what's missing. |
 | Google: `redirect_uri_mismatch` | Add exactly `<AUTH_URL>/api/auth/callback/google` to the OAuth client. `AUTH_URL` must match the address in the browser (including `www`, port, and `https`). |
 | Google: "Access blocked: app not verified / not in test users" | Publish the consent screen or add the user as a test user. |
