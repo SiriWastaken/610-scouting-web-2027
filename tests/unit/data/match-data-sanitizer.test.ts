@@ -2,7 +2,7 @@
 // submission from one tablet cannot crash the page for everyone.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { sanitizeMatchData } from "../../../lib/match-data.ts";
+import { sanitizeMatchData } from "../../../lib/data/match-data.ts";
 
 test("sanitizer: a well-formed match passes through unchanged", () => {
   const data = {

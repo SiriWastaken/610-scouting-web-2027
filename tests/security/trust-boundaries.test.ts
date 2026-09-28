@@ -10,7 +10,7 @@ import { after, before, test } from "node:test";
 import WebSocket from "ws";
 import * as dashboardRoute from "../../app/api/dashboard-documents/route.ts";
 import * as vercelRealtimeRoute from "../../app/api/realtime/route.ts";
-import { isSameOriginUpgrade } from "../../lib/realtime-bridge.ts";
+import { isSameOriginUpgrade } from "../../lib/realtime/bridge.ts";
 import { eventDocuments, privateStrings } from "../fixtures/event-dataset.ts";
 import { seedDocuments, useGatewayForApp } from "../helpers/dataset.ts";
 import { startGatewayTarget, type GatewayTarget } from "../helpers/gateway-target.ts";

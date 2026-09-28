@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { after, before, test } from "node:test";
 import { GET as sessionRoute } from "../../../app/api/auth/session/route.ts";
 import { readAuthConfig } from "../../../lib/auth/config.ts";
-import { LocalAuthStore } from "../../../lib/auth/local-store.ts";
+import { LocalAuthStore } from "../../../lib/auth/store.ts";
 import { ConflictError } from "../../../lib/auth/store.ts";
 import { asUser, inProcessFetcher, signIn, startTestAuth, type TestAuth } from "../../helpers/auth.ts";
 
@@ -81,4 +81,11 @@ test("Google sign-in end to end with AUTH_STORE=local: lands on /teams with a wo
     delete process.env.AUTH_STORE; delete process.env.AUTH_STORE_LOCAL_PATH;
     auth.apply();
   }
+});
+
+test("test isolation: the test environment sets every AUTH_* setting the app reads, so a developer's .env.local can't leak in", async () => {
+  // The E2E app server loads .env.local; any AUTH_* variable missing here would come from the developer's machine.
+  const read = new Set([...readFileSync("lib/auth/config.ts", "utf8").matchAll(/env\.(AUTH_[A-Z_]+)/g)].map((match) => match[1]));
+  const provided = Object.keys(auth.env());
+  assert.deepEqual([...read].filter((name) => !provided.includes(name)), [], "set these in tests/helpers/auth.ts env()");
 });

@@ -4,9 +4,9 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, mock, test } from "node:test";
 import { GET as sessionRoute } from "../../../app/api/auth/session/route.ts";
-import { clearJwksCache } from "../../../lib/auth/jwt.ts";
+import { clearJwksCache } from "../../../lib/auth/sign-in.ts";
 import { AUDIT_PREFIX } from "../../../lib/auth/audit.ts";
-import { asUser, CONFIGURED_ROOT, inProcessFetcher, signIn, startTestAuth, TEST_AUTH_SECRET, type TestAuth } from "../../helpers/auth.ts";
+import { asUser, CONFIGURED_OWNER, inProcessFetcher, signIn, startTestAuth, TEST_AUTH_SECRET, type TestAuth } from "../../helpers/auth.ts";
 import { GOOGLE_CLIENT_SECRET, type TokenFault } from "../../helpers/fake-oidc.ts";
 
 let auth: TestAuth;
@@ -62,11 +62,11 @@ test("apple: form_post callback, name from the first authorization, ES256 client
   assert.equal(authorize.searchParams.get("scope"), "name email");
 });
 
-test("configured root email signs in as an active ROOT", async () => {
-  auth.oidc.setIdentity("google", { sub: unique("root"), email: CONFIGURED_ROOT, emailVerified: true, name: "Root" });
+test("the configured Owner email signs in as an active OWNER", async () => {
+  auth.oidc.setIdentity("google", { sub: unique("owner"), email: CONFIGURED_OWNER, emailVerified: true, name: "Owner" });
   const result = await signIn(fetcher, base, "google");
   const me = await whoAmI(result.cookie);
-  assert.deepEqual({ role: me.body.user?.role, status: me.body.user?.status }, { role: "ROOT", status: "active" });
+  assert.deepEqual({ role: me.body.user?.role, status: me.body.user?.status }, { role: "OWNER", status: "active" });
 });
 
 test("the same verified email through Google and Apple is one account with both sign-in methods", async () => {

@@ -27,7 +27,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import { normalizeAggregateDocument } from "../lib/normalize-aggregate.ts";
+import { normalizeAggregateDocument } from "../lib/data/aggregates.ts";
 import { FakeSyncGateway, FAKE_DATABASE, FAKE_PASSWORD, FAKE_USERNAME } from "./helpers/fake-sync-gateway.ts";
 import { asUser, startTestAuth, type TestAuth } from "./helpers/auth.ts";
 

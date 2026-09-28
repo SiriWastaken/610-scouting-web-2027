@@ -4,7 +4,7 @@
 // the account and session functions directly when a test only needs "a
 // signed-in SCOUT". No test bypasses the server's session checks.
 import { resolveSignIn, userDocId, type UserDoc } from "../../lib/auth/accounts.ts";
-import { authRuntime } from "../../lib/auth/runtime.ts";
+import { authRuntime } from "../../lib/auth/requests.ts";
 import { createSession, sessionCookieName } from "../../lib/auth/sessions.ts";
 import type { Role, AccountStatus } from "../../lib/auth/roles.ts";
 import { FAKE_PASSWORD, FAKE_USERNAME, FakeSyncGateway } from "./fake-sync-gateway.ts";
@@ -14,7 +14,8 @@ export const TEST_AUTH_SECRET = "test-auth-secret-0123456789abcdef-0123456789";
 export const AUTH_DATABASE = "scouting_auth";
 export const AUTH_SCOPE = "app";
 export const AUTH_COLLECTION = "auth";
-export const CONFIGURED_ROOT = "root@team610.test";
+/** The Owner (AUTH_OWNER_EMAILS) in every test environment. */
+export const CONFIGURED_OWNER = "owner@team610.test";
 
 export interface TestUser { userId: string; email: string; role: Role; status: AccountStatus; token: string; cookie: string }
 
@@ -47,7 +48,10 @@ export async function startTestAuth(options: { baseUrl?: string } = {}): Promise
       AUTH_URL: baseUrl, AUTH_SECRET: TEST_AUTH_SECRET,
       AUTH_STORE_URL: store.origin, AUTH_STORE_DATABASE: AUTH_DATABASE, AUTH_STORE_SCOPE: AUTH_SCOPE, AUTH_STORE_COLLECTION: AUTH_COLLECTION,
       AUTH_STORE_USERNAME: FAKE_USERNAME, AUTH_STORE_PASSWORD: FAKE_PASSWORD,
-      AUTH_ROOT_EMAILS: CONFIGURED_ROOT, AUTH_AUTO_APPROVE: "@team610.test",
+      AUTH_OWNER_EMAILS: CONFIGURED_OWNER, AUTH_AUTO_APPROVE: "@team610.test",
+      // Every other setting is pinned to its default too: the app server (npm start) loads the
+      // developer's .env.local, which must never leak into a test (e.g. AUTH_STORE=local).
+      AUTH_STORE: "", AUTH_STORE_LOCAL_PATH: "", AUTH_ROOT_EMAILS: "", AUTH_SESSION_MAX_AGE_HOURS: "", AUTH_SESSION_IDLE_HOURS: "",
       ...oidc.appEnv(),
     }),
     apply: () => { Object.assign(process.env, auth.env()); },
@@ -56,14 +60,15 @@ export async function startTestAuth(options: { baseUrl?: string } = {}): Promise
       const runtime = authRuntime();
       if (!runtime.ok) throw new Error(`Test auth is misconfigured: ${runtime.problems.join("; ")}`);
       counter += 1;
-      const email = userOptions.email ?? `${role.toLowerCase()}-${process.pid}-${counter}@team610.test`;
+      // OWNER comes from configuration, so an OWNER is always the configured Owner email (each call adds a session).
+      const email = role === "OWNER" ? CONFIGURED_OWNER : userOptions.email ?? `${role.toLowerCase()}-${process.pid}-${counter}@team610.test`;
       const provider = userOptions.provider ?? "google";
       const outcome = await resolveSignIn(runtime.store, runtime.config, { provider, subject: `sub-${email}`, email, emailVerified: true, name: userOptions.name ?? `${role} ${counter}` });
       const userId = outcome.userId!;
       // Test setup writes the role straight to the database, as a fixture; the app's role-change rules are tested separately.
       const current = await runtime.store.get<UserDoc>(userDocId(userId));
       const status = userOptions.status ?? "active";
-      await runtime.store.update(userDocId(userId), current!.rev, { ...current!.body, role, status });
+      if (role !== "OWNER") await runtime.store.update(userDocId(userId), current!.rev, { ...current!.body, role, status });
       const { token } = await createSession(runtime.store, runtime.config, userId, provider, "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) Chrome/130.0 Safari/537.36");
       return { userId, email, role, status, token, cookie: `${sessionCookieName(runtime.config)}=${token}` };
     },

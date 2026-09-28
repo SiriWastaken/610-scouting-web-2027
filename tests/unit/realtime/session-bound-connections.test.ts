@@ -4,9 +4,9 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { beforeEach, mock, test } from "node:test";
-import { attachRealtimeBridge, SESSION_ENDED, type BridgeSocket } from "../../../lib/realtime-bridge.ts";
-import { sessionBridgeOptions, upgradeDecision } from "../../../lib/realtime-server.ts";
-import type { Authentication } from "../../../lib/auth/runtime.ts";
+import { attachRealtimeBridge, SESSION_ENDED, type BridgeSocket } from "../../../lib/realtime/bridge.ts";
+import { sessionBridgeOptions, upgradeDecision } from "../../../lib/realtime/server.ts";
+import type { Authentication } from "../../../lib/auth/requests.ts";
 import type { Viewer } from "../../../lib/auth/sessions.ts";
 import { metricsSnapshot, resetMetrics } from "../../../lib/ops/metrics.ts";
 
@@ -25,9 +25,9 @@ beforeEach(() => resetMetrics());
 test("upgrade decision: signed out 401, store down 503, inactive 403, any active role accepted", () => {
   assert.deepEqual(upgradeDecision({ status: "signed-out", reason: "expired" }), { ok: false, status: 401, reason: "auth" });
   assert.deepEqual(upgradeDecision({ status: "unavailable", reason: "down" }), { ok: false, status: 503, reason: "unconfigured" });
-  assert.deepEqual(upgradeDecision(signedIn("ROOT", "pending")), { ok: false, status: 403, reason: "auth" });
-  assert.deepEqual(upgradeDecision(signedIn("ADMIN", "disabled")), { ok: false, status: 403, reason: "auth" });
-  for (const role of ["MEMBER", "SCOUT", "SCOUT_LEAD", "ADMIN", "ROOT"] as const) assert.equal(upgradeDecision(signedIn(role)).ok, true, role);
+  assert.deepEqual(upgradeDecision(signedIn("MENTOR", "pending")), { ok: false, status: 403, reason: "auth" });
+  assert.deepEqual(upgradeDecision(signedIn("SCOUT", "disabled")), { ok: false, status: 403, reason: "auth" });
+  for (const role of ["MEMBER", "SCOUT", "SCOUT_LEAD", "MENTOR", "OWNER"] as const) assert.equal(upgradeDecision(signedIn(role)).ok, true, role);
 });
 
 test("re-validation: a revoked session closes the socket with 4401 and stops the feed; a store outage keeps it open", async () => {
@@ -64,13 +64,13 @@ test("re-validation: a revoked session closes the socket with 4401 and stops the
 test("metrics: identity, frames, send failures, and feed errors are recorded per connection", () => {
   const client = new FakeSocket();
   let feed: { onFrame: (frame: never) => void; onReady: () => void; onError: (error: Error & { resync?: boolean }) => void } | undefined;
-  attachRealtimeBridge(client, (_since, onFrame, onReady, onError) => { feed = { onFrame, onReady, onError }; return () => {}; }, sessionBridgeOptions(viewer("ADMIN"), async () => signedIn("ADMIN")));
+  attachRealtimeBridge(client, (_since, onFrame, onReady, onError) => { feed = { onFrame, onReady, onError }; return () => {}; }, sessionBridgeOptions(viewer("MENTOR"), async () => signedIn("MENTOR")));
   client.message({ type: "subscribe", since: "9" });
   feed!.onReady();
   feed!.onFrame({ type: "change", seq: 10, id: "pit_1", deleted: false, doc: { _id: "pit_1" } } as never);
   let snapshot = metricsSnapshot();
   assert.deepEqual({ id: snapshot.realtime.connections[0].userId, role: snapshot.realtime.connections[0].role, since: snapshot.realtime.connections[0].since, changes: snapshot.realtime.changesSent, last: snapshot.realtime.lastChangeId, seq: snapshot.realtime.lastSeq },
-    { id: "u0123456789abcdef0123", role: "ADMIN", since: "9", changes: 1, last: "pit_1", seq: "10" });
+    { id: "u0123456789abcdef0123", role: "MENTOR", since: "9", changes: 1, last: "pit_1", seq: "10" });
   client.failSends = true;
   feed!.onFrame({ type: "cursor", seq: 11 } as never);
   assert.equal(metricsSnapshot().realtime.sendErrors, 1);

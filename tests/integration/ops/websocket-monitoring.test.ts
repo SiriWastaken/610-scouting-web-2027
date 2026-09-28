@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { after, before, beforeEach, test } from "node:test";
 import WebSocket from "ws";
 import * as overview from "../../../app/api/admin/overview/route.ts";
-import { authRuntime } from "../../../lib/auth/runtime.ts";
+import { authRuntime } from "../../../lib/auth/requests.ts";
 import { revokeUserSessions } from "../../../lib/auth/sessions.ts";
 import { metricsSnapshot, resetMetrics } from "../../../lib/ops/metrics.ts";
 import { useGatewayForApp } from "../../helpers/dataset.ts";
@@ -48,7 +48,7 @@ test("three clients: active count, per-connection frames, delivered changes, and
   assert.ok(snapshot.upstream.uniqueChanges >= 1, "the database change is counted once, not once per client");
   assert.ok(snapshot.realtime.events.some((event) => event.type === "change-delivered" && event.detail?.startsWith("pit_4401")));
 
-  const admin = await realtime.auth.user("ADMIN");
+  const admin = await realtime.auth.user("MENTOR");
   const api = await (await overview.GET(asUser(admin, "http://dashboard.test/api/admin/overview"))).json() as { checks: { realtime: { status: string } }; metrics: { realtime: { activeConnections: number; changesSent: number } } };
   assert.equal(api.metrics.realtime.activeConnections, 3);
   assert.equal(api.metrics.realtime.changesSent, 3);
@@ -65,7 +65,7 @@ test("refusals are counted by reason and never become connections", async () => 
   assert.equal(await upgrade({ origin: "https://evil.example", cookie: realtime.member.cookie }), 403);
   assert.equal(await upgrade({ origin: realtime.origin }), 401);
   assert.equal(await upgrade({ origin: realtime.origin, cookie: "610_session=forged.value" }), 401);
-  const pending = await realtime.auth.user("ADMIN", { status: "pending" });
+  const pending = await realtime.auth.user("MENTOR", { status: "pending" });
   assert.equal(await upgrade({ origin: realtime.origin, cookie: pending.cookie }), 403);
   const snapshot = metricsSnapshot();
   assert.deepEqual(snapshot.realtime.rejected, { origin: 1, auth: 3, capacity: 0, unconfigured: 0 });
@@ -94,7 +94,7 @@ test("reconnects: the same account connecting again within a minute is a reconne
 
 test("an authentication failure during upgrade answers 500 and is recorded, without opening a connection", async () => {
   const { createServer } = await import("node:http");
-  const { createRealtimeUpgradeHandler } = await import("../../../lib/realtime-server.ts");
+  const { createRealtimeUpgradeHandler } = await import("../../../lib/realtime/server.ts");
   const handler = createRealtimeUpgradeHandler({ getConfig: () => ({ url: target.changesUrl, authorization: target.authorization }), authenticate: async () => { throw new Error("session check exploded"); } });
   const server = createServer();
   server.on("upgrade", (request, socket, head) => { handler(request, socket, head); });

@@ -18,7 +18,7 @@ type Checks = Record<string, { status: string; summary: string; latencyMs?: numb
 before(async () => {
   target = await startGatewayTarget();
   auth = await startTestAuth();
-  admin = await auth.user("ADMIN");
+  admin = await auth.user("MENTOR");
 });
 beforeEach(() => {
   useGatewayForApp(target); auth.apply();

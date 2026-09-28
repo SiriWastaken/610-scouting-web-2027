@@ -8,7 +8,7 @@ import { POST as signOutRoute } from "../../../app/api/auth/signout/route.ts";
 import { GET as accountRoute } from "../../../app/api/account/route.ts";
 import { DELETE as signOutOthers } from "../../../app/api/account/sessions/route.ts";
 import { GET as dashboardRoute } from "../../../app/api/dashboard-documents/route.ts";
-import { authRuntime } from "../../../lib/auth/runtime.ts";
+import { authRuntime } from "../../../lib/auth/requests.ts";
 import { SESSION_PREFIX, validateSession } from "../../../lib/auth/sessions.ts";
 import { asUser, startTestAuth, type TestAuth } from "../../helpers/auth.ts";
 
@@ -88,7 +88,7 @@ test("sign out other devices keeps this one and ends the rest", async () => {
 });
 
 test("malformed, forged, and guessed tokens are rejected", async () => {
-  const user = await auth.user("ADMIN");
+  const user = await auth.user("MENTOR");
   const [prefix, secret] = user.token.split(".");
   for (const token of ["", "garbage", `${prefix}.`, `${prefix}.${secret}.extra`, `${prefix}.${"A".repeat(43)}`, `u${"0".repeat(20)}.${secret}`, `${prefix}.${secret.slice(0, -1)}B`, "../../etc/passwd"]) {
     assert.equal(await me(`610_session=${token}`), 401, token);

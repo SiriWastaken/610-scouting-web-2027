@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getCouchbaseChangesConfig, readCouchbaseConfig } from "../../../lib/couchbase-config.ts";
+import { getCouchbaseChangesConfig, readCouchbaseConfig } from "../../../lib/data/couchbase-config.ts";
 
 const env: NodeJS.ProcessEnv = { NODE_ENV: "test", COUCHBASE_SYNC_GATEWAY_URL: "https://sg.example:4984", COUCHBASE_DATABASE: "scouting2027", COUCHBASE_USERNAME: "dash", COUCHBASE_PASSWORD: "s3cret" };
 

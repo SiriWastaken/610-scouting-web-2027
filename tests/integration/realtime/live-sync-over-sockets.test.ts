@@ -6,10 +6,10 @@ import type { AddressInfo } from "node:net";
 import type { Duplex } from "node:stream";
 import { after, before, beforeEach, test } from "node:test";
 import WebSocket, { WebSocketServer } from "ws";
-import { RealtimeClient, type SocketLike } from "../../../lib/realtime-client.ts";
-import { createRealtimeUpgradeHandler } from "../../../lib/realtime-server.ts";
-import { getActiveRealtimeConnections } from "../../../lib/realtime-bridge.ts";
-import { mergeAggregates } from "../../../lib/normalize-aggregate.ts";
+import { RealtimeClient, type SocketLike } from "../../../lib/realtime/client.ts";
+import { createRealtimeUpgradeHandler } from "../../../lib/realtime/server.ts";
+import { getActiveRealtimeConnections } from "../../../lib/realtime/bridge.ts";
+import { mergeAggregates } from "../../../lib/data/aggregates.ts";
 import { FAKE_AUTH, FakeSyncGateway } from "../../helpers/fake-sync-gateway.ts";
 import { startTestAuth, type TestAuth, type TestUser } from "../../helpers/auth.ts";
 

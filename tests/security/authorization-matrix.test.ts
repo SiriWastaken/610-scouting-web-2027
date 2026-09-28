@@ -25,7 +25,7 @@ import { asUser, startTestAuth, type TestAuth, type TestUser } from "../helpers/
 let target: GatewayTarget;
 let auth: TestAuth;
 const base = "http://dashboard.test";
-type Caller = "anonymous" | "malformed" | "expired" | "disabled" | "pending" | "MEMBER" | "SCOUT" | "SCOUT_LEAD" | "ADMIN" | "ROOT";
+type Caller = "anonymous" | "malformed" | "expired" | "disabled" | "pending" | "MEMBER" | "SCOUT" | "SCOUT_LEAD" | "MENTOR" | "OWNER";
 const callers: Partial<Record<Caller, { cookie: string } | null>> = {};
 let subject: TestUser; // a MEMBER everyone with users:manage may act on
 
@@ -35,10 +35,10 @@ before(async () => {
   auth = await startTestAuth();
   callers.anonymous = null;
   callers.malformed = { cookie: "610_session=not-a-session" };
-  for (const role of ["MEMBER", "SCOUT", "SCOUT_LEAD", "ADMIN", "ROOT"] as const) callers[role] = await auth.user(role);
-  callers.pending = await auth.user("ADMIN", { status: "pending" });
-  callers.disabled = await auth.user("ROOT", { status: "disabled" });
-  const expired = await auth.user("ADMIN");
+  for (const role of ["MEMBER", "SCOUT", "SCOUT_LEAD", "MENTOR", "OWNER"] as const) callers[role] = await auth.user(role);
+  callers.pending = await auth.user("MENTOR", { status: "pending" });
+  callers.disabled = await auth.user("MENTOR", { status: "disabled" }); // an Owner cannot be disabled
+  const expired = await auth.user("MENTOR");
   const sessionId = [...auth.store.docs.keys()].find((id) => id.startsWith(`${SESSION_PREFIX}${expired.userId}_`))!;
   const body = auth.store.docs.get(sessionId)!.body!;
   auth.store.put(sessionId, { ...body, lastSeenAt: new Date(Date.now() - 8 * 24 * 3_600_000).toISOString() });
@@ -67,18 +67,19 @@ const routes: Record<string, Call> = {
 // Hand-written: 401 = not signed in, 403 = signed in but not allowed.
 const NO = { anonymous: 401, malformed: 401, expired: 401, disabled: 401 } as const;
 const expected: Record<string, Record<Caller, number>> = {
-  "GET /api/dashboard-documents": { ...NO, pending: 403, MEMBER: 200, SCOUT: 200, SCOUT_LEAD: 200, ADMIN: 200, ROOT: 200 },
-  "GET /api/auth/session": { ...NO, pending: 200, MEMBER: 200, SCOUT: 200, SCOUT_LEAD: 200, ADMIN: 200, ROOT: 200 },
-  "GET /api/account": { ...NO, pending: 200, MEMBER: 200, SCOUT: 200, SCOUT_LEAD: 200, ADMIN: 200, ROOT: 200 },
-  "PATCH /api/account": { ...NO, pending: 200, MEMBER: 200, SCOUT: 200, SCOUT_LEAD: 200, ADMIN: 200, ROOT: 200 },
-  "DELETE /api/account/sessions": { ...NO, pending: 200, MEMBER: 200, SCOUT: 200, SCOUT_LEAD: 200, ADMIN: 200, ROOT: 200 },
-  "GET /api/admin/overview": { ...NO, pending: 403, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 403, ADMIN: 200, ROOT: 200 },
-  "POST /api/admin/diagnostics": { ...NO, pending: 403, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 403, ADMIN: 200, ROOT: 200 },
-  "GET /api/admin/users": { ...NO, pending: 403, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 200, ADMIN: 200, ROOT: 200 },
-  "GET /api/admin/users/:id": { ...NO, pending: 403, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 200, ADMIN: 200, ROOT: 200 },
-  "PATCH /api/admin/users/:id": { ...NO, pending: 403, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 200, ADMIN: 200, ROOT: 200 },
-  "DELETE /api/admin/users/:id/sessions": { ...NO, pending: 403, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 200, ADMIN: 200, ROOT: 200 },
-  "GET /api/admin/audit": { ...NO, pending: 403, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 403, ADMIN: 200, ROOT: 200 },
+  "GET /api/dashboard-documents": { ...NO, pending: 403, MEMBER: 200, SCOUT: 200, SCOUT_LEAD: 200, MENTOR: 200, OWNER: 200 },
+  "GET /api/auth/session": { ...NO, pending: 200, MEMBER: 200, SCOUT: 200, SCOUT_LEAD: 200, MENTOR: 200, OWNER: 200 },
+  "GET /api/account": { ...NO, pending: 200, MEMBER: 200, SCOUT: 200, SCOUT_LEAD: 200, MENTOR: 200, OWNER: 200 },
+  // Names (the only thing this route edits) belong to the Owner.
+  "PATCH /api/account": { ...NO, pending: 403, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 403, MENTOR: 403, OWNER: 200 },
+  "DELETE /api/account/sessions": { ...NO, pending: 200, MEMBER: 200, SCOUT: 200, SCOUT_LEAD: 200, MENTOR: 200, OWNER: 200 },
+  "GET /api/admin/overview": { ...NO, pending: 403, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 403, MENTOR: 200, OWNER: 200 },
+  "POST /api/admin/diagnostics": { ...NO, pending: 403, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 403, MENTOR: 200, OWNER: 200 },
+  "GET /api/admin/users": { ...NO, pending: 403, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 200, MENTOR: 200, OWNER: 200 },
+  "GET /api/admin/users/:id": { ...NO, pending: 403, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 200, MENTOR: 200, OWNER: 200 },
+  "PATCH /api/admin/users/:id": { ...NO, pending: 403, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 200, MENTOR: 200, OWNER: 200 },
+  "DELETE /api/admin/users/:id/sessions": { ...NO, pending: 403, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 200, MENTOR: 200, OWNER: 200 },
+  "GET /api/admin/audit": { ...NO, pending: 403, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 403, MENTOR: 200, OWNER: 200 },
 };
 
 test("matrix: every protected route answers every caller exactly as the role model says", async () => {
@@ -99,11 +100,11 @@ test("matrix: every protected route answers every caller exactly as the role mod
 
 test("forged identity: role headers, extra cookies, and body fields never raise privileges", async () => {
   const member = callers.MEMBER!;
-  const forgedHeaders = { "X-User-Role": "ROOT", "X-Role": "ADMIN", Authorization: "Bearer admin", "X-Forwarded-User": "root@team610.test" };
+  const forgedHeaders = { "X-User-Role": "OWNER", "X-Role": "MENTOR", Authorization: "Bearer admin", "X-Forwarded-User": "owner@team610.test" };
   const forged = { cookie: `${member.cookie}; role=ROOT; admin=true; 610_role=ADMIN` };
   const overviewResponse = await overview.GET(asUser(forged, `${base}/api/admin/overview`, { headers: forgedHeaders }));
   assert.equal(overviewResponse.status, 403);
-  const patch = await user.PATCH(asUser(forged, `${base}/api/admin/users/${subject.userId}`, { method: "PATCH", headers: forgedHeaders, body: JSON.stringify({ role: "ADMIN", actorRole: "ROOT" }) }), ctx(subject.userId));
+  const patch = await user.PATCH(asUser(forged, `${base}/api/admin/users/${subject.userId}`, { method: "PATCH", headers: forgedHeaders, body: JSON.stringify({ role: "MENTOR", actorRole: "OWNER" }) }), ctx(subject.userId));
   assert.equal(patch.status, 403);
   const sessionBody = await (await session.GET(asUser(forged, `${base}/api/auth/session`, { headers: forgedHeaders }))).json() as { user: { role: string }; permissions: Record<string, boolean> };
   assert.equal(sessionBody.user.role, "MEMBER");
@@ -111,11 +112,11 @@ test("forged identity: role headers, extra cookies, and body fields never raise 
 });
 
 test("self-elevation: a user cannot change their own role or status through any route", async () => {
-  for (const caller of ["MEMBER", "SCOUT_LEAD", "ADMIN", "ROOT"] as const) {
+  for (const caller of ["MEMBER", "SCOUT_LEAD", "MENTOR", "OWNER"] as const) {
     const me = callers[caller] as TestUser;
-    const viaAdmin = await user.PATCH(asUser(me, `${base}/api/admin/users/${me.userId}`, { method: "PATCH", body: JSON.stringify({ role: "ROOT" }) }), ctx(me.userId));
+    const viaAdmin = await user.PATCH(asUser(me, `${base}/api/admin/users/${me.userId}`, { method: "PATCH", body: JSON.stringify({ role: "MENTOR", status: "active" }) }), ctx(me.userId));
     assert.equal(viaAdmin.status, 403, `${caller} via admin route`);
-    const viaProfile = await account.PATCH(asUser(me, `${base}/api/account`, { method: "PATCH", body: JSON.stringify({ displayName: "Me", role: "ROOT" }) }));
+    const viaProfile = await account.PATCH(asUser(me, `${base}/api/account`, { method: "PATCH", body: JSON.stringify({ displayName: "Me", role: "OWNER" }) }));
     assert.equal(viaProfile.status, 400, `${caller} via profile route`);
     const after = await (await session.GET(asUser(me, `${base}/api/auth/session`))).json() as { user: { role: string } };
     assert.equal(after.user.role, caller);
@@ -132,23 +133,43 @@ test("IDOR: account routes only ever return the caller's own account; other acco
   const other = await (await account.GET(asUser(scout, `${base}/api/account?id=${subject.userId}&userId=${subject.userId}`))).json() as { user: { id: string } };
   assert.equal(other.user.id, scout.userId);
   assert.equal((await user.GET(asUser(scout, `${base}/api/admin/users/${subject.userId}`), ctx(subject.userId))).status, 403);
-  // A scout lead may read an admin's record but not change it.
-  const admin = callers.ADMIN as TestUser;
-  assert.equal((await user.GET(asUser(callers.SCOUT_LEAD!, `${base}/api/admin/users/${admin.userId}`), ctx(admin.userId))).status, 200);
-  assert.equal((await user.PATCH(asUser(callers.SCOUT_LEAD!, `${base}/api/admin/users/${admin.userId}`, { method: "PATCH", body: JSON.stringify({ displayName: "Pwned" }) }), ctx(admin.userId))).status, 403);
-  assert.equal((await userSessions.DELETE(asUser(callers.SCOUT_LEAD!, `${base}/api/admin/users/${admin.userId}/sessions`, { method: "DELETE" }), ctx(admin.userId))).status, 403);
-  for (const bad of ["../user_x", "u123", "", "user_" + admin.userId]) assert.equal((await user.GET(asUser(callers.ROOT!, `${base}/api/admin/users/x`), ctx(bad))).status, 404, bad);
+  // A scout lead may read a mentor's record but not change it.
+  const mentor = callers.MENTOR as TestUser;
+  assert.equal((await user.GET(asUser(callers.SCOUT_LEAD!, `${base}/api/admin/users/${mentor.userId}`), ctx(mentor.userId))).status, 200);
+  assert.equal((await user.PATCH(asUser(callers.SCOUT_LEAD!, `${base}/api/admin/users/${mentor.userId}`, { method: "PATCH", body: JSON.stringify({ displayName: "Pwned" }) }), ctx(mentor.userId))).status, 403);
+  assert.equal((await userSessions.DELETE(asUser(callers.SCOUT_LEAD!, `${base}/api/admin/users/${mentor.userId}/sessions`, { method: "DELETE" }), ctx(mentor.userId))).status, 403);
+  for (const bad of ["../user_x", "u123", "", "user_" + mentor.userId]) assert.equal((await user.GET(asUser(callers.OWNER!, `${base}/api/admin/users/x`), ctx(bad))).status, 404, bad);
+});
+
+test("names: only the Owner changes display or scout names, for anyone including themselves", async () => {
+  const target = await auth.user("SCOUT");
+  for (const caller of ["SCOUT_LEAD", "MENTOR"] as const) {
+    for (const body of [{ displayName: "Renamed" }, { scoutName: "Renamed" }]) {
+      const response = await user.PATCH(asUser(callers[caller]!, `${base}/api/admin/users/${target.userId}`, { method: "PATCH", body: JSON.stringify(body) }), ctx(target.userId));
+      assert.equal(response.status, 403, `${caller} ${JSON.stringify(body)}`);
+      assert.match((await response.json() as { message: string }).message, /Only the Owner can change names/);
+    }
+    const own = await account.PATCH(asUser(callers[caller]!, `${base}/api/account`, { method: "PATCH", body: JSON.stringify({ displayName: "Me" }) }));
+    assert.equal(own.status, 403, `${caller} renaming themselves`);
+  }
+  // A mentor can still keep a private note on the account; that is not a name.
+  assert.equal((await user.PATCH(asUser(callers.MENTOR!, `${base}/api/admin/users/${target.userId}`, { method: "PATCH", body: JSON.stringify({ adminNote: "pit crew" }) }), ctx(target.userId))).status, 200);
+  const renamed = await user.PATCH(asUser(callers.OWNER!, `${base}/api/admin/users/${target.userId}`, { method: "PATCH", body: JSON.stringify({ displayName: "Renamed By Owner", scoutName: "R. Owner" }) }), ctx(target.userId));
+  assert.equal(renamed.status, 200);
+  const stored = auth.store.docs.get(`user_${target.userId}`)!.body!;
+  assert.deepEqual({ name: stored.displayName, scout: stored.scoutName }, { name: "Renamed By Owner", scout: "R. Owner" });
+  assert.equal((await account.PATCH(asUser(callers.OWNER!, `${base}/api/account`, { method: "PATCH", body: JSON.stringify({ displayName: "The Owner" }) }))).status, 200);
 });
 
 test("CSRF: state-changing requests from another origin, or with no Origin, are refused before anything changes", async () => {
-  const root = callers.ROOT!;
+  const owner = callers.OWNER!;
   const before = JSON.stringify(auth.store.docs.get(`user_${subject.userId}`));
   for (const origin of ["https://evil.example", "", "null", "http://dashboard.test.evil.example"]) {
-    const request = new Request(`${base}/api/admin/users/${subject.userId}`, { method: "PATCH", headers: { cookie: root.cookie, "content-type": "application/json", ...(origin ? { origin } : {}) }, body: JSON.stringify({ status: "disabled" }) });
+    const request = new Request(`${base}/api/admin/users/${subject.userId}`, { method: "PATCH", headers: { cookie: owner.cookie, "content-type": "application/json", ...(origin ? { origin } : {}) }, body: JSON.stringify({ status: "disabled" }) });
     assert.equal((await user.PATCH(request, ctx(subject.userId))).status, 403, `origin ${JSON.stringify(origin)}`);
   }
   assert.equal(JSON.stringify(auth.store.docs.get(`user_${subject.userId}`)), before);
-  const text = await user.PATCH(new Request(`${base}/api/admin/users/${subject.userId}`, { method: "PATCH", headers: { cookie: root.cookie, origin: base, "content-type": "text/plain" }, body: JSON.stringify({ displayName: "x" }) }), ctx(subject.userId));
+  const text = await user.PATCH(new Request(`${base}/api/admin/users/${subject.userId}`, { method: "PATCH", headers: { cookie: owner.cookie, origin: base, "content-type": "text/plain" }, body: JSON.stringify({ displayName: "x" }) }), ctx(subject.userId));
   assert.equal(text.status, 400, "only JSON bodies are read (a cross-site form cannot send JSON)");
 });
 

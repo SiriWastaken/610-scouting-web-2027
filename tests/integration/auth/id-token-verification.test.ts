@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { generateKeyPairSync } from "node:crypto";
 import { after, before, beforeEach, test } from "node:test";
-import { appleClientSecret, clearJwksCache, TokenError, verifyIdToken } from "../../../lib/auth/jwt.ts";
+import { appleClientSecret, clearJwksCache, TokenError, verifyIdToken } from "../../../lib/auth/sign-in.ts";
 import { FakeOidcProvider, GOOGLE_CLIENT_ID } from "../../helpers/fake-oidc.ts";
 
 let oidc: FakeOidcProvider;

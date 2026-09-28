@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import WebSocket from "ws";
-import { RealtimeClient, type SocketLike } from "../../lib/realtime-client.ts";
+import { RealtimeClient, type SocketLike } from "../../lib/realtime/client.ts";
 import { startAppWithAuth, type AppServer } from "../helpers/app-server.ts";
 import { TEST_AUTH_SECRET, type TestAuth, type TestUser } from "../helpers/auth.ts";
 import { GOOGLE_CLIENT_SECRET } from "../helpers/fake-oidc.ts";

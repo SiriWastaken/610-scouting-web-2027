@@ -7,7 +7,7 @@ import { after, before, test } from "node:test";
 import * as audit from "../../../app/api/admin/audit/route.ts";
 import * as user from "../../../app/api/admin/users/[id]/route.ts";
 import { AUDIT_PREFIX, listAudit, recordAudit } from "../../../lib/auth/audit.ts";
-import { authRuntime } from "../../../lib/auth/runtime.ts";
+import { authRuntime } from "../../../lib/auth/requests.ts";
 import { asUser, startTestAuth, type TestAuth } from "../../helpers/auth.ts";
 
 let auth: TestAuth;
@@ -23,7 +23,7 @@ const read = async (who: { cookie: string }, query = "") => {
 };
 
 test("creation and persistence: an admin action produces an entry that is stored and read back", async () => {
-  const admin = await auth.user("ADMIN");
+  const admin = await auth.user("MENTOR");
   const scout = await auth.user("SCOUT");
   await user.PATCH(asUser(admin, `${base}/api/admin/users/${scout.userId}`, { method: "PATCH", body: JSON.stringify({ role: "SCOUT_LEAD" }) }), { params: Promise.resolve({ id: scout.userId }) });
   const persisted = [...auth.store.docs.entries()].find(([id, doc]) => id.startsWith(AUDIT_PREFIX) && doc.body?.action === "users.role" && (doc.body?.target as { id?: string })?.id === scout.userId);
@@ -37,9 +37,9 @@ test("creation and persistence: an admin action produces an entry that is stored
   assert.ok(page.entries.some((entry) => entry.id === persisted![0]));
 });
 
-test("access: only ADMIN and ROOT read the log", async () => {
+test("access: only mentors and the Owner read the log", async () => {
   for (const role of ["MEMBER", "SCOUT", "SCOUT_LEAD"] as const) assert.equal((await read(await auth.user(role))).status, 403, role);
-  for (const role of ["ADMIN", "ROOT"] as const) assert.equal((await read(await auth.user(role))).status, 200, role);
+  for (const role of ["MENTOR", "OWNER"] as const) assert.equal((await read(await auth.user(role))).status, 200, role);
 });
 
 test("the log is append-only; no route can create, change, or delete entries", async () => {
@@ -52,7 +52,7 @@ test("the log is append-only; no route can create, change, or delete entries", a
 test("paging and filters: newest first, `next` continues without repeats, and result/action filters apply", async () => {
   const runtime = authRuntime();
   assert.ok(runtime.ok);
-  const admin = await auth.user("ADMIN");
+  const admin = await auth.user("MENTOR");
   for (let i = 0; i < 7; i += 1) {
     await recordAudit(runtime.store, { action: "test.paging", result: i % 2 ? "failure" : "success", actor: { id: admin.userId }, meta: { index: i } });
     await new Promise((resolve) => setTimeout(resolve, 2)); // distinct millisecond ids

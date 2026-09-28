@@ -5,18 +5,18 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { cleanText, parsePatch, safePicture } from "../../../lib/auth/accounts.ts";
 import { isAutoApproved, readAuthConfig, storeKeyspace } from "../../../lib/auth/config.ts";
-import { pkceChallenge, seal, unseal } from "../../../lib/auth/crypto.ts";
-import { safeReturnTo } from "../../../lib/auth/oidc.ts";
-import { isTrustedOrigin } from "../../../lib/auth/runtime.ts";
+import { pkceChallenge, seal, unseal } from "../../../lib/auth/sign-in.ts";
+import { safeReturnTo } from "../../../lib/auth/sign-in.ts";
+import { isTrustedOrigin } from "../../../lib/auth/requests.ts";
 import { describeDevice, readCookie, sessionCookieName } from "../../../lib/auth/sessions.ts";
-import { clearCookie, serializeCookie } from "../../../lib/auth/http.ts";
+import { clearCookie, serializeCookie } from "../../../lib/auth/requests.ts";
 import { routeKey, scrub } from "../../../lib/ops/metrics.ts";
 
 const baseEnv = {
   AUTH_URL: "https://scout.example.org/some/path", AUTH_SECRET: "x".repeat(40),
   AUTH_GOOGLE_CLIENT_ID: "id", AUTH_GOOGLE_CLIENT_SECRET: "secret",
   AUTH_STORE_URL: "https://sg.example.org:4984/", AUTH_STORE_DATABASE: "auth", AUTH_STORE_USERNAME: "u", AUTH_STORE_PASSWORD: "p",
-  AUTH_ROOT_EMAILS: " Root@Example.org , second@example.org", AUTH_AUTO_APPROVE: "@team610.org, guest@gmail.com",
+  AUTH_OWNER_EMAILS: " Owner@Example.org , second@example.org", AUTH_AUTO_APPROVE: "@team610.org, guest@gmail.com",
 };
 
 test("config: a complete environment is parsed; origins, emails, and hours are normalised", () => {
@@ -24,7 +24,11 @@ test("config: a complete environment is parsed; origins, emails, and hours are n
   assert.ok(result.ok);
   assert.equal(result.config.baseUrl, "https://scout.example.org", "only the origin is used");
   assert.equal(result.config.secureCookies, true);
-  assert.deepEqual([...result.config.rootEmails], ["root@example.org", "second@example.org"]);
+  assert.deepEqual([...result.config.ownerEmails], ["owner@example.org", "second@example.org"]);
+  // The setting's earlier name keeps working.
+  const legacy = readAuthConfig({ ...baseEnv, AUTH_OWNER_EMAILS: undefined, AUTH_ROOT_EMAILS: "Legacy@Example.org" });
+  assert.ok(legacy.ok);
+  assert.deepEqual([...legacy.config.ownerEmails], ["legacy@example.org"]);
   assert.deepEqual(Object.keys(result.config.providers), ["google"], "Apple needs all four of its variables");
   assert.equal(result.config.store.url, "https://sg.example.org:4984");
   assert.equal(result.config.sessionMaxAgeMs, 30 * 24 * 3_600_000);
@@ -92,7 +96,7 @@ test("config: values left unchanged from .env.example are named before anyone is
     .filter((line) => /^[A-Z_]+=/.test(line)).map((line) => [line.slice(0, line.indexOf("=")), line.slice(line.indexOf("=") + 1)]));
   const copied = readAuthConfig({ ...template, AUTH_STORE_URL: "https://your-sync-gateway-host:4984" });
   assert.ok(!copied.ok);
-  for (const name of ["AUTH_SECRET", "AUTH_GOOGLE_CLIENT_ID", "AUTH_GOOGLE_CLIENT_SECRET", "AUTH_APPLE_PRIVATE_KEY", "AUTH_STORE_PASSWORD", "AUTH_ROOT_EMAILS", "AUTH_STORE_URL"]) {
+  for (const name of ["AUTH_SECRET", "AUTH_GOOGLE_CLIENT_ID", "AUTH_GOOGLE_CLIENT_SECRET", "AUTH_APPLE_PRIVATE_KEY", "AUTH_STORE_PASSWORD", "AUTH_OWNER_EMAILS", "AUTH_STORE_URL"]) {
     assert.ok(!copied.ok && copied.problems.includes(`${name} is still the placeholder from .env.example`), name);
   }
   assert.equal("AUTH_STORE_URL" in template, false, "the optional store URL is commented out in the template");

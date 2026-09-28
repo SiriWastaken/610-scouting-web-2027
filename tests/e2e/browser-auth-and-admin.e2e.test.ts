@@ -6,7 +6,7 @@ import { after, before, test } from "node:test";
 import type { Browser, Page } from "playwright";
 import { eventDocuments } from "../fixtures/event-dataset.ts";
 import { startAppWithAuth, type AppServer } from "../helpers/app-server.ts";
-import { CONFIGURED_ROOT, type TestAuth } from "../helpers/auth.ts";
+import { CONFIGURED_OWNER, type TestAuth } from "../helpers/auth.ts";
 import { launchBrowser, openPage, waitForLive, waitForText } from "../helpers/browser.ts";
 import { seedDocuments } from "../helpers/dataset.ts";
 import { startGatewayTarget, type GatewayTarget } from "../helpers/gateway-target.ts";
@@ -36,7 +36,9 @@ test("journey: welcome screen → Google sign-in → the page asked for → acco
   auth.oidc.setIdentity("google", { sub: `e2e-${n}`, email, emailVerified: true, name: "Mina Member" });
   const { page, errors } = await openPage(browser, app.base, "/teams/610");
   await page.waitForURL(/\/welcome\?next=%2Fteams%2F610/);
-  await waitForText(page, (text) => /continue with google/i.test(text) && /continue with apple/i.test(text) && /610 \/ SCOUTING/.test(text), "welcome screen");
+  await waitForText(page, (text) => /continue with google/i.test(text) && /continue with apple/i.test(text) && /610 \/ SCOUTING/.test(text), "sign-in page");
+  // Just the sign-in card: no description of the app.
+  assert.equal(/scouting data, live|strategy|averages/i.test(await page.locator("body").innerText()), false);
   await signInThroughUi(page, "google");
   assert.equal(new URL(page.url()).pathname, "/teams/610", "returned to the page they asked for");
   await waitForText(page, (text) => text.includes("Crescent Coyotes"), "team page");
@@ -49,21 +51,21 @@ test("journey: welcome screen → Google sign-in → the page asked for → acco
   assert.equal(await page.locator("[data-profile-role]").getAttribute("data-profile-role"), "MEMBER");
   // A member cannot use the admin experience, in the UI or through the API from their browser.
   await page.goto(`${app.base}/admin`);
-  await waitForText(page, (text) => /admin is for scout leads and admins/i.test(text), "access denied");
+  await waitForText(page, (text) => /admin is for scout leads, mentors, and the owner/i.test(text), "access denied");
   const apiStatus = await page.evaluate(async () => (await fetch("/api/admin/overview")).status);
   assert.equal(apiStatus, 403);
   assert.deepEqual(errors, []);
   await page.context().close();
 });
 
-test("journey: ROOT signs in with Apple, sees healthy systems, a passing WebSocket self-test, and manages a user", async () => {
-  auth.oidc.setIdentity("apple", { sub: `root-${++n}`, email: CONFIGURED_ROOT, emailVerified: true, name: "Rhea Root" });
+test("journey: the Owner signs in with Apple, sees healthy systems, a passing WebSocket self-test, renames and promotes a user", async () => {
+  auth.oidc.setIdentity("apple", { sub: `owner-${++n}`, email: CONFIGURED_OWNER, emailVerified: true, name: "Olivia Owner" });
   const scout = await auth.user("SCOUT", { name: "Sam Scout" });
   const { page, errors } = await openPage(browser, app.base, "/admin");
   await page.waitForURL(/\/welcome/);
   await signInThroughUi(page, "apple");
   await page.waitForURL(/\/admin$/);
-  assert.equal(await page.locator("[data-account-role]").getAttribute("data-account-role"), "ROOT");
+  assert.equal(await page.locator("[data-account-role]").getAttribute("data-account-role"), "OWNER");
   await waitFor(async () => (await page.locator('[data-check="Sync Gateway"] [data-status]').getAttribute("data-status")) === "ok", "Sync Gateway healthy", 20_000);
   for (const card of ["API", "Couchbase", "Account store", "Authentication"]) assert.equal(await page.locator(`[data-check="${card}"] [data-status]`).getAttribute("data-status"), "ok", card);
 
@@ -83,17 +85,17 @@ test("journey: ROOT signs in with Apple, sees healthy systems, a passing WebSock
   const persisted = auth.store.docs.get(`user_${scout.userId}`)!.body!;
   assert.deepEqual({ name: persisted.displayName, role: persisted.role }, { name: "Sam the Scout", role: "SCOUT_LEAD" });
 
-  // Promoting to ADMIN needs the typed confirmation.
-  await page.getByLabel("Role").selectOption("ADMIN");
+  // Promoting to MENTOR needs the typed confirmation.
+  await page.getByLabel("Role").selectOption("MENTOR");
   await page.getByRole("button", { name: "Change role" }).click();
   const confirm = page.getByRole("button", { name: "Confirm" });
   assert.equal(await confirm.isDisabled(), true);
   await page.getByLabel("Type the account's email to confirm").fill(scout.email);
   await confirm.click();
-  await waitFor(() => auth.store.docs.get(`user_${scout.userId}`)!.body!.role === "ADMIN", "promoted", 10_000);
+  await waitFor(() => auth.store.docs.get(`user_${scout.userId}`)!.body!.role === "MENTOR", "promoted", 10_000);
 
   await page.getByRole("link", { name: "Audit log" }).click();
-  await waitForText(page, (text) => text.includes("users.role") && text.includes(CONFIGURED_ROOT), "audit log shows the change");
+  await waitForText(page, (text) => text.includes("users.role") && text.includes(CONFIGURED_OWNER), "audit log shows the change");
 
   await page.getByRole("link", { name: "Diagnostics" }).click();
   await page.getByRole("button", { name: "Run full diagnostics" }).click();
@@ -103,7 +105,7 @@ test("journey: ROOT signs in with Apple, sees healthy systems, a passing WebSock
 });
 
 test("admin health reflects a real outage: stopping answers from Sync Gateway turns the dashboard red", async () => {
-  const admin = await auth.user("ADMIN");
+  const admin = await auth.user("MENTOR");
   const { page } = await openPage(browser, app.base, "/admin", admin);
   await waitFor(async () => (await page.locator('[data-check="Sync Gateway"] [data-status]').getAttribute("data-status")) === "ok", "healthy first", 20_000);
   target.fake!.unavailable = true;
@@ -132,6 +134,19 @@ test("pending accounts see the approval screen, and a cancelled sign-in explains
   await cancelled.page.context().close();
 });
 
+test("names are read-only for everyone but the Owner, on the account page and in Admin → Users", async () => {
+  const mentor = await auth.user("MENTOR", { name: "Mona Mentor" });
+  const scout = await auth.user("SCOUT", { name: "Stan Scout" });
+  const own = await openPage(browser, app.base, "/account", mentor);
+  await waitForText(own.page, (text) => text.includes("Mona Mentor") && /only the team.s owner can change names/i.test(text), "read-only names");
+  assert.equal(await own.page.getByRole("button", { name: "Save changes" }).count(), 0);
+  await own.page.goto(`${app.base}/admin/users/${scout.userId}`);
+  await waitForText(own.page, (text) => text.includes("Stan Scout") && /only the owner can change names/i.test(text), "user page");
+  assert.equal(await own.page.getByLabel("Display name").isDisabled(), true);
+  assert.equal(await own.page.getByLabel("Admin note").isDisabled(), false, "mentors still keep notes");
+  await own.page.context().close();
+});
+
 test("sign-out from the account chip, and a revoked session sends an open page back to the welcome screen", async () => {
   const member = await auth.user("MEMBER");
   const { page } = await openPage(browser, app.base, "/teams", member);
@@ -146,7 +161,7 @@ test("sign-out from the account chip, and a revoked session sends an open page b
   const other = await auth.user("SCOUT");
   const open = await openPage(browser, app.base, "/averages", other);
   await waitForLive(open.page);
-  const admin = await auth.user("ADMIN");
+  const admin = await auth.user("MENTOR");
   const revoke = await fetch(`${app.base}/api/admin/users/${other.userId}/sessions`, { method: "DELETE", headers: { cookie: admin.cookie, origin: app.base } });
   assert.deepEqual(await revoke.json(), { revoked: 1 });
   await open.page.waitForTimeout(10_500); // the server caches sessions for 10 s per process
@@ -163,8 +178,8 @@ test("every role gets exactly the pages its permissions allow (server-rendered, 
     MEMBER: [true, true, false, false, false, false],
     SCOUT: [true, true, false, false, false, false],
     SCOUT_LEAD: [true, true, true, true, false, false],
-    ADMIN: [true, true, true, true, true, true],
-    ROOT: [true, true, true, true, true, true],
+    MENTOR: [true, true, true, true, true, true],
+    OWNER: [true, true, true, true, true, true],
   };
   for (const [role, allowed] of Object.entries(expected)) {
     const user = await auth.user(role as "MEMBER");
