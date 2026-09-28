@@ -1,10 +1,11 @@
 // app/teams/page.tsx
-import { fetchTeamAggregates } from '@/services/couchbase';
+import { fetchTeamAggregatesSnapshot } from '@/services/couchbase';
 import TeamsClientView from '@/components/teamClientView';
+import { RealtimeConnection } from '@/components/realtime/realtime-connection';
 
 export default async function TeamsPage() {
   // 1. Fetch team aggregates from Couchbase (Server-side)
-  const teamStats = await fetchTeamAggregates();
+  const { teams: teamStats, lastSeq } = await fetchTeamAggregatesSnapshot();
 
   // 2. Fetch team nicknames from The Blue Alliance securely on the server
   const teamNames: Record<number, string> = {};
@@ -47,6 +48,7 @@ export default async function TeamsPage() {
         </header>
 
         {/* Pass server-fetched data to the client interactive view */}
+        <RealtimeConnection initialCursor={lastSeq} />
         <TeamsClientView initialTeams={teamStats} teamNames={teamNames} />
 
       </div>

@@ -26,9 +26,25 @@ COUCHBASE_COLLECTION=_default
 
 The repository reads `aggregate_data` documents and uses `pit` documents to enrich team names. No mock data is loaded when Couchbase is not configured; the data pages show an explicit empty state instead.
 
+## Live dashboard updates
+
+Pages update in place when scouting, pit, report, or aggregate documents are created, updated, or deleted in Couchbase. The dashboard opens a public, same-origin WebSocket feed automatically; users do not need an account or token. The server only relays known dashboard document types and explicitly selected fields. Scout names, photos, and free-text notes are excluded. Anyone who can reach the dashboard can see the dashboard data, so do not put private or sensitive information in fields exposed by the dashboard.
+
+How it works:
+
+- Each page renders from a Couchbase snapshot plus that snapshot's `last_seq`. The browser subscribes from that sequence, and the server long-polls Sync Gateway's `_changes` feed from there, relaying each relevant change.
+- The browser keeps the newest revision it has seen for every document, deletions included. Duplicate, stale, or out-of-order events are ignored, and REST results are merged against that store, so every tab converges on the same data.
+- After a disconnect the browser reconnects with backoff and resumes from the last sequence it applied, so missed changes are replayed. If Sync Gateway rejects that sequence, the page reloads its data in place.
+
+`npm run dev` and `npm start` run `scripts/server.mjs`, a small Node server that handles `/api/realtime` upgrades and passes everything else to Next.js. Plain `next dev` or `next start` cannot keep a WebSocket open on an app route. Use Node.js 22.6 or later. On Vercel, `app/api/realtime/route.ts` uses Vercel's beta WebSocket support instead (Fluid Compute is enabled in `vercel.json`).
+
 ## Checks
 
 ```bash
 npm run lint
+npm test          # unit and socket-level integration tests
 npm run build
+npm run test:e2e  # runs the built app against a fake Sync Gateway (E2E_MODE=dev for the dev server)
 ```
+
+To try live updates by hand without touching real data, start the fake Sync Gateway with `FAKE_SG_PORT=4985 node --experimental-strip-types tests/helpers/run-fake-sync-gateway.ts`, point the `COUCHBASE_*` variables at it (`http://127.0.0.1:4985`, database `scouting`, user `user`, password `pass`), and write documents with `PUT http://127.0.0.1:4985/scouting/<id>`.

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { TeamAggregate } from "@/types/scouting";
+import { useAggregateRealtime } from "@/lib/use-realtime";
 
 type StatKey = keyof TeamAggregate["rawData"];
 
@@ -65,18 +66,19 @@ export function MetricBoard({
   title: string;
   description: string;
 }) {
+  const liveTeams = useAggregateRealtime(teams);
   const [sortKey, setSortKey] = useState<StatKey>(initialStat);
   const [ascending, setAscending] = useState(true);
 
   const sorted = useMemo(
     () =>
-      [...teams].sort((a, b) => {
+      [...liveTeams].sort((a, b) => {
         const av = a.rawData[sortKey];
         const bv = b.rawData[sortKey];
         if (typeof av !== "number" || typeof bv !== "number") return 0;
         return ascending ? av - bv : bv - av;
       }),
-    [ascending, sortKey, teams]
+    [ascending, sortKey, liveTeams]
   );
 
   return (
