@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "NODE_ENV=production node --experimental-strip-types scripts/server.mjs",
     "lint": "eslint --max-warnings=0",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "node scripts/test-bench/run.mjs fast",
     "test:unit": "node scripts/test-bench/run.mjs unit",
     "test:integration": "node scripts/test-bench/run.mjs integration",

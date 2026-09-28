@@ -63,6 +63,7 @@ jobs:
         with:
           name: test-bench-results
           path: .test-bench/
+          include-hidden-files: true
           if-no-files-found: error
 
   e2e:
@@ -85,6 +86,7 @@ jobs:
         with:
           name: e2e-results
           path: .test-bench/
+          include-hidden-files: true
           if-no-files-found: error
 
   real-couchbase:
@@ -114,6 +116,7 @@ jobs:
         with:
           name: real-couchbase-results
           path: .test-bench/
+          include-hidden-files: true
           if-no-files-found: error
 
   required:
