@@ -1,8 +1,11 @@
+import { connection } from "next/server";
 import { StrategyTools } from "@/components/strategy/strategy-tools";
 import { fetchTeamAggregatesSnapshot } from "@/services/couchbase";
 import { RealtimeConnection } from "@/components/realtime/realtime-connection";
 
 export default async function StrategyPage() {
+  // Live data: render per request even when the build had no Couchbase settings.
+  await connection();
   const { teams, lastSeq, names } = await fetchTeamAggregatesSnapshot();
   return <div className="mx-auto max-w-[1080px]">
     <RealtimeConnection initialCursor={lastSeq} initialNames={names} />

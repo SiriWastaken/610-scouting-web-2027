@@ -43,6 +43,18 @@ test("pages: every dashboard route renders, unknown teams 404, and / redirects t
   assert.equal(new URL(root.headers.get("location")!, app.base).pathname, "/teams");
 });
 
+test("pages are rendered per request from current data, never frozen at build time", async () => {
+  // A build made without Couchbase settings (as in CI) once prerendered every page empty.
+  await target.upsert("aggregate_7777", { type: "aggregate_data", team: 7777, data: { standing: 9, matchesPlayed: 2 } });
+  await target.upsert("pit_7777", { type: "pit", team: 7777, data: { teamName: "Rendered Per Request" } });
+  await new Promise((resolve) => setTimeout(resolve, 21_000)); // outlive the server's 20 s snapshot cache
+  for (const path of ["/teams", "/averages", "/box-plot", "/coverage", "/strategy"]) {
+    const html = await (await fetch(`${app.base}${path}`)).text();
+    assert.match(html, /Rendered Per Request/, `${path} shows data written after the server started`);
+  }
+  await target.destroy("aggregate_7777"); await target.destroy("pit_7777");
+});
+
 test("secrets: no page or JavaScript bundle contains credentials, the upstream address, or private fields", async () => {
   const assets = new Set<string>();
   const bodies: Array<[string, string]> = [];

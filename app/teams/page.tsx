@@ -1,9 +1,12 @@
 // app/teams/page.tsx
+import { connection } from 'next/server';
 import { fetchTeamAggregatesSnapshot } from '@/services/couchbase';
 import TeamsClientView from '@/components/teamClientView';
 import { RealtimeConnection } from '@/components/realtime/realtime-connection';
 
 export default async function TeamsPage() {
+  // Live data: render per request even when the build had no Couchbase settings.
+  await connection();
   // 1. Fetch team aggregates from Couchbase (Server-side)
   const { teams: teamStats, lastSeq, names } = await fetchTeamAggregatesSnapshot();
 

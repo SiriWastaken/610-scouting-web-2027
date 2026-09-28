@@ -61,7 +61,7 @@ export const suites = {
     serial: true,
     requires: ["build", "chromium"],
     files: {
-      "tests/e2e/server-http-and-websocket.e2e.test.ts": 7,
+      "tests/e2e/server-http-and-websocket.e2e.test.ts": 8,
       "tests/e2e/browser-scouting-workflows.e2e.test.ts": 8,
       "tests/e2e/browser-failure-recovery.e2e.test.ts": 3,
     },
