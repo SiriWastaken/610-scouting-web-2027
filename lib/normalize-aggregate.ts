@@ -11,6 +11,9 @@ export interface AggregateDocument {
 }
 
 function asNumber(value: unknown, fallback = 0): number {
+  // Only numbers and numeric strings count. Coercing anything else is unsafe:
+  // a JSON object such as {"toString": []} makes Number() throw.
+  if (typeof value !== "number" && typeof value !== "string") return fallback;
   const result = Number(value);
   return Number.isFinite(result) ? result : fallback;
 }

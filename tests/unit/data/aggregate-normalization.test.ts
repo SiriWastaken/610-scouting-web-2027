@@ -71,6 +71,13 @@ test("normalize: malformed statistic values degrade to 0 instead of NaN or Infin
   }
 });
 
+test("normalize: objects, arrays, and booleans never reach Number() (a {toString: []} object made it throw)", () => {
+  const hostile = JSON.parse('{"toString": []}');
+  const row = normalizeAggregateDocument({ team: 4, data: { standing: hostile, matchesPlayed: [7], autoPPG: true, teleopPPG: { valueOf: 3 } } });
+  assert.deepEqual([row?.rank, row?.matches, row?.autoPpg, row?.teleopPpg], [0, 0, 0, 0]);
+  assert.equal(normalizeAggregateDocument({ team: hostile, data: { standing: 1 } }), null);
+});
+
 test("normalize: numeric strings from older scouting builds are read as numbers", () => {
   const row = normalizeAggregateDocument({ team: "3", data: { standing: "2", matchesPlayed: "7", autoPPG: "4.5", teleopFuelaccuracy: "66.5" } });
   assert.deepEqual([row?.team, row?.rank, row?.matches, row?.autoPpg, row?.fuelAccuracy], [3, 2, 7, 4.5, 67]);

@@ -60,14 +60,15 @@ test("server restart: an open page reconnects and catches up without a reload", 
   await target.upsert("aggregate_971", eventDocuments.aggregate_971);
 });
 
-test("malformed scouting documents in the database do not break the team page", async () => {
+test("malformed scouting and card-report documents in the database do not break the team page", async () => {
   await target.upsert("scouting_610_6", { type: "scouting_data", team: 610, data: { start: { match: "six", alliance: 42 }, auto: { markers: [[1, 2], { x: "a" }, null], paths: [7, null, "M 0 0 L nope"], fuelScored: "many" }, teleop: { fuelscored: { value: 3 }, breakSeverity: ["bad"] } } });
   await target.upsert("scouting_610_7", { type: "scouting_data", team: 610, data: { auto: "not an object", teleop: null, start: [] } });
+  await target.upsert("report_610_Q99", { type: "report_card", team: 610, match: { round: 99 }, data: { cardType: ["Red"], ruleViolation: { rule: "G1" }, timestamp: 5 } });
   const { page, errors } = await openPage(browser, app.base, "/teams");
-  await waitForText(page, (text) => /Match Performance Log/i.test(text), "match log rendered");
+  await waitForText(page, (text) => /Match Performance Log/i.test(text) && text.includes("G204"), "match log and card reports rendered");
   const text = await page.locator("body").innerText();
   assert.equal(/application error|unhandled runtime error/i.test(text), false, "no crash screen");
   assert.deepEqual(errors, [], "no uncaught errors in the page");
   await page.context().close();
-  await target.destroy("scouting_610_6"); await target.destroy("scouting_610_7");
+  await target.destroy("scouting_610_6"); await target.destroy("scouting_610_7"); await target.destroy("report_610_Q99");
 });

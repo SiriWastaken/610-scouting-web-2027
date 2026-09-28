@@ -66,16 +66,24 @@ function toMatchData(doc: Record<string, unknown>): MatchData {
   return sanitizeMatchData(doc.data ?? doc, typeof doc._id === 'string' ? doc._id : undefined, matchNum && Number.isFinite(Number(matchNum)) ? Number(matchNum) : undefined);
 }
 
+/** Only strings and finite numbers are rendered; anything else from a malformed document falls back. */
+function label(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === 'string' || (typeof value === 'number' && Number.isFinite(value))) return String(value);
+  }
+  return undefined;
+}
+
 function toCardReport(doc: Record<string, unknown>): CardReport {
-  const data = (doc.data ?? {}) as Record<string, unknown>;
+  const data = (doc.data && typeof doc.data === 'object' ? doc.data : {}) as Record<string, unknown>;
   return {
     sourceId: String(doc._id ?? ''),
-    match: (doc.match as string | number) ?? (data.matchNumber as string | number) ?? 'N/A',
-    team: (doc.team as string | number) ?? (data.teamNumber as string | number) ?? 'N/A',
-    cardType: (data.cardType as string) ?? 'Unknown',
-    ruleViolation: (data.ruleViolation as string) ?? 'N/A',
-    notes: (data.notes as string) ?? 'None',
-    timestamp: (doc.timestamp as string) ?? (data.timestamp as string),
+    match: label(doc.match, data.matchNumber) ?? 'N/A',
+    team: label(doc.team, data.teamNumber) ?? 'N/A',
+    cardType: label(data.cardType) ?? 'Unknown',
+    ruleViolation: label(data.ruleViolation) ?? 'N/A',
+    notes: label(data.notes) ?? 'None',
+    timestamp: label(doc.timestamp, data.timestamp),
   };
 }
 
