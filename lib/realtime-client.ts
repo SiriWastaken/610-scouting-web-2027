@@ -29,6 +29,8 @@ const CONNECTING = 0;
 const OPEN = 1;
 /** Sent by the server when it closes a healthy connection on purpose (for example before a platform timeout). */
 const SERVICE_RESTART = 1012;
+/** Sent by the server when the connection's session was revoked or expired (lib/realtime-bridge.ts). Retrying cannot help. */
+const SESSION_ENDED = 4401;
 
 function defaultUrl() {
   const { protocol, host } = globalThis.location;
@@ -49,6 +51,7 @@ export class RealtimeClient {
   private readonly storeListeners = new Set<() => void>();
   private readonly statusListeners = new Set<(status: RealtimeStatus) => void>();
   private readonly resyncListeners = new Set<() => void>();
+  private readonly sessionEndedListeners = new Set<() => void>();
 
   constructor(options: RealtimeClientOptions = {}) {
     this.options = {
@@ -110,6 +113,9 @@ export class RealtimeClient {
   /** Fires when the server can no longer resume from our cursor; listeners must reload their snapshot. */
   subscribeResync(listener: () => void): () => void { this.resyncListeners.add(listener); return () => { this.resyncListeners.delete(listener); }; }
 
+  /** Fires when the server ends the connection because the user's session is no longer valid. */
+  subscribeSessionEnded(listener: () => void): () => void { this.sessionEndedListeners.add(listener); return () => { this.sessionEndedListeners.delete(listener); }; }
+
   private setStatus(value: RealtimeStatus) { this.status = value; this.statusListeners.forEach((listener) => listener(value)); }
 
   private open() {
@@ -161,6 +167,12 @@ export class RealtimeClient {
       this.socket = null;
       if (event.code !== 1000 && event.code !== SERVICE_RESTART) {
         console.warn("Realtime WebSocket closed", { code: event.code, reason: event.reason, wasClean: event.wasClean });
+      }
+      if (event.code === SESSION_ENDED) {
+        // Keep the cursor: after signing in again the page can resume from it.
+        this.setStatus("disconnected");
+        this.sessionEndedListeners.forEach((listener) => listener());
+        return;
       }
       if (resync) {
         // The cursor is unusable; drop everything derived from the feed and let
