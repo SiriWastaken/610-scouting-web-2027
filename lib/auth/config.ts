@@ -21,7 +21,24 @@ export interface ProviderConfig {
   jwksUri: string;
 }
 
-export interface AuthStoreConfig { url: string; database: string; username: string; password: string }
+export interface AuthStoreConfig {
+  url: string;
+  /** Sync Gateway database (on Capella App Services: the App Endpoint name). */
+  database: string;
+  /** Scope and collection holding the account documents; `_default` for a database's default collection. */
+  scope: string;
+  collection: string;
+  username: string;
+  password: string;
+}
+
+/**
+ * How Sync Gateway's REST API addresses the store: `db` for the default
+ * collection, `db.scope.collection` for a named one (Sync Gateway 3.x keyspaces).
+ */
+export function storeKeyspace(store: Pick<AuthStoreConfig, "database" | "scope" | "collection">): string {
+  return store.scope === "_default" && store.collection === "_default" ? store.database : `${store.database}.${store.scope}.${store.collection}`;
+}
 
 export interface AuthConfig {
   /** Public origin of the dashboard, e.g. `https://scout.example.org`. Redirect URIs and CSRF checks use it, never the Host header. */
@@ -57,6 +74,31 @@ function providerEndpoints(id: ProviderId, override: string | undefined) {
     : { issuer: "https://appleid.apple.com", alternateIssuers: [], authorizationEndpoint: "https://appleid.apple.com/auth/authorize", tokenEndpoint: "https://appleid.apple.com/auth/token", jwksUri: "https://appleid.apple.com/auth/keys" };
 }
 
+/**
+ * The account store is reached through the Sync Gateway / App Services REST API, so its URL must be
+ * that public endpoint (`https://` or `wss://`, usually port 4984), not a Couchbase connection string.
+ * A copied Capella App Endpoint URL ending in `/<database>` is accepted and trimmed to the origin.
+ */
+export function checkStoreUrl(raw: string | undefined, database: string): { url: string; problem?: string } {
+  const value = (raw ?? "").trim();
+  if (!value) return { url: "" };
+  if (/^couchbases?:\/\//i.test(value)) {
+    return { url: "", problem: "is a Couchbase connection string (couchbase:// or couchbases://). Use the App Services / Sync Gateway public URL instead, e.g. wss://<id>.apps.cloud.couchbase.com:4984 (Capella: App Services → your App Endpoint → Connect)" };
+  }
+  let url: URL;
+  try { url = new URL(value.replace(/^wss:/i, "https:").replace(/^ws:/i, "http:")); } catch { return { url: "", problem: "is not a valid URL (expected e.g. wss://<host>:4984)" }; }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return { url: "", problem: `uses ${url.protocol}//; expected https:// or wss:// (the App Services / Sync Gateway public URL)` };
+  if (url.username || url.password) return { url: "", problem: "must not contain a username or password; use AUTH_STORE_USERNAME / AUTH_STORE_PASSWORD" };
+  const path = url.pathname.replace(/\/+$/, "");
+  if (path && path !== `/${database}`) return { url: "", problem: `must be just the server address, without a path (got "${path}"); put the database name in AUTH_STORE_DATABASE` };
+  return { url: url.origin };
+}
+
+/** Marker words used only by the placeholders in .env.example. */
+export function isTemplatePlaceholder(value: string): boolean {
+  return /your-sync-gateway-host|other-sync-gateway-host|replace-with-|replace-me|your-client-id|your-google-client-secret|your-account-store-password|you@example\.org/i.test(value);
+}
+
 export function readAuthConfig(env: Record<string, string | undefined> = process.env): AuthConfigResult {
   const problems: string[] = [];
   let baseUrl = "";
@@ -83,18 +125,39 @@ export function readAuthConfig(env: Record<string, string | undefined> = process
   }
   if (!providers.google && !providers.apple) problems.push("No sign-in provider is configured: set AUTH_GOOGLE_CLIENT_ID + AUTH_GOOGLE_CLIENT_SECRET and/or the four AUTH_APPLE_* variables");
 
-  const store = {
-    url: (env.AUTH_STORE_URL || env.COUCHBASE_SYNC_GATEWAY_URL || "").replace(/^wss:/, "https:").replace(/^ws:/, "http:").replace(/\/$/, ""),
-    database: env.AUTH_STORE_DATABASE ?? "",
+  // AUTH_STORE_DATABASE is a database name, or a whole keyspace `database.scope.collection`.
+  const [database = "", scopeFromKeyspace, collectionFromKeyspace, ...extra] = (env.AUTH_STORE_DATABASE ?? "").trim().split(".");
+  const urlSource = env.AUTH_STORE_URL ? "AUTH_STORE_URL" : "COUCHBASE_SYNC_GATEWAY_URL";
+  const storeUrl = checkStoreUrl(env.AUTH_STORE_URL || env.COUCHBASE_SYNC_GATEWAY_URL, database);
+  if (storeUrl.problem) problems.push(`${urlSource} ${storeUrl.problem}`);
+  const store: AuthStoreConfig = {
+    url: storeUrl.url,
+    database,
+    scope: scopeFromKeyspace ?? (env.AUTH_STORE_SCOPE?.trim() || "_default"),
+    collection: collectionFromKeyspace ?? (env.AUTH_STORE_COLLECTION?.trim() || "_default"),
     username: env.AUTH_STORE_USERNAME ?? "",
     password: env.AUTH_STORE_PASSWORD ?? "",
   };
-  if (!store.url || !store.database || !store.username || !store.password) {
+  const scouting = { url: checkStoreUrl(env.COUCHBASE_SYNC_GATEWAY_URL, env.COUCHBASE_DATABASE ?? "").url, database: env.COUCHBASE_DATABASE ?? "", scope: env.COUCHBASE_SCOPE || "_default", collection: env.COUCHBASE_COLLECTION || "_default" };
+  if (storeUrl.problem) {
+    // Already reported above with what to use instead.
+  } else if (!store.url || !store.database || !store.username || !store.password) {
     problems.push("The account store needs AUTH_STORE_DATABASE, AUTH_STORE_USERNAME, AUTH_STORE_PASSWORD (and AUTH_STORE_URL or COUCHBASE_SYNC_GATEWAY_URL)");
-  } else if (store.database === env.COUCHBASE_DATABASE && store.url === (env.COUCHBASE_SYNC_GATEWAY_URL ?? "").replace(/^wss:/, "https:").replace(/^ws:/, "http:").replace(/\/$/, "")) {
-    // Scouting tablets sync the scouting database; accounts and sessions must never be replicated to them.
-    problems.push("AUTH_STORE_DATABASE must be a different Sync Gateway database from COUCHBASE_DATABASE");
+  } else if (extra.length || (scopeFromKeyspace !== undefined && collectionFromKeyspace === undefined)) {
+    problems.push("AUTH_STORE_DATABASE must be a database name, or database.scope.collection (e.g. scoutingapp.app.auth)");
+  } else if ([store.database, store.scope, store.collection].some((part) => !part || /[\s/?#%]/.test(part))) {
+    problems.push("AUTH_STORE_DATABASE, AUTH_STORE_SCOPE, and AUTH_STORE_COLLECTION may not be empty or contain spaces, slashes, ?, # or %");
+  } else if (store.url === scouting.url && store.database === scouting.database && store.scope === scouting.scope && store.collection === scouting.collection) {
+    // Scouting tablets sync the scouting collection; accounts and sessions must never be replicated to them.
+    problems.push("The account store must be a different collection (or database) from the scouting data: set AUTH_STORE_COLLECTION, e.g. auth");
   }
+
+  // Values copied unchanged from .env.example would pass the checks above, send people to Google, and
+  // only fail after they approve. Name them here instead, before anyone tries to sign in.
+  for (const [name, value] of Object.entries(env)) {
+    if (name.startsWith("AUTH_") && typeof value === "string" && isTemplatePlaceholder(value)) problems.push(`${name} is still the placeholder from .env.example`);
+  }
+  if (!env.AUTH_STORE_URL && isTemplatePlaceholder(store.url)) problems.push("COUCHBASE_SYNC_GATEWAY_URL (also used for the account store) is still the placeholder from .env.example");
 
   if (problems.length) return { ok: false, problems };
   return {

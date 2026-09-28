@@ -36,12 +36,17 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
   const auth = await getAuthentication();
   if (auth.status === "signed-in" && auth.viewer.principal.status === "active") redirect(next === "/" ? "/teams" : next);
 
-  const providers = enabledProviders(readAuthConfig());
+  const configured = readAuthConfig();
+  const providers = enabledProviders(configured);
   const errorCode = first(params.error);
   const reason = first(params.reason);
-  const error = errorCode ? ERRORS[errorCode] ?? "Sign-in failed. Please try again." : auth.status === "unavailable" || reason === "unavailable" ? ERRORS.unavailable : null;
+  // "Unavailable" is either missing configuration or an unreachable account store; say which.
+  const unavailable = configured.ok ? ERRORS.store_unavailable : ERRORS.unavailable;
+  const error = errorCode ? ERRORS[errorCode] ?? "Sign-in failed. Please try again." : auth.status === "unavailable" || reason === "unavailable" ? unavailable : null;
   const notice = !error && reason === "expired" ? "Your session expired. Sign in again to pick up where you left off." : !error && first(params.signedOut) ? "You're signed out." : null;
   const pending = auth.status === "signed-in" ? auth.viewer : null;
+  // While developing, say exactly which settings are wrong (names only, never values). Production keeps the generic message.
+  const setupProblems = !configured.ok && process.env.NODE_ENV !== "production" ? configured.problems : [];
 
   return <div className="welcome-scan data-grid relative flex min-h-screen overflow-hidden">
     {/* On phones the sign-in card follows the introduction; on wide screens it sits beside it. */}
@@ -75,6 +80,11 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
               <h2 id="signin-title" className="text-xl font-medium tracking-tight">Welcome back</h2>
               <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Sign in with the account your team lead approved. New here? Sign in and a lead will approve you.</p>
               {error && <p role="alert" className="mt-5 border-l-2 border-red-400 bg-red-400/10 px-3 py-2 text-sm text-red-200" data-welcome-error={errorCode ?? reason}>{error}</p>}
+              {setupProblems.length > 0 && <div className="mt-3 border border-[var(--line)] bg-[#0f1412] px-3 py-2 text-xs leading-5 text-[var(--muted)]" data-setup-problems>
+                <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-amber-300">Development: fix in .env.local, then restart</div>
+                <ul className="list-disc pl-4">{setupProblems.map((problem) => <li key={problem}>{problem}</li>)}</ul>
+                <div className="mt-1">Run <code className="text-[var(--foreground)]">npm run auth:check</code> for details.</div>
+              </div>}
               {notice && <p role="status" className="mt-5 border-l-2 border-[var(--green)] bg-[rgba(120,192,145,0.08)] px-3 py-2 text-sm text-[var(--foreground)]">{notice}</p>}
               <div className="mt-6"><SignInButtons providers={providers} next={next} /></div>
             </>}

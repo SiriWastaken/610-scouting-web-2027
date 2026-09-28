@@ -32,9 +32,20 @@ export async function authenticateCookieHeader(cookieHeader: string | string[] |
     const check = await validateSession(runtime.store, runtime.config, token);
     return check.ok ? { status: "signed-in", viewer: check.viewer } : { status: "signed-out", reason: check.reason };
   } catch (error) {
-    if (error instanceof StoreUnavailableError) return { status: "unavailable", reason: "The account store is unreachable" };
+    if (error instanceof StoreUnavailableError) {
+      logStoreProblem(error.message);
+      return { status: "unavailable", reason: "The account store is unreachable" };
+    }
     throw error;
   }
+}
+
+// Every request hits this during an outage; say why in the server log once a minute, not per request.
+let lastStoreLog = 0;
+function logStoreProblem(message: string) {
+  if (Date.now() - lastStoreLog < 60_000) return;
+  lastStoreLog = Date.now();
+  console.error(`Sessions cannot be checked: ${message}`);
 }
 
 /**

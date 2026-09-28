@@ -6,7 +6,7 @@ import { completeSignIn, SignInError, stateCookieName, type CallbackParams } fro
 import { authRuntime } from "@/lib/auth/runtime";
 import { createSession, pruneExpiredSessions, readCookie, revokeSession, sessionCookieName } from "@/lib/auth/sessions";
 import { StoreUnavailableError } from "@/lib/auth/store";
-import { authMetrics, recordError } from "@/lib/ops/metrics";
+import { authMetrics, recordError, scrub } from "@/lib/ops/metrics";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,7 +52,12 @@ async function handle(request: Request, provider: string, params: CallbackParams
     const destination = outcome.user.status === "active" ? returnTo : "/welcome";
     return redirectTo(`${config.baseUrl}${destination}`, [sessionCookie, clearState]);
   } catch (error) {
-    if (error instanceof SignInError) return fail(error.code, error.message);
+    if (error instanceof SignInError) {
+      if (error.code === "exchange_failed" || error.code === "token_invalid") console.error(`Sign in with ${provider} failed: ${error.message}`);
+      return fail(error.code, error.message);
+    }
+    // The browser only sees a generic message; the cause (e.g. the account database is missing) goes to the server log.
+    console.error(`Sign in with ${provider} failed after the provider approved it: ${scrub(error)}`);
     recordError("auth-callback", error);
     return fail(error instanceof StoreUnavailableError ? "store_unavailable" : "exchange_failed", error instanceof Error ? error.message : "Sign-in failed");
   }
