@@ -9,6 +9,7 @@ import { FAKE_DATABASE, FAKE_PASSWORD, FAKE_USERNAME, FakeSyncGateway } from "..
 import { startGatewayTarget, type GatewayTarget } from "../../helpers/gateway-target.ts";
 import { startRealtimeHarness, type RealtimeHarness } from "../../helpers/realtime-harness.ts";
 import { sleep, waitFor } from "../../helpers/wait.ts";
+import { asUser } from "../../helpers/auth.ts";
 
 let target: GatewayTarget;
 let gateway: FakeSyncGateway;
@@ -32,7 +33,7 @@ beforeEach(() => {
 after(async () => { mock.timers.reset(); await realtime.stop(); await target.stop(); });
 
 const teams = async () => (await fetchTeamAggregatesSnapshot()).teams.map((team) => team.team);
-const apiStatus = async () => (await GET(new Request("http://dashboard.test/api/dashboard-documents?kind=matches&team=610"))).status;
+const apiStatus = async () => (await GET(asUser(realtime.member, "http://dashboard.test/api/dashboard-documents?kind=matches&team=610"))).status;
 
 for (const [label, fault] of [
   ["HTTP 500", { kind: "status", status: 500 }],
@@ -139,6 +140,6 @@ test("malformed documents already in the database do not break the dashboard", a
   gateway.put("pit_48", { type: "pit", data: { teamName: { nested: true } } });
   mock.timers.tick(21_000);
   assert.deepEqual(await teams(), [610]);
-  const response = await GET(new Request("http://dashboard.test/api/dashboard-documents?kind=matches&team=610"));
+  const response = await GET(asUser(realtime.member, "http://dashboard.test/api/dashboard-documents?kind=matches&team=610"));
   assert.equal(response.status, 200);
 });

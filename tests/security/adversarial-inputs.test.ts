@@ -12,6 +12,7 @@ import { useGatewayForApp } from "../helpers/dataset.ts";
 import { startGatewayTarget, type GatewayTarget } from "../helpers/gateway-target.ts";
 import { startRealtimeHarness, type RealtimeHarness } from "../helpers/realtime-harness.ts";
 import { waitFor } from "../helpers/wait.ts";
+import { asUser } from "../helpers/auth.ts";
 
 fc.configureGlobal({ seed: Number(process.env.TEST_SEED ?? 610), numRuns: 400 });
 
@@ -111,7 +112,7 @@ test("fuzz: REST query strings only ever produce 200 or 400 with a JSON body", a
     async (query) => {
       let url: URL;
       try { url = new URL(`http://dashboard.test/api/dashboard-documents?${query}`); } catch { return; }
-      const response = await GET(new Request(url));
+      const response = await GET(asUser(realtime.member, url.toString()));
       assert.ok(response.status === 200 || response.status === 400, `status ${response.status} for ${query}`);
       JSON.parse(await response.text());
     },
@@ -128,7 +129,7 @@ test("malformed WebSocket traffic from one client never affects another", async 
     JSON.stringify({ type: "unknown-event" }),
   ];
   const outcomes = await Promise.all(hostile.map((payload) => new Promise<number>((resolve) => {
-    const socket = new WebSocket(realtime.wsUrl, { origin: realtime.origin });
+    const socket = new WebSocket(realtime.wsUrl, realtime.socketOptions());
     socket.on("open", () => socket.send(payload));
     socket.on("message", () => {}); // a subscription that parses gets data like any client; closing is what we check
     socket.on("close", (code) => resolve(code));
@@ -146,7 +147,7 @@ test("a subscription cursor cannot inject parameters into the upstream request",
   const fake = target.fake;
   assert.ok(fake, "inspects upstream requests");
   const injected = "0&filter=sync_gateway/bychannel&channels=admin&include_docs=false";
-  const socket = new WebSocket(realtime.wsUrl, { origin: realtime.origin });
+  const socket = new WebSocket(realtime.wsUrl, realtime.socketOptions());
   await new Promise((resolve) => socket.on("open", resolve));
   const before = fake.requests.length;
   socket.send(JSON.stringify({ type: "subscribe", since: injected }));
@@ -161,7 +162,7 @@ test("a subscription cursor cannot inject parameters into the upstream request",
 });
 
 test("connection floods are capped and slots are released", async () => {
-  const sockets = Array.from({ length: 60 }, () => new WebSocket(realtime.wsUrl, { origin: realtime.origin }));
+  const sockets = Array.from({ length: 60 }, () => new WebSocket(realtime.wsUrl, realtime.socketOptions()));
   const codes = await Promise.all(sockets.map((socket) => new Promise<number | "open">((resolve) => {
     socket.on("close", (code) => resolve(code));
     socket.on("error", () => {});

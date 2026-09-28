@@ -16,6 +16,7 @@ import { seedDocuments, useGatewayForApp } from "../helpers/dataset.ts";
 import { startGatewayTarget, type GatewayTarget } from "../helpers/gateway-target.ts";
 import { startRealtimeHarness, type RealtimeHarness } from "../helpers/realtime-harness.ts";
 import { waitFor } from "../helpers/wait.ts";
+import { asUser } from "../helpers/auth.ts";
 
 let target: GatewayTarget;
 let realtime: RealtimeHarness;
@@ -24,7 +25,7 @@ after(async () => { await realtime.stop(); await target.stop(); });
 
 async function upgradeStatus(headers: Record<string, string>): Promise<number> {
   return new Promise((resolve) => {
-    const socket = new WebSocket(realtime.wsUrl, { headers });
+    const socket = new WebSocket(realtime.wsUrl, { headers: { cookie: realtime.member.cookie, ...headers } });
     socket.once("unexpected-response", (_request, response) => resolve(response.statusCode ?? 0));
     socket.once("open", () => { socket.close(); resolve(101); });
     socket.once("error", () => {});
@@ -60,6 +61,18 @@ test("vercel realtime route: refuses cross-origin and unconfigured upgrades befo
   } finally { process.env.COUCHBASE_PASSWORD = saved; }
 });
 
+test("vercel realtime route: refuses signed-out, inactive, and forged sessions, and says 503 when accounts are unreachable", async () => {
+  const upgrade = (cookie?: string) => vercelRealtimeRoute.GET(new Request("https://scout.example/api/realtime", { headers: { origin: "https://scout.example", ...(cookie ? { cookie } : {}) } }));
+  assert.equal((await upgrade()).status, 401);
+  assert.equal((await upgrade("610_session=forged.token")).status, 401);
+  assert.equal((await upgrade("role=ADMIN; admin=true")).status, 401);
+  const pending = await realtime.auth.user("SCOUT", { status: "pending" });
+  assert.equal((await upgrade(pending.cookie)).status, 403);
+  const member = await realtime.auth.user("MEMBER");
+  realtime.auth.store.unavailable = true;
+  try { assert.equal((await upgrade(member.cookie)).status, 503); } finally { realtime.auth.store.unavailable = false; }
+});
+
 test("read-only API: the dashboard documents route handles GET and nothing else", () => {
   const handlers = Object.keys(dashboardRoute).filter((name) => /^(GET|HEAD|POST|PUT|PATCH|DELETE|OPTIONS)$/.test(name));
   assert.deepEqual(handlers, ["GET"], "any new write handler needs its own authorization and tests");
@@ -68,7 +81,7 @@ test("read-only API: the dashboard documents route handles GET and nothing else"
 test("read-only socket: messages a browser sends after subscribing never reach the database", async () => {
   const fake = target.fake;
   assert.ok(fake, "inspects upstream requests");
-  const socket = new WebSocket(realtime.wsUrl, { origin: realtime.origin });
+  const socket = new WebSocket(realtime.wsUrl, realtime.socketOptions());
   const frames: Array<Record<string, unknown>> = [];
   socket.on("message", (data) => frames.push(JSON.parse(String(data))));
   await new Promise((resolve) => socket.on("open", resolve));
@@ -91,13 +104,13 @@ test("read-only socket: messages a browser sends after subscribing never reach t
 
 test("credentials: never sent to the browser over the socket or the API", async () => {
   await seedDocuments(target, { pit_9101: { type: "pit", data: { teamName: "Creds check" } } });
-  const socket = new WebSocket(realtime.wsUrl, { origin: realtime.origin });
+  const socket = new WebSocket(realtime.wsUrl, realtime.socketOptions());
   const raw: string[] = [];
   socket.on("message", (data) => raw.push(String(data)));
   await new Promise((resolve) => socket.on("open", resolve));
   socket.send(JSON.stringify({ type: "subscribe", since: "0" }));
   await waitFor(() => raw.some((frame) => frame.includes("pit_9101")), "history replayed");
-  const api = await (await dashboardRoute.GET(new Request("http://dashboard.test/api/dashboard-documents?kind=pit&team=9101"))).text();
+  const api = await (await dashboardRoute.GET(asUser(realtime.member, "http://dashboard.test/api/dashboard-documents?kind=pit&team=9101"))).text();
   for (const secret of [target.password, target.authorization, target.authorization.replace("Basic ", ""), target.origin]) {
     assert.equal(raw.join("\n").includes(secret), false, "socket frames contain no credentials or upstream address");
     assert.equal(api.includes(secret), false, "API responses contain no credentials or upstream address");
@@ -109,7 +122,8 @@ test("identity claims from the client change nothing: every subscriber gets the 
   await seedDocuments(target, eventDocuments);
   const since = "0";
   const subscribe = (message: Record<string, unknown>, headers: Record<string, string> = {}) => new Promise<string[]>((resolve) => {
-    const socket = new WebSocket(realtime.wsUrl, { origin: realtime.origin, headers });
+    // Forged identity claims ride along with a real member session; they must change nothing.
+    const socket = new WebSocket(realtime.wsUrl, { origin: realtime.origin, headers: { ...headers, Cookie: [realtime.member.cookie, headers.Cookie].filter(Boolean).join("; ") } });
     const frames: string[] = [];
     socket.on("open", () => socket.send(JSON.stringify(message)));
     socket.on("message", (data) => {
@@ -129,7 +143,7 @@ test("identity claims from the client change nothing: every subscriber gets the 
 test("privacy: every document type served over REST excludes private fields", async () => {
   await seedDocuments(target, eventDocuments);
   for (const kind of ["matches", "pit", "reports"]) {
-    const body = await (await dashboardRoute.GET(new Request(`http://dashboard.test/api/dashboard-documents?kind=${kind}&team=610`))).text();
+    const body = await (await dashboardRoute.GET(asUser(realtime.member, `http://dashboard.test/api/dashboard-documents?kind=${kind}&team=610`))).text();
     for (const field of ["scoutName", "notes", "general", "robotPhoto", "scoutNames"]) assert.equal(body.includes(`"${field}"`), false, `${kind} response contains ${field}`);
   }
 });

@@ -7,22 +7,29 @@ import { GET } from "../../../app/api/dashboard-documents/route.ts";
 import { eventDocuments, expectedMatchIds610, expectedReportIds610, privateStrings } from "../../fixtures/event-dataset.ts";
 import { seedDocuments, useGatewayForApp } from "../../helpers/dataset.ts";
 import { startGatewayTarget, type GatewayTarget } from "../../helpers/gateway-target.ts";
+import { asUser, startTestAuth, type TestAuth, type TestUser } from "../../helpers/auth.ts";
 
 let target: GatewayTarget;
+let auth: TestAuth;
+let member: TestUser;
 before(async () => {
   target = await startGatewayTarget();
+  // The route requires a signed-in member; its authorization is covered in tests/security/authorization-matrix.test.ts.
+  auth = await startTestAuth();
   await seedDocuments(target, eventDocuments);
   useGatewayForApp(target);
   // The server caches its Couchbase snapshot for 20 s. Control the clock so each
   // test starts from a fresh snapshot and cache behaviour can be tested exactly.
   mock.timers.enable({ apis: ["Date"], now: Date.parse("2027-03-02T12:00:00Z") });
+  // Signed in on the mocked clock, so the session is fresh at the time the tests run.
+  member = await auth.user("MEMBER");
 });
 beforeEach(() => { mock.timers.tick(21_000); });
-after(async () => { mock.timers.reset(); await target.stop(); });
+after(async () => { mock.timers.reset(); await auth.stop(); await target.stop(); });
 
 type Documents = Array<{ _default: Record<string, unknown> }>;
 async function get(query: string) {
-  const response = await GET(new Request(`http://dashboard.test/api/dashboard-documents?${query}`));
+  const response = await GET(asUser(member, `http://dashboard.test/api/dashboard-documents?${query}`));
   const text = await response.text();
   return { status: response.status, headers: response.headers, text, body: JSON.parse(text) as { documents?: Documents; error?: string } };
 }

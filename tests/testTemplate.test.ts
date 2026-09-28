@@ -29,6 +29,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { normalizeAggregateDocument } from "../lib/normalize-aggregate.ts";
 import { FakeSyncGateway, FAKE_DATABASE, FAKE_PASSWORD, FAKE_USERNAME } from "./helpers/fake-sync-gateway.ts";
+import { asUser, startTestAuth, type TestAuth } from "./helpers/auth.ts";
 
 // ── Example 1: a unit test. Pure input -> output, expected value written by hand.
 test("template: an aggregate document becomes a team row with hand-checked numbers", () => {
@@ -45,20 +46,25 @@ test("template: a document without a team is ignored", () => {
 
 // ── Example 3: an integration test. Write like a scouting device, then read it
 // back through the app's real REST handler (and so through Couchbase access code).
+// Protected routes need a signed-in user: startTestAuth() gives you an account
+// store and sign-in provider, and auth.user(role) a real session for that role.
 let gateway: FakeSyncGateway;
+let auth: TestAuth;
 before(async () => {
+  auth = await startTestAuth();
   gateway = new FakeSyncGateway();
   await gateway.start();
   Object.assign(process.env, { COUCHBASE_SYNC_GATEWAY_URL: gateway.origin, COUCHBASE_DATABASE: FAKE_DATABASE, COUCHBASE_USERNAME: FAKE_USERNAME, COUCHBASE_PASSWORD: FAKE_PASSWORD });
 });
-after(async () => { await gateway.stop(); });
+after(async () => { await gateway.stop(); await auth.stop(); });
 
 test("template: a submitted match is persisted and served by the API", async () => {
   gateway.put("scouting_9990_1", { type: "scouting_data", data: { start: { match: 1 }, teleop: { fuelscored: 12 } } });
   assert.equal(gateway.docs.get("scouting_9990_1")?.deleted, false, "stored in the gateway");
 
   const { GET } = await import("../app/api/dashboard-documents/route.ts");
-  const response = await GET(new Request("http://dashboard.test/api/dashboard-documents?kind=matches&team=9990"));
+  const member = await auth.user("MEMBER");
+  const response = await GET(asUser(member, "http://dashboard.test/api/dashboard-documents?kind=matches&team=9990"));
   assert.equal(response.status, 200);
   const { documents } = await response.json() as { documents: Array<{ _default: { _id: string; data: { teleop: { fuelscored: number } } } }> };
   assert.equal(documents.length, 1);

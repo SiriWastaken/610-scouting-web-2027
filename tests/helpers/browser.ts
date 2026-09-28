@@ -11,9 +11,17 @@ export async function launchBrowser(): Promise<Browser> {
   }
 }
 
-/** Opens `path` in a fresh browser context (an independent device/tab) and collects page errors. */
-export async function openPage(browser: Browser, base: string, path: string): Promise<{ page: Page; errors: string[] }> {
+/**
+ * Opens `path` in a fresh browser context (an independent device/tab) and
+ * collects page errors. With `user`, the context carries that account's session
+ * cookie (made by tests/helpers/auth.ts through the real account code).
+ */
+export async function openPage(browser: Browser, base: string, path: string, user?: { cookie: string } | null): Promise<{ page: Page; errors: string[] }> {
   const context = await browser.newContext();
+  if (user) {
+    const [name, ...value] = user.cookie.split("=");
+    await context.addCookies([{ name, value: value.join("="), url: base, httpOnly: true, sameSite: "Lax" }]);
+  }
   const page = await context.newPage();
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));

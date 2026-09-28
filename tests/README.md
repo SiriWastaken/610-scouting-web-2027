@@ -62,9 +62,12 @@ tests/
   unit/                     pure logic, no network
     config/                 Couchbase connection settings
     data/                   statistics, team rows, match sanitising, sync invariants (property tests)
-    realtime/               wire protocol + privacy, bridge/store/long-poll, browser client state machine
+    realtime/               wire protocol + privacy, bridge/store/long-poll, browser client state machine, session-bound sockets
+    auth/                   role/permission matrix, sign-in helpers (config, sealed state, return paths, cookies)
   integration/              real sockets, fake Sync Gateway
     api/                    GET /api/dashboard-documents
+    auth/                   Google/Apple sign-in, ID tokens, sessions, user management, audit log
+    ops/                    admin health against failing services, WebSocket monitoring
     data/                   scouting statistics end to end, open-page vs fresh-page convergence
     realtime/               live sync between clients over WebSockets
     resilience/             failure injection, concurrent writes
@@ -95,6 +98,7 @@ Each folder has a short README with its rules.
 | Realtime harness (`helpers/realtime-harness.ts`) | The production WebSocket upgrade handler + bridge + long-poll on a plain HTTP server, plus browser-style `RealtimeClient`s over real sockets. Can drop connections, go unreachable, or restart. | Integration/security/contract/stress files |
 | App server (`helpers/app-server.ts`) | `scripts/server.mjs` (what `npm start` runs) as a child process. Fails if the build is missing. Supports restart. | E2E files |
 | Chromium (`helpers/browser.ts`) | Headless Playwright Chromium; each context is an independent device. | Browser E2E files |
+| Fake account store + fake Google/Apple (`helpers/auth.ts`, `helpers/fake-oidc.ts`) | A second fake Sync Gateway holding accounts, sessions, and the audit log, and an OpenID Connect provider over real HTTP that behaves like Google (PKCE, redirect) and Apple (form POST, ES256 client secret), with forged-token faults. `auth.user(role)` makes a real session through the app's account code; `signIn()` runs the full browser flow. | Each test file that needs sign-in |
 | Real Couchbase (`scripts/test-infra/couchbase-up.sh`) | Docker: Couchbase Server Community + Sync Gateway, bucket and user provisioned, `TEST_SG_*` exported. | CI `real-couchbase` job, or you |
 
 Real Couchbase locally (needs Docker):
@@ -115,6 +119,7 @@ scripts/test-infra/couchbase-down.sh
 | `TEST_SEED` | runner, property tests | Fixes the random order and generated data. Same as `--seed=`. |
 | `E2E_MODE=dev` | E2E | Test the dev server instead of the production build. |
 | `COUCHBASE_*` | the app | Set per test to point the app at the test gateway. Your `.env.local` is never used by tests. |
+| `AUTH_*` | the app | Set per test by `helpers/auth.ts` to a fake account store and fake provider (`AUTH_OIDC_ENDPOINT_OVERRIDE`). No real OAuth credentials are ever used. |
 | `COUCHBASE_REQUEST_TIMEOUT_MS` | the app | Snapshot request timeout (default 15000). Tests lower it to test timeouts. |
 
 No test needs production credentials or production data.
@@ -149,15 +154,18 @@ Copy `tests/testTemplate.test.ts` into the right folder, then add the file to `s
 
 ## Security model (what "authorization" means here)
 
-The dashboard has **no user accounts**. Anyone who can reach it can read the dashboard data (see the README). Scouting tablets write to Sync Gateway directly with their own credentials, not through this app. The server-side boundaries that do exist, and are tested in `security/` and `e2e/`:
+Everyone signs in (Google or Apple); roles and permissions are decided on the server by `lib/auth/roles.ts` (see [docs/authentication.md](../docs/authentication.md)). Scouting tablets write to Sync Gateway directly with their own credentials, not through this app. The boundaries, and where they are tested:
 
-1. The realtime WebSocket accepts only same-origin upgrades (`Origin` must match `Host`). Otherwise 403.
-2. Browsers can only read. The REST API is GET-only (405 otherwise), and messages a browser sends over the socket never reach the database.
-3. Couchbase credentials and the upstream address never reach the browser (pages, JS bundles, API, and socket frames are all scanned).
-4. Only allow-listed fields leave the server, whatever the client claims (role headers, cookies, subscription fields).
-5. Connection floods are capped (1013), and oversized or malformed input closes only the offending socket.
+1. **Authentication and authorization** on every protected page, API route, and the WebSocket: `security/authorization-matrix.test.ts` calls every protected route as anonymous, malformed, expired, pending, disabled, and each of the five roles, with hand-written expected statuses; it also covers forged role headers/cookies/bodies, self-elevation, IDOR, CSRF, and checks that every admin route calls the guard. `e2e/browser-auth-and-admin.e2e.test.ts` checks the rendered pages per role.
+2. **Sign-in**: forged, expired, misdirected, and replayed tokens and codes, state/login-CSRF, open redirects, session fixation (`integration/auth/sign-in-flow.test.ts`, `id-token-verification.test.ts`).
+3. **Sessions**: expiry, revocation, hashed storage, store outages answered with 503 (`integration/auth/sessions.test.ts`); open sockets closed on revocation (`integration/ops/websocket-monitoring.test.ts`).
+4. The realtime WebSocket accepts only same-origin upgrades with a valid session (403/401 otherwise).
+5. Browsers can only read scouting data. The dashboard REST API is GET-only (405 otherwise), and messages a browser sends over the socket never reach the database.
+6. Couchbase credentials, OAuth secrets, and the upstream address never reach the browser (pages, JS bundles, API, and socket frames are all scanned).
+7. Only allow-listed fields leave the server, whatever the client claims (role headers, cookies, subscription fields).
+8. Connection floods are capped (1013), and oversized or malformed input closes only the offending socket.
 
-If user accounts are added later, add role-based tests to `security/`: every protected route with no, invalid, and insufficient credentials.
+Any new protected route must call `guard()` with a permission and be added to the matrix.
 
 ## Coverage
 
@@ -177,3 +185,5 @@ If user accounts are added later, add role-based tests to `security/`: every pro
 - Fault-injection tests (outages, hangs, garbage) need the fake gateway. The contract suite keeps the fake honest against real Sync Gateway in CI.
 - Each open dashboard tab holds its own long-poll to Sync Gateway (capped at 200 per server). The stress suite covers 120.
 - If a REST request fails, the Teams page shows an empty state rather than an error. Realtime status is the only visible failure indicator.
+- The account store and the Google/Apple provider are always fakes in tests. `tests/contract/account-store.contract.test.ts` keeps the account store's use of Sync Gateway honest against real Sync Gateway in CI; the real providers can only be checked by hand (docs/authentication.md).
+- Admin metrics are per process; tests reset them with `resetMetrics()`.
