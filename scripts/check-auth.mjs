@@ -11,6 +11,7 @@ nextEnv.loadEnvConfig(process.cwd(), process.env.NODE_ENV !== "production", { in
 
 const { readAuthConfig, enabledProviders, storeKeyspace } = await import("../lib/auth/config.ts");
 const { AuthStore, StoreUnavailableError } = await import("../lib/auth/store.ts");
+const { LocalAuthStore } = await import("../lib/auth/local-store.ts");
 const { appleClientSecret } = await import("../lib/auth/jwt.ts");
 
 let failures = 0;
@@ -52,20 +53,26 @@ if (config.providers.apple?.apple) {
 if (config.rootEmails.size === 0) note("AUTH_ROOT_EMAILS is empty: nobody will be able to open the admin panel until someone is made ROOT");
 else ok(`${config.rootEmails.size} configured root email(s)`);
 
-section(`Account store: "${storeKeyspace(config.store)}" at ${new URL(config.store.url).origin}`);
-if (config.store.collection !== "_default") note(`Accounts live in collection "${config.store.scope}.${config.store.collection}" of database "${config.store.database}"`);
-try {
-  const root = await fetch(`${config.store.url}/`, { signal: AbortSignal.timeout(8000) });
-  const body = await root.json().catch(() => ({}));
-  if (root.ok) ok(`Sync Gateway answers (${body.version ?? body.vendor?.version ?? "version unknown"})`);
-  // Capella App Services does not always serve the root path; the database checks below are what matter.
-  else note(`Server root answered HTTP ${root.status} (normal on Capella App Services)`);
-} catch (error) {
-  bad(`Cannot reach ${new URL(config.store.url).origin}: ${error instanceof Error ? error.cause?.code ?? error.name : error}`, "check AUTH_STORE_URL / COUCHBASE_SYNC_GATEWAY_URL and your network/VPN");
-  process.exit(1);
+let store;
+if (config.localStorePath) {
+  section(`Account store: local development file ${config.localStorePath}`);
+  note("AUTH_STORE=local: accounts and sessions stay on this machine. Remove it once the Sync Gateway account collection works.");
+  store = new LocalAuthStore(config.localStorePath);
+} else {
+  section(`Account store: "${storeKeyspace(config.store)}" at ${new URL(config.store.url).origin}`);
+  if (config.store.collection !== "_default") note(`Accounts live in collection "${config.store.scope}.${config.store.collection}" of database "${config.store.database}"`);
+  try {
+    const root = await fetch(`${config.store.url}/`, { signal: AbortSignal.timeout(8000) });
+    const body = await root.json().catch(() => ({}));
+    if (root.ok) ok(`Sync Gateway answers (${body.version ?? body.vendor?.version ?? "version unknown"})`);
+    // Capella App Services does not always serve the root path; the database checks below are what matter.
+    else note(`Server root answered HTTP ${root.status} (normal on Capella App Services)`);
+  } catch (error) {
+    bad(`Cannot reach ${new URL(config.store.url).origin}: ${error instanceof Error ? error.cause?.code ?? error.name : error}`, "check AUTH_STORE_URL / COUCHBASE_SYNC_GATEWAY_URL and your network/VPN");
+    process.exit(1);
+  }
+  store = new AuthStore(config.store);
 }
-
-const store = new AuthStore(config.store);
 const step = async (label, run) => {
   try { const detail = await run(); ok(detail ? `${label}: ${detail}` : label); return true; }
   catch (error) {

@@ -40,6 +40,7 @@ export const suites = {
       "tests/integration/ops/admin-health.test.ts": 8,
       "tests/integration/ops/websocket-monitoring.test.ts": 6,
       "tests/integration/auth/id-token-verification.test.ts": 7,
+      "tests/integration/auth/local-account-store.test.ts": 4,
     },
   },
   security: {

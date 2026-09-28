@@ -5,7 +5,7 @@
 import { randomBytes } from "node:crypto";
 import { recordError, scrub } from "../ops/metrics.ts";
 import type { Role } from "./roles.ts";
-import type { AuthStore } from "./store.ts";
+import type { AccountStore } from "./store.ts";
 
 export type AuditResult = "success" | "denied" | "failure";
 
@@ -51,7 +51,7 @@ const recentDenials = new Map<string, number>();
 export interface AuditInput { action: string; result: AuditResult; actor?: AuditActor | null; target?: AuditTarget; reason?: string; meta?: Record<string, unknown> }
 
 /** Writes an audit entry. Never throws: a store outage must not turn a sign-out or an admin action into a crash. */
-export async function recordAudit(store: AuthStore | null, input: AuditInput): Promise<string | null> {
+export async function recordAudit(store: AccountStore | null, input: AuditInput): Promise<string | null> {
   if (input.result === "denied") {
     const key = `${input.actor?.id ?? "anonymous"}:${input.action}:${input.target?.id ?? ""}`;
     const last = recentDenials.get(key);
@@ -82,7 +82,7 @@ const SCAN_WINDOW = 500;
  * Newest first. Reads ids only, then the documents for one window before
  * `before`; filters apply within that window, and `next` continues from it.
  */
-export async function listAudit(store: AuthStore, query: AuditQuery = {}): Promise<{ entries: AuditEntry[]; next: string | null; scanned: number }> {
+export async function listAudit(store: AccountStore, query: AuditQuery = {}): Promise<{ entries: AuditEntry[]; next: string | null; scanned: number }> {
   const limit = Math.min(Math.max(query.limit ?? 50, 1), 200);
   const ids = (await store.list(AUDIT_PREFIX, { includeDocs: false })).map((row) => row.id).filter((id) => !query.before || id < query.before);
   const window = ids.slice(-SCAN_WINDOW);

@@ -10,9 +10,25 @@ export class ConflictError extends Error {}
 
 export interface StoredDoc<T> { id: string; rev: string; body: T }
 
+/**
+ * What the account, session, and audit code needs from storage. Implemented by
+ * AuthStore (Sync Gateway, production) and LocalAuthStore (a file, development only).
+ */
+export interface AccountStore {
+  get<T>(id: string): Promise<StoredDoc<T> | null>;
+  /** Fails with ConflictError if the document already exists. */
+  create<T extends object>(id: string, body: T): Promise<string>;
+  /** Fails with ConflictError unless `rev` is the current revision. */
+  update<T extends object>(id: string, rev: string, body: T): Promise<string>;
+  remove(id: string, rev: string): Promise<boolean>;
+  list<T>(prefix: string, options?: { includeDocs?: boolean }): Promise<Array<StoredDoc<T | undefined>>>;
+  getMany<T>(ids: string[]): Promise<Array<StoredDoc<T>>>;
+  info(): Promise<{ state: string; updateSeq: unknown; latencyMs: number }>;
+}
+
 const TIMEOUT_MS = 8_000;
 
-export class AuthStore {
+export class AuthStore implements AccountStore {
   /** Documents: `/{db}` or, for a named collection, `/{db}.{scope}.{collection}`. */
   private readonly base: string;
   /** Database-level endpoints such as `GET /{db}/`. */

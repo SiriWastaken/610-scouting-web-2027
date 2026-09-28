@@ -7,7 +7,7 @@ import { getUser, isUserId, principalFor, type UserDoc } from "./accounts.ts";
 import type { AuthConfig, ProviderId } from "./config.ts";
 import { randomToken, sha256Hex } from "./crypto.ts";
 import type { Principal } from "./roles.ts";
-import type { AuthStore } from "./store.ts";
+import type { AccountStore } from "./store.ts";
 import { authMetrics } from "../ops/metrics.ts";
 
 export interface SessionDoc {
@@ -60,7 +60,7 @@ export function invalidateUserSessions(userId: string) {
   for (const [key, entry] of cache()) if (entry.viewer.userId === userId) cache().delete(key);
 }
 
-export async function createSession(store: AuthStore, config: AuthConfig, userId: string, provider: ProviderId, userAgent?: string | null): Promise<{ token: string; expiresAt: Date }> {
+export async function createSession(store: AccountStore, config: AuthConfig, userId: string, provider: ProviderId, userAgent?: string | null): Promise<{ token: string; expiresAt: Date }> {
   const secret = randomToken(32);
   const now = Date.now();
   const expiresAt = new Date(now + config.sessionMaxAgeMs);
@@ -79,7 +79,7 @@ export type SessionCheck = { ok: true; viewer: Viewer } | { ok: false; reason: "
  * Throws StoreUnavailableError when the account store is down, so callers can
  * answer 503 instead of pretending the user is signed out.
  */
-export async function validateSession(store: AuthStore, config: AuthConfig, token: string | undefined | null, now = Date.now()): Promise<SessionCheck> {
+export async function validateSession(store: AccountStore, config: AuthConfig, token: string | undefined | null, now = Date.now()): Promise<SessionCheck> {
   if (!token) return { ok: false, reason: "missing" };
   const parsed = parseToken(token);
   if (!parsed) { authMetrics.sessionRejected(); return { ok: false, reason: "malformed" }; }
@@ -121,7 +121,7 @@ export async function validateSession(store: AuthStore, config: AuthConfig, toke
 }
 
 /** Ends one session (sign-out). Returns false when it was already gone. */
-export async function revokeSession(store: AuthStore, token: string | undefined | null): Promise<boolean> {
+export async function revokeSession(store: AccountStore, token: string | undefined | null): Promise<boolean> {
   const parsed = parseToken(token);
   if (!parsed) return false;
   const id = sessionDocId(parsed.userId, parsed.secret);
@@ -130,13 +130,13 @@ export async function revokeSession(store: AuthStore, token: string | undefined 
   return session ? store.remove(id, session.rev).catch(() => false) : false;
 }
 
-export async function listUserSessions(store: AuthStore, userId: string): Promise<Array<{ id: string; rev: string; session: SessionDoc }>> {
+export async function listUserSessions(store: AccountStore, userId: string): Promise<Array<{ id: string; rev: string; session: SessionDoc }>> {
   if (!isUserId(userId)) return [];
   return (await store.list<SessionDoc>(`${SESSION_PREFIX}${userId}_`)).flatMap((doc) => doc.body?.type === "auth_session" ? [{ id: doc.id, rev: doc.rev, session: doc.body }] : []);
 }
 
 /** Ends every session of an account (disable, "sign out everywhere", admin revoke). Returns how many were ended. */
-export async function revokeUserSessions(store: AuthStore, userId: string, options: { except?: string } = {}): Promise<number> {
+export async function revokeUserSessions(store: AccountStore, userId: string, options: { except?: string } = {}): Promise<number> {
   invalidateUserSessions(userId);
   let revoked = 0;
   for (const { id, rev } of await listUserSessions(store, userId)) {
@@ -147,7 +147,7 @@ export async function revokeUserSessions(store: AuthStore, userId: string, optio
 }
 
 /** Deletes sessions that can no longer be used, so the store does not grow without bound. */
-export async function pruneExpiredSessions(store: AuthStore, config: AuthConfig, userId: string, now = Date.now()) {
+export async function pruneExpiredSessions(store: AccountStore, config: AuthConfig, userId: string, now = Date.now()) {
   for (const { id, rev, session } of await listUserSessions(store, userId)) {
     if (Date.parse(session.expiresAt) <= now || Date.parse(session.lastSeenAt) + config.sessionIdleMs <= now) await store.remove(id, rev).catch(() => {});
   }

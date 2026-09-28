@@ -5,17 +5,19 @@
 import { publicUser } from "./accounts.ts";
 import { readAuthConfig, type AuthConfig } from "./config.ts";
 import { sessionCookieName, validateSession, readCookie, type Viewer } from "./sessions.ts";
-import { AuthStore, StoreUnavailableError } from "./store.ts";
+import { LocalAuthStore } from "./local-store.ts";
+import { AuthStore, StoreUnavailableError, type AccountStore } from "./store.ts";
 
-export type AuthRuntime = { ok: true; config: AuthConfig; store: AuthStore } | { ok: false; problems: string[] };
+export type AuthRuntime = { ok: true; config: AuthConfig; store: AccountStore } | { ok: false; problems: string[] };
 
-let cached: { key: string; store: AuthStore } | undefined;
+let cached: { key: string; store: AccountStore } | undefined;
 
 export function authRuntime(env: Record<string, string | undefined> = process.env): AuthRuntime {
   const result = readAuthConfig(env);
   if (!result.ok) return result;
-  const key = JSON.stringify(result.config.store);
-  if (cached?.key !== key) cached = { key, store: new AuthStore(result.config.store) };
+  const { localStorePath, store } = result.config;
+  const key = localStorePath ? `local:${localStorePath}` : JSON.stringify(store);
+  if (cached?.key !== key) cached = { key, store: localStorePath ? new LocalAuthStore(localStorePath) : new AuthStore(store) };
   return { ok: true, config: result.config, store: cached.store };
 }
 

@@ -79,6 +79,7 @@ real values.
 | `AUTH_STORE_DATABASE`, `AUTH_STORE_USERNAME`, `AUTH_STORE_PASSWORD` | yes | A Sync Gateway database **separate from the scouting database** for accounts, sessions, and the audit log (see below). The server refuses to start sign-in if it is the same database. |
 | `AUTH_STORE_URL` | no | Sync Gateway public URL for that database. Defaults to `COUCHBASE_SYNC_GATEWAY_URL`. |
 | `AUTH_STORE_SCOPE`, `AUTH_STORE_COLLECTION` | no | Keep accounts in a named collection instead (e.g. `app` / `auth`), which may be in the same database as the scouting data. Or write the whole keyspace in `AUTH_STORE_DATABASE`, e.g. `scoutingapp2027.app.auth`. Default `_default`. |
+| `AUTH_STORE=local` | development only | Keep accounts, sessions, and the audit log in `.data/auth-store.json` (or `AUTH_STORE_LOCAL_PATH`) instead of Sync Gateway, with real Google/Apple sign-in. For working on the app before the account collection is reachable. Refused when `NODE_ENV=production`; delete the line once `npm run auth:check` passes against Sync Gateway. |
 | `AUTH_ROOT_EMAILS` | recommended | Comma-separated emails that are always active `ROOT`. Bootstraps the first admin and can't be demoted or disabled from the app. |
 | `AUTH_AUTO_APPROVE` | no | Comma-separated emails or `@domains` that are active `MEMBER`s on first sign-in. Everyone else is `pending` until a scout lead or admin approves them. |
 | `AUTH_SESSION_MAX_AGE_HOURS` | no | Absolute session lifetime. Default 720 (30 days). |

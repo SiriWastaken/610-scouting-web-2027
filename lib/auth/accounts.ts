@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { isAutoApproved, type AuthConfig, type ProviderId } from "./config.ts";
 import { sha256Hex } from "./crypto.ts";
 import { ROLES, canAssignRole, canManageUser, isAccountStatus, isRole, type AccountStatus, type Principal, type Role } from "./roles.ts";
-import { ConflictError, type AuthStore, type StoredDoc } from "./store.ts";
+import { ConflictError, type AccountStore, type StoredDoc } from "./store.ts";
 
 export interface UserDoc {
   type: "auth_user";
@@ -93,7 +93,7 @@ async function withRetry<T>(attempt: () => Promise<T>, tries = 3): Promise<T> {
  * only through a provider-verified email address. Creation is race-safe: the
  * email index document can only be created once.
  */
-export async function resolveSignIn(store: AuthStore, config: AuthConfig, identity: VerifiedIdentity): Promise<SignInOutcome> {
+export async function resolveSignIn(store: AccountStore, config: AuthConfig, identity: VerifiedIdentity): Promise<SignInOutcome> {
   const email = identity.email?.toLowerCase();
   const identityId = identityDocId(identity.provider, identity.subject);
   const now = new Date().toISOString();
@@ -151,13 +151,13 @@ export async function resolveSignIn(store: AuthStore, config: AuthConfig, identi
   return { ok: true, userId: finalUserId, user: updated, created, linked };
 }
 
-export async function getUser(store: AuthStore, userId: string): Promise<StoredDoc<UserDoc> | null> {
+export async function getUser(store: AccountStore, userId: string): Promise<StoredDoc<UserDoc> | null> {
   if (!isUserId(userId)) return null;
   const doc = await store.get<UserDoc>(userDocId(userId));
   return doc && doc.body.type === "auth_user" ? doc : null;
 }
 
-export async function listUsers(store: AuthStore): Promise<Array<{ id: string; rev: string; user: UserDoc }>> {
+export async function listUsers(store: AccountStore): Promise<Array<{ id: string; rev: string; user: UserDoc }>> {
   return (await store.list<UserDoc>(USER_PREFIX)).flatMap((doc) => doc.body?.type === "auth_user" ? [{ id: doc.id.slice(USER_PREFIX.length), rev: doc.rev, user: doc.body }] : []);
 }
 
@@ -198,7 +198,7 @@ export function parsePatch(body: unknown, kind: "admin" | "profile"): { ok: true
  * actor may manage this account at all, may grant the requested role, and the
  * change would not leave the system without an active ROOT.
  */
-export async function adminUpdateUser(store: AuthStore, config: AuthConfig, actor: Principal, targetId: string, patch: AdminPatch & { expectedRev?: string }): Promise<{ before: UserDoc; after: UserDoc; rev: string }> {
+export async function adminUpdateUser(store: AccountStore, config: AuthConfig, actor: Principal, targetId: string, patch: AdminPatch & { expectedRev?: string }): Promise<{ before: UserDoc; after: UserDoc; rev: string }> {
   const current = await getUser(store, targetId);
   if (!current) throw new AccountError("not_found", "No such account");
   const target = principalFor(config, targetId, current.body);
@@ -232,7 +232,7 @@ export async function adminUpdateUser(store: AuthStore, config: AuthConfig, acto
 }
 
 /** A user editing their own profile: display and scout name only. */
-export async function updateOwnProfile(store: AuthStore, userId: string, patch: ProfilePatch): Promise<UserDoc> {
+export async function updateOwnProfile(store: AccountStore, userId: string, patch: ProfilePatch): Promise<UserDoc> {
   return withRetry(async () => {
     const current = await getUser(store, userId);
     if (!current) throw new AccountError("not_found", "No such account");
@@ -245,7 +245,7 @@ export async function updateOwnProfile(store: AuthStore, userId: string, patch: 
 }
 
 /** Active ROOT accounts other than `excluding`, counting configured root emails that have not signed in yet. */
-export async function countActiveRoots(store: AuthStore, config: AuthConfig, excluding?: string): Promise<number> {
+export async function countActiveRoots(store: AccountStore, config: AuthConfig, excluding?: string): Promise<number> {
   const users = await listUsers(store);
   const emails = new Set(users.map(({ user }) => user.email));
   const stored = users.filter(({ id, user }) => id !== excluding && principalFor(config, id, user).role === "ROOT" && principalFor(config, id, user).status === "active").length;

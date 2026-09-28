@@ -52,6 +52,8 @@ export interface AuthConfig {
   sessionMaxAgeMs: number;
   sessionIdleMs: number;
   store: AuthStoreConfig;
+  /** AUTH_STORE=local (development only): accounts are kept in this file instead of Sync Gateway. */
+  localStorePath?: string;
   /** Set only when provider endpoints are redirected to a local stand-in (tests, local development). */
   endpointOverride?: string;
 }
@@ -125,11 +127,18 @@ export function readAuthConfig(env: Record<string, string | undefined> = process
   }
   if (!providers.google && !providers.apple) problems.push("No sign-in provider is configured: set AUTH_GOOGLE_CLIENT_ID + AUTH_GOOGLE_CLIENT_SECRET and/or the four AUTH_APPLE_* variables");
 
+  // AUTH_STORE=local keeps accounts in a file on this machine, for development before the real store is reachable.
+  const local = (env.AUTH_STORE ?? "").trim().toLowerCase() === "local";
+  const localStorePath = local ? (env.AUTH_STORE_LOCAL_PATH?.trim() || ".data/auth-store.json") : undefined;
+  if (local && env.NODE_ENV === "production") {
+    problems.push("AUTH_STORE=local is for development only; production needs the Sync Gateway account store (AUTH_STORE_DATABASE, …)");
+  }
+
   // AUTH_STORE_DATABASE is a database name, or a whole keyspace `database.scope.collection`.
   const [database = "", scopeFromKeyspace, collectionFromKeyspace, ...extra] = (env.AUTH_STORE_DATABASE ?? "").trim().split(".");
   const urlSource = env.AUTH_STORE_URL ? "AUTH_STORE_URL" : "COUCHBASE_SYNC_GATEWAY_URL";
   const storeUrl = checkStoreUrl(env.AUTH_STORE_URL || env.COUCHBASE_SYNC_GATEWAY_URL, database);
-  if (storeUrl.problem) problems.push(`${urlSource} ${storeUrl.problem}`);
+  if (storeUrl.problem && !local) problems.push(`${urlSource} ${storeUrl.problem}`);
   const store: AuthStoreConfig = {
     url: storeUrl.url,
     database,
@@ -139,8 +148,8 @@ export function readAuthConfig(env: Record<string, string | undefined> = process
     password: env.AUTH_STORE_PASSWORD ?? "",
   };
   const scouting = { url: checkStoreUrl(env.COUCHBASE_SYNC_GATEWAY_URL, env.COUCHBASE_DATABASE ?? "").url, database: env.COUCHBASE_DATABASE ?? "", scope: env.COUCHBASE_SCOPE || "_default", collection: env.COUCHBASE_COLLECTION || "_default" };
-  if (storeUrl.problem) {
-    // Already reported above with what to use instead.
+  if (storeUrl.problem || local) {
+    // Reported above with what to use instead, or not used at all (local store).
   } else if (!store.url || !store.database || !store.username || !store.password) {
     problems.push("The account store needs AUTH_STORE_DATABASE, AUTH_STORE_USERNAME, AUTH_STORE_PASSWORD (and AUTH_STORE_URL or COUCHBASE_SYNC_GATEWAY_URL)");
   } else if (extra.length || (scopeFromKeyspace !== undefined && collectionFromKeyspace === undefined)) {
@@ -157,13 +166,13 @@ export function readAuthConfig(env: Record<string, string | undefined> = process
   for (const [name, value] of Object.entries(env)) {
     if (name.startsWith("AUTH_") && typeof value === "string" && isTemplatePlaceholder(value)) problems.push(`${name} is still the placeholder from .env.example`);
   }
-  if (!env.AUTH_STORE_URL && isTemplatePlaceholder(store.url)) problems.push("COUCHBASE_SYNC_GATEWAY_URL (also used for the account store) is still the placeholder from .env.example");
+  if (!local && !env.AUTH_STORE_URL && isTemplatePlaceholder(store.url)) problems.push("COUCHBASE_SYNC_GATEWAY_URL (also used for the account store) is still the placeholder from .env.example");
 
   if (problems.length) return { ok: false, problems };
   return {
     ok: true,
     config: {
-      baseUrl, secret, providers, store,
+      baseUrl, secret, providers, store, localStorePath,
       secureCookies: baseUrl.startsWith("https:"),
       rootEmails: new Set(list(env.AUTH_ROOT_EMAILS)),
       autoApprove: list(env.AUTH_AUTO_APPROVE),
