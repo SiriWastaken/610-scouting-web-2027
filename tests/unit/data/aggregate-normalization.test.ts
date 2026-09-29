@@ -2,8 +2,8 @@
 // server snapshot. Expected values are written out by hand from the inputs.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getDocumentTeam, getDocumentTeamName, mergeAggregates, normalizeAggregateDocument } from "../../../lib/normalize-aggregate.ts";
-import { DocumentStore } from "../../../lib/realtime-store.ts";
+import { getDocumentTeam, getDocumentTeamName, mergeAggregates, normalizeAggregateDocument } from "../../../lib/data/aggregates.ts";
+import { DocumentStore } from "../../../lib/realtime/documents.ts";
 import type { TeamAggregate } from "../../../types/scouting.ts";
 
 const full = {

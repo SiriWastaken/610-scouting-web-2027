@@ -32,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# The template holds placeholders only; it is safe (and useful) to commit.
+!.env.example
 
 # vercel
 .vercel
@@ -39,6 +41,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local development account store (AUTH_STORE=local): accounts and hashed sessions
+/.data
 
 # test bench results
 /.test-bench

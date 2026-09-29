@@ -2,7 +2,7 @@
 // the browser will accept.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { compareRevs, isCursor, isDashboardDocument, isRev, parseChangesFrame, parseServerMessage, parseSubscription, projectDashboardDocument } from "../../../lib/realtime-protocol.ts";
+import { compareRevs, isCursor, isDashboardDocument, isRev, parseChangesFrame, parseServerMessage, parseSubscription, projectDashboardDocument } from "../../../lib/realtime/protocol.ts";
 
 test("document ids: only the four dashboard id shapes are relayed", () => {
   const accepted = ["aggregate_610", "scouting_610_12", "pit_1", "report_610_Q12", "report_card_254_Qualification 3", "report_1_a.b-c_d"];

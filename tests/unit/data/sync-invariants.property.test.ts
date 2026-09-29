@@ -5,9 +5,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import fc from "fast-check";
-import { DocumentStore } from "../../../lib/realtime-store.ts";
-import { mergeAggregates, normalizeAggregateDocument } from "../../../lib/normalize-aggregate.ts";
-import type { RealtimeChange } from "../../../lib/realtime-protocol.ts";
+import { DocumentStore } from "../../../lib/realtime/documents.ts";
+import { mergeAggregates, normalizeAggregateDocument } from "../../../lib/data/aggregates.ts";
+import type { RealtimeChange } from "../../../lib/realtime/protocol.ts";
 
 fc.configureGlobal({ seed: Number(process.env.TEST_SEED ?? 610), numRuns: 300 });
 

@@ -24,7 +24,9 @@ export type Fault =
  * A small in-memory stand-in for the parts of Sync Gateway's public REST API
  * the dashboard and the scouting devices use: `_changes` (numeric sequences,
  * one row per document, `normal` and `longpoll` feeds, `since`, `limit`,
- * `include_docs`), and document GET/PUT/DELETE with revision checks.
+ * `include_docs`), document GET/PUT/DELETE with revision checks, `_all_docs`
+ * (key ranges and `keys`, used by the account store), and the server (`GET /`)
+ * and database (`GET /{db}/`) info endpoints the health checks read.
  *
  * `tests/contract/` runs the same assertions against this fake and a real
  * Sync Gateway, so the behaviour the other suites rely on is kept honest.
@@ -39,6 +41,26 @@ export class FakeSyncGateway {
   private faults: Fault[] = [];
   requests: URL[] = [];
   openLongPolls = 0;
+  /** Database state reported by `GET /{db}/`; set to "Offline" to simulate a bucket outage. */
+  state = "Online";
+  /** While true, every request (including the info endpoints) is answered with 503. */
+  unavailable = false;
+  /** Writes (PUT/DELETE) to matching document ids are answered with 503, as when the bucket rejects mutations. */
+  rejectWrites: RegExp | null = null;
+
+  /**
+   * Like Capella App Services (Sync Gateway's `disable_public_all_docs`), refuse `_all_docs` on the
+   * public API with 403. The account store must work without it.
+   */
+  publicAllDocs = true;
+
+  readonly database: string;
+  /** Where documents live: the database name, or `database.scope.collection` for a named collection. */
+  readonly keyspace: string;
+  constructor(database = FAKE_DATABASE, collection?: { scope: string; collection: string }) {
+    this.database = database;
+    this.keyspace = collection ? `${database}.${collection.scope}.${collection.collection}` : database;
+  }
 
   get lastSeq() { return this.seq; }
 
@@ -46,7 +68,7 @@ export class FakeSyncGateway {
     this.server = createServer((request, response) => { void this.handle(request, response); });
     await new Promise<void>((resolve) => this.server!.listen(port, "127.0.0.1", resolve));
     const address = this.server.address() as AddressInfo;
-    return `http://127.0.0.1:${address.port}/${FAKE_DATABASE}/_changes`;
+    return `http://127.0.0.1:${address.port}/${this.keyspace}/_changes`;
   }
 
   get origin() {
@@ -108,10 +130,25 @@ export class FakeSyncGateway {
     const url = new URL(request.url ?? "/", "http://fake");
     this.requests.push(url);
     const json = (status: number, body: unknown) => { response.writeHead(status, { "Content-Type": "application/json" }); response.end(JSON.stringify(body)); };
+    if (this.unavailable) return json(503, { error: "Service Unavailable" });
+    // Like Sync Gateway, the server root answers without credentials.
+    if (url.pathname === "/") return json(200, { couchdb: "Welcome", vendor: { name: "Couchbase Sync Gateway", version: "3.2" }, version: "Couchbase Sync Gateway/3.2.1(fake)" });
     if (request.headers.authorization !== FAKE_AUTH) return json(401, { error: "Unauthorized", reason: "Login required" });
-    const docId = url.pathname.startsWith(`/${FAKE_DATABASE}/`) ? decodeURIComponent(url.pathname.slice(FAKE_DATABASE.length + 2)) : "";
+    // Sync Gateway 3.x: database endpoints at /{db}/, documents at /{keyspace}/ where the keyspace is
+    // {db} for the default collection or {db}.{scope}.{collection} for a named one.
+    const db = this.database;
+    const keyspace = this.keyspace;
+    const first = decodeURIComponent(url.pathname.split("/")[1] ?? "");
+    if (url.pathname === `/${db}/` || url.pathname === `/${db}`) return json(200, { db_name: db, update_seq: this.seq, state: this.state });
+    // Real Sync Gateway 4 (Capella): a database serving only named collections answers "keyspace <db> not found" for the default one.
+    if (first !== keyspace && (first.startsWith(`${db}.`) || first === db)) return json(404, { error: "not_found", reason: `keyspace ${first} not found` });
+    if (url.pathname === `/${keyspace}/_all_docs`) {
+      if (!this.publicAllDocs) return json(403, { error: "Forbidden", reason: "public access to _all_docs is disabled for this database" });
+      return this.handleAllDocs(request, url, json);
+    }
+    const docId = url.pathname.startsWith(`/${keyspace}/`) ? decodeURIComponent(url.pathname.slice(keyspace.length + 2)) : "";
     if (docId && docId !== "_changes") return this.handleDocument(docId, request, url, json);
-    if (url.pathname !== `/${FAKE_DATABASE}/_changes`) return json(404, { error: "not_found", reason: "no such database" });
+    if (url.pathname !== `/${keyspace}/_changes`) return json(404, { error: "not_found", reason: "no such database" });
 
     const fault = this.faults.shift();
     if (fault?.kind === "status") return json(fault.status, { error: "injected failure" });
@@ -147,6 +184,34 @@ export class FakeSyncGateway {
   }
 
   /**
+   * `_all_docs` over live documents in id order: `startkey`/`endkey` (JSON
+   * strings, inclusive), `include_docs`, and `keys` (POST body), as Sync
+   * Gateway implements them. Deleted documents are left out of ranges; with
+   * `keys` a missing id yields an error row, as in Sync Gateway.
+   */
+  private async handleAllDocs(request: IncomingMessage, url: URL, json: (status: number, body: unknown) => void) {
+    const includeDocs = url.searchParams.get("include_docs") === "true";
+    const parseKey = (value: string | null) => { if (value === null) return undefined; try { return String(JSON.parse(value)); } catch { return value; } };
+    let keys: string[] | undefined;
+    if (request.method === "POST") {
+      let raw = "";
+      for await (const chunk of request) raw += chunk;
+      try { keys = (JSON.parse(raw) as { keys?: string[] }).keys; } catch { return json(400, { error: "Bad Request", reason: "Bad JSON" }); }
+      if (!Array.isArray(keys)) return json(400, { error: "Bad Request", reason: "keys must be an array" });
+    } else if (request.method !== "GET") return json(405, { error: "Method Not Allowed" });
+    const row = (id: string) => {
+      const doc = this.docs.get(id)!;
+      return { key: id, id, value: { rev: doc.rev }, ...(includeDocs ? { doc: { ...doc.body, _id: id, _rev: doc.rev } } : {}) };
+    };
+    if (keys) return json(200, { rows: keys.map((id) => this.docs.get(id) && !this.docs.get(id)!.deleted ? row(id) : { key: id, error: "not_found" }), total_rows: this.docs.size });
+    const start = parseKey(url.searchParams.get("startkey"));
+    const end = parseKey(url.searchParams.get("endkey"));
+    const ids = [...this.docs.entries()].filter(([id, doc]) => !doc.deleted && (start === undefined || id >= start) && (end === undefined || id <= end)).map(([id]) => id).sort();
+    const limit = Number(url.searchParams.get("limit") ?? Infinity) || Infinity;
+    return json(200, { rows: ids.slice(0, limit).map(row), total_rows: ids.length });
+  }
+
+  /**
    * Document writes as a scouting device makes them through the public REST
    * API. Like Sync Gateway, an update or delete must name the current revision
    * (`?rev=` or `_rev`); anything else is a 409 conflict, so a stale write can
@@ -160,6 +225,7 @@ export class FakeSyncGateway {
       return json(200, { ...current.body, _id: docId, _rev: current.rev });
     }
     if (request.method !== "PUT" && request.method !== "DELETE") return json(405, { error: "Method Not Allowed" });
+    if (this.rejectWrites?.test(docId)) return json(503, { error: "Service Unavailable", reason: "write rejected" });
     let body: Record<string, unknown> = {};
     if (request.method === "PUT") {
       let raw = "";
@@ -169,6 +235,11 @@ export class FakeSyncGateway {
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return json(400, { error: "Bad Request", reason: "Document body must be a JSON object" });
         body = parsed as Record<string, unknown>;
       } catch { return json(400, { error: "Bad Request", reason: "Bad JSON" }); }
+      // Sync Gateway's REST API refuses only these reserved properties (db/validation.go); any other
+      // underscore-prefixed property is stored as-is.
+      if ("_purged" in body) return json(400, { error: "Bad Request", reason: "user defined top-level property '_purged' is not allowed in document body" });
+      if ("_sync" in body) return json(400, { error: "Bad Request", reason: "document-top level property '_sync' is a reserved internal property" });
+      if (Object.keys(body).some((key) => key.startsWith("_sync_"))) return json(400, { error: "Bad Request", reason: "user defined top-level properties that start with '_sync_' are not allowed in document body" });
     }
     const baseRev = url.searchParams.get("rev") ?? (typeof body._rev === "string" ? body._rev : undefined);
     const live = current && !current.deleted;

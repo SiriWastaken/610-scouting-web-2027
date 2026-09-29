@@ -10,4 +10,7 @@
 | `dataset.ts` | Seed documents through REST; point the app's server code at a gateway |
 | `wait.ts` | `waitFor` (condition polling with timeouts), seeded PRNG, `mapLimit` |
 | `register-aliases.mjs` | Loaded by the bench: resolves `@/` imports and stubs `server-only` so real server modules import in Node |
+| `auth.ts` | `startTestAuth()`: a fake account store and fake Google/Apple; `auth.user(role)` makes a real session; `signIn()` runs the whole OAuth flow over HTTP or in-process; `asUser()` builds signed-in requests |
+| `fake-oidc.ts` | Google/Apple stand-in over real HTTP: authorize (redirect / form POST), token exchange with PKCE and Apple client-secret checks, published keys, forged-token faults |
+| `run-fake-auth.ts` | Standalone fake account store and provider for local development (docs/authentication.md) |
 | `run-fake-sync-gateway.ts` | Standalone fake gateway for trying the dashboard by hand (see the project README) |

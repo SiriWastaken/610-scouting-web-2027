@@ -7,8 +7,8 @@
 // fake-only hooks are used.
 import assert from "node:assert/strict";
 import { after, before, beforeEach, mock, test } from "node:test";
-import { startCouchbaseLongPoll } from "../../lib/couchbase-longpoll.ts";
-import { parseChangesFrame, type RealtimeFrame } from "../../lib/realtime-protocol.ts";
+import { startCouchbaseLongPoll } from "../../lib/realtime/couchbase-feed.ts";
+import { parseChangesFrame, type RealtimeFrame } from "../../lib/realtime/protocol.ts";
 import { fetchTeamAggregatesSnapshot, queryDashboardDocuments } from "../../services/couchbase.ts";
 import { useGatewayForApp } from "../helpers/dataset.ts";
 import { startGatewayTarget, type GatewayTarget } from "../helpers/gateway-target.ts";

@@ -4,6 +4,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
 import { createServer } from "node:net";
 import { waitFor } from "./wait.ts";
+import { startTestAuth, type TestAuth } from "./auth.ts";
 
 export async function freePort(): Promise<number> {
   const probe = createServer();
@@ -11,6 +12,15 @@ export async function freePort(): Promise<number> {
   const { port } = probe.address() as { port: number };
   await new Promise((resolve) => probe.close(resolve));
   return port;
+}
+
+/** The dashboard server with sign-in configured against a fake account store and fake Google/Apple. */
+export async function startAppWithAuth(env: Record<string, string>): Promise<{ app: AppServer; auth: TestAuth }> {
+  const port = await freePort();
+  // AUTH_URL must be the exact origin the browser uses: redirect URIs and CSRF checks come from it.
+  const auth = await startTestAuth({ baseUrl: `http://127.0.0.1:${port}` });
+  const app = await startAppServer({ ...env, ...auth.env() }, port);
+  return { app, auth };
 }
 
 export interface AppServer { base: string; port: number; output(): string; stop(): Promise<void>; restart(): Promise<void> }

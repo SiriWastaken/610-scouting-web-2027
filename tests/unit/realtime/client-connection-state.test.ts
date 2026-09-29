@@ -3,7 +3,7 @@
 // (tests/integration/realtime-sockets.test.ts covers the same client over real sockets.)
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, mock, test } from "node:test";
-import { RealtimeClient, type RealtimeStatus, type SocketLike } from "../../../lib/realtime-client.ts";
+import { RealtimeClient, type RealtimeStatus, type SocketLike } from "../../../lib/realtime/client.ts";
 
 type Listener = (event: unknown) => void;
 class ScriptedSocket implements SocketLike {

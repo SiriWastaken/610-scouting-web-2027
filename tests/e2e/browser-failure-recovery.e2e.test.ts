@@ -4,7 +4,8 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import type { Browser } from "playwright";
 import { eventDocuments } from "../fixtures/event-dataset.ts";
-import { startAppServer, type AppServer } from "../helpers/app-server.ts";
+import { startAppWithAuth, type AppServer } from "../helpers/app-server.ts";
+import type { TestAuth, TestUser } from "../helpers/auth.ts";
 import { launchBrowser, liveStatus, openPage, waitForLive, waitForText } from "../helpers/browser.ts";
 import { seedDocuments } from "../helpers/dataset.ts";
 import type { FakeSyncGateway } from "../helpers/fake-sync-gateway.ts";
@@ -14,6 +15,9 @@ import { waitFor } from "../helpers/wait.ts";
 let target: GatewayTarget;
 let gateway: FakeSyncGateway;
 let app: AppServer;
+let auth: TestAuth;
+// Dashboard pages need a signed-in, approved account; sign-in itself is covered in browser-auth-and-admin.
+let member: TestUser;
 let browser: Browser;
 
 before(async () => {
@@ -21,13 +25,14 @@ before(async () => {
   assert.ok(target.fake, "fault injection needs the fake gateway");
   gateway = target.fake;
   await seedDocuments(target, eventDocuments);
-  app = await startAppServer({ ...target.appEnv(), TBA_API_KEY: "" });
+  ({ app, auth } = await startAppWithAuth({ ...target.appEnv(), TBA_API_KEY: "" }));
+  member = await auth.user("MEMBER");
   browser = await launchBrowser();
 });
-after(async () => { await browser?.close(); await app?.stop(); await target?.stop(); });
+after(async () => { await browser?.close(); await app?.stop(); await auth?.stop(); await target?.stop(); });
 
 test("database outage: the page says it is reconnecting, recovers by itself, and shows what changed meanwhile", async () => {
-  const { page, errors } = await openPage(browser, app.base, "/teams");
+  const { page, errors } = await openPage(browser, app.base, "/teams", member);
   await waitForLive(page);
   await waitForText(page, (text) => text.includes("3 Matches"), "loaded");
   gateway.fail(503, 3);
@@ -43,7 +48,7 @@ test("database outage: the page says it is reconnecting, recovers by itself, and
 });
 
 test("server restart: an open page reconnects and catches up without a reload", async () => {
-  const { page, errors } = await openPage(browser, app.base, "/coverage");
+  const { page, errors } = await openPage(browser, app.base, "/coverage", member);
   await waitForLive(page);
   await waitForText(page, (text) => text.includes("60%"), "loaded");
   const navigations: string[] = [];
@@ -64,7 +69,7 @@ test("malformed scouting and card-report documents in the database do not break 
   await target.upsert("scouting_610_6", { type: "scouting_data", team: 610, data: { start: { match: "six", alliance: 42 }, auto: { markers: [[1, 2], { x: "a" }, null], paths: [7, null, "M 0 0 L nope"], fuelScored: "many" }, teleop: { fuelscored: { value: 3 }, breakSeverity: ["bad"] } } });
   await target.upsert("scouting_610_7", { type: "scouting_data", team: 610, data: { auto: "not an object", teleop: null, start: [] } });
   await target.upsert("report_610_Q99", { type: "report_card", team: 610, match: { round: 99 }, data: { cardType: ["Red"], ruleViolation: { rule: "G1" }, timestamp: 5 } });
-  const { page, errors } = await openPage(browser, app.base, "/teams");
+  const { page, errors } = await openPage(browser, app.base, "/teams", member);
   await waitForText(page, (text) => /Match Performance Log/i.test(text) && text.includes("G204"), "match log and card reports rendered");
   const text = await page.locator("body").innerText();
   assert.equal(/application error|unhandled runtime error/i.test(text), false, "no crash screen");

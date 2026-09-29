@@ -5,7 +5,12 @@ depends on: auth, revision conflicts, deletes and recreates, `_changes` shapes,
 paging, long-polls, a 400 for an unusable `since`, and the app's own snapshot
 and long-poll code against it.
 
-It runs twice:
+`account-store.contract.test.ts` does the same for the account store
+(`lib/auth/store.ts`): create-once uniqueness, revision-checked updates and
+deletes, `_all_docs` key ranges and `keys`, database info, and how bad
+credentials and an unreachable server surface.
+
+Both run twice:
 - against the fake (`npm run test:contract`), everywhere;
 - against a real Couchbase Server + Sync Gateway (`npm run test:real`) in CI's `real-couchbase` job.
 

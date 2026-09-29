@@ -6,16 +6,19 @@ import type { AddressInfo } from "node:net";
 import type { Duplex } from "node:stream";
 import { after, before, beforeEach, test } from "node:test";
 import WebSocket, { WebSocketServer } from "ws";
-import { RealtimeClient, type SocketLike } from "../../../lib/realtime-client.ts";
-import { createRealtimeUpgradeHandler } from "../../../lib/realtime-server.ts";
-import { getActiveRealtimeConnections } from "../../../lib/realtime-bridge.ts";
-import { mergeAggregates } from "../../../lib/normalize-aggregate.ts";
+import { RealtimeClient, type SocketLike } from "../../../lib/realtime/client.ts";
+import { createRealtimeUpgradeHandler } from "../../../lib/realtime/server.ts";
+import { getActiveRealtimeConnections } from "../../../lib/realtime/bridge.ts";
+import { mergeAggregates } from "../../../lib/data/aggregates.ts";
 import { FAKE_AUTH, FakeSyncGateway } from "../../helpers/fake-sync-gateway.ts";
+import { startTestAuth, type TestAuth, type TestUser } from "../../helpers/auth.ts";
 
 let gateway: FakeSyncGateway;
 let server: Server;
 let origin: string;
 let refuseUpgrades = false;
+let auth: TestAuth;
+let member: TestUser;
 const serverSockets = new Set<Duplex>();
 const clients: RealtimeClient[] = [];
 
@@ -30,7 +33,7 @@ async function waitFor(predicate: () => boolean, message: string, timeoutMs = 40
 function newClient(url = `${origin.replace("http", "ws")}/api/realtime`) {
   const client = new RealtimeClient({
     url: () => url,
-    createSocket: (target) => new WebSocket(target, { origin }) as unknown as SocketLike,
+    createSocket: (target) => new WebSocket(target, { origin, headers: { cookie: member.cookie } }) as unknown as SocketLike,
     retryBaseMs: 20, retryMaxMs: 100,
   });
   clients.push(client);
@@ -45,6 +48,9 @@ async function connected(client: RealtimeClient, cursor: unknown = gateway.lastS
 const docData = (id: string, client: RealtimeClient) => client.store.get(id)?.doc?.data as Record<string, unknown> | undefined;
 
 before(async () => {
+  // The upgrade handler checks sessions for real; clients connect as a signed-in member.
+  auth = await startTestAuth();
+  member = await auth.user("MEMBER");
   gateway = new FakeSyncGateway();
   const changesUrl = await gateway.start();
   const handleUpgrade = createRealtimeUpgradeHandler({ getConfig: () => ({ url: changesUrl, authorization: FAKE_AUTH }) });
@@ -66,6 +72,7 @@ after(async () => {
   server.closeAllConnections();
   await new Promise<void>((resolve) => server.close(() => resolve()));
   await gateway.stop();
+  await auth.stop();
 });
 
 test("connects, subscribes from the page cursor, and reports ready", async () => {
@@ -149,13 +156,13 @@ test("malformed upstream rows are skipped without breaking the connection", asyn
 test("malformed client messages are rejected without affecting other clients", async () => {
   const healthy = newClient();
   await connected(healthy);
-  const rogue = new WebSocket(`${origin.replace("http", "ws")}/api/realtime`, { origin });
+  const rogue = new WebSocket(`${origin.replace("http", "ws")}/api/realtime`, { origin, headers: { cookie: member.cookie } });
   await new Promise((resolve) => rogue.once("open", resolve));
   const closed = new Promise<number>((resolve) => rogue.once("close", (code) => resolve(code)));
   rogue.send("{not json");
   assert.equal(await closed, 1008);
 
-  const oversized = new WebSocket(`${origin.replace("http", "ws")}/api/realtime`, { origin });
+  const oversized = new WebSocket(`${origin.replace("http", "ws")}/api/realtime`, { origin, headers: { cookie: member.cookie } });
   await new Promise((resolve) => oversized.once("open", resolve));
   const oversizedClosed = new Promise<number>((resolve) => oversized.once("close", (code) => resolve(code)));
   oversized.send("x".repeat(20_000));
@@ -167,7 +174,7 @@ test("malformed client messages are rejected without affecting other clients", a
 });
 
 test("cross-origin upgrades are refused", async () => {
-  const socket = new WebSocket(`${origin.replace("http", "ws")}/api/realtime`, { origin: "https://evil.example" });
+  const socket = new WebSocket(`${origin.replace("http", "ws")}/api/realtime`, { origin: "https://evil.example", headers: { cookie: member.cookie } });
   const status = await new Promise<number | undefined>((resolve) => {
     socket.once("unexpected-response", (_request, response) => resolve(response.statusCode));
     socket.once("open", () => resolve(undefined));

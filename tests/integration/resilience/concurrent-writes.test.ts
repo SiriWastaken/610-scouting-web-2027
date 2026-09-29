@@ -2,7 +2,7 @@
 // checked against the persisted database and every connected client.
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import type { RealtimeClient } from "../../../lib/realtime-client.ts";
+import type { RealtimeClient } from "../../../lib/realtime/client.ts";
 import { startGatewayTarget, type GatewayTarget } from "../../helpers/gateway-target.ts";
 import { startRealtimeHarness, type RealtimeHarness } from "../../helpers/realtime-harness.ts";
 import { mapLimit, waitFor } from "../../helpers/wait.ts";

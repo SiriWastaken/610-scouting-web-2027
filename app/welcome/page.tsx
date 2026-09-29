@@ -1,0 +1,72 @@
+// The sign-in page. Signed-out visitors land here from any page and come back
+// to it afterwards; signed-in accounts waiting for approval see their status.
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { Avatar } from "@/components/auth/identity";
+import { SignInButtons, WelcomeSignOut } from "@/components/auth/sign-in";
+import { enabledProviders, readAuthConfig } from "@/lib/auth/config";
+import { getAuthentication } from "@/lib/auth/pages";
+import { safeReturnTo } from "@/lib/auth/sign-in";
+
+export const metadata: Metadata = { title: "Sign in · 610 Scouting" };
+
+const ERRORS: Record<string, string> = {
+  denied: "Sign-in was cancelled. Choose an account to continue.",
+  state_mismatch: "That sign-in link expired or was opened in a different browser. Please try again.",
+  expired: "The sign-in took too long to finish. Please try again.",
+  token_invalid: "We couldn't verify the sign-in with your provider. Please try again.",
+  exchange_failed: "Your provider didn't respond. Check your connection and try again.",
+  email_unverified: "That account's email address isn't verified with the provider.",
+  no_email: "Your provider didn't share an email address. With Apple, choose \"Share My Email\" when signing in.",
+  disabled: "This account has been disabled. Ask a mentor if you think this is a mistake.",
+  provider_unavailable: "That sign-in option isn't available right now.",
+  store_unavailable: "Accounts are temporarily unavailable. Try again in a minute.",
+  unavailable: "Sign-in isn't configured on this server yet (see docs/authentication.md).",
+};
+
+export default async function WelcomePage({ searchParams }: PageProps<"/welcome">) {
+  const params = await searchParams;
+  const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
+  const next = safeReturnTo(first(params.next));
+  const auth = await getAuthentication();
+  if (auth.status === "signed-in" && auth.viewer.principal.status === "active") redirect(next === "/" ? "/teams" : next);
+
+  const configured = readAuthConfig();
+  const providers = enabledProviders(configured);
+  const errorCode = first(params.error);
+  const reason = first(params.reason);
+  // "Unavailable" is either missing configuration or an unreachable account store; say which.
+  const unavailable = configured.ok ? ERRORS.store_unavailable : ERRORS.unavailable;
+  const error = errorCode ? ERRORS[errorCode] ?? "Sign-in failed. Please try again." : auth.status === "unavailable" || reason === "unavailable" ? unavailable : null;
+  const notice = !error && reason === "expired" ? "Your session expired. Sign in again to pick up where you left off." : !error && first(params.signedOut) ? "You're signed out." : null;
+  const pending = auth.status === "signed-in" ? auth.viewer : null;
+  // While developing, say exactly which settings are wrong (names only, never values). Production keeps the generic message.
+  const setupProblems = !configured.ok && process.env.NODE_ENV !== "production" ? configured.problems : [];
+
+  return <main className="data-grid flex min-h-screen items-center justify-center px-4 py-10">
+    <section className="w-full max-w-sm border border-[var(--line)] bg-[var(--panel)] shadow-2xl shadow-black/40" aria-labelledby="signin-title">
+      <div className="px-6 pb-7 pt-8">
+        <div className="font-mono text-[11px] font-bold tracking-[0.24em] text-[var(--green)]">610 / SCOUTING</div>
+        {pending ? <>
+          <div className="mt-6 flex items-center gap-3">
+            <Avatar name={pending.user.displayName} picture={pending.user.picture} provider={pending.session.provider} size={44} />
+            <div className="min-w-0"><div className="truncate text-sm">{pending.user.displayName}</div><div className="truncate text-xs text-[var(--muted)]">{pending.user.email}</div></div>
+          </div>
+          <h1 id="signin-title" className="mt-6 text-xl font-medium tracking-tight">Waiting for approval</h1>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]" data-account-status={pending.principal.status}>A scout lead or mentor needs to approve your account. Once they have, reload this page.</p>
+          <div className="mt-6"><WelcomeSignOut /></div>
+        </> : <>
+          <h1 id="signin-title" className="mt-6 text-2xl font-medium tracking-tight">Sign in</h1>
+          {error && <p role="alert" className="mt-5 border-l-2 border-red-400 bg-red-400/10 px-3 py-2 text-sm text-red-200" data-welcome-error={errorCode ?? reason}>{error}</p>}
+          {notice && <p role="status" className="mt-5 border-l-2 border-[var(--green)] bg-[rgba(120,192,145,0.08)] px-3 py-2 text-sm text-[var(--foreground)]">{notice}</p>}
+          {setupProblems.length > 0 && <div className="mt-3 border border-[var(--line)] bg-[#0f1412] px-3 py-2 text-xs leading-5 text-[var(--muted)]" data-setup-problems>
+            <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-amber-300">Development: fix in .env.local, then restart</div>
+            <ul className="list-disc pl-4">{setupProblems.map((problem) => <li key={problem}>{problem}</li>)}</ul>
+            <div className="mt-1">Run <code className="text-[var(--foreground)]">npm run auth:check</code> for details.</div>
+          </div>}
+          <div className="mt-6"><SignInButtons providers={providers} next={next} /></div>
+        </>}
+      </div>
+    </section>
+  </main>;
+}
