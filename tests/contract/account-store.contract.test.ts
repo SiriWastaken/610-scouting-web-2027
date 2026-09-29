@@ -81,7 +81,7 @@ test("account store contract: a database that does not exist is a configuration 
 });
 
 test("account store contract: a document Sync Gateway refuses is an error that carries its reason, not a silent failure", async () => {
-  await assert.rejects(store.create(`${prefix}reserved`, { type: "t", _reserved: true }), (error: unknown) => error instanceof StoreUnavailableError && /HTTP 400: .*beginning with '_'/.test(error.message));
+  await assert.rejects(store.create(`${prefix}reserved`, { type: "t", _purged: true }), (error: unknown) => error instanceof StoreUnavailableError && /HTTP 400: .*'_purged' is not allowed/.test(error.message));
   assert.equal(await store.get(`${prefix}reserved`), null, "nothing was written");
 });
 

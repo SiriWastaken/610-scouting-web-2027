@@ -235,10 +235,11 @@ export class FakeSyncGateway {
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return json(400, { error: "Bad Request", reason: "Document body must be a JSON object" });
         body = parsed as Record<string, unknown>;
       } catch { return json(400, { error: "Bad Request", reason: "Bad JSON" }); }
-      // Sync Gateway reserves top-level properties that start with an underscore.
-      if (Object.keys(body).some((key) => key.startsWith("_") && !["_id", "_rev", "_deleted", "_attachments"].includes(key))) {
-        return json(400, { error: "Bad Request", reason: "user defined top level properties beginning with '_' are not allowed in document body" });
-      }
+      // Sync Gateway's REST API refuses only these reserved properties (db/validation.go); any other
+      // underscore-prefixed property is stored as-is.
+      if ("_purged" in body) return json(400, { error: "Bad Request", reason: "user defined top-level property '_purged' is not allowed in document body" });
+      if ("_sync" in body) return json(400, { error: "Bad Request", reason: "document-top level property '_sync' is a reserved internal property" });
+      if (Object.keys(body).some((key) => key.startsWith("_sync_"))) return json(400, { error: "Bad Request", reason: "user defined top-level properties that start with '_sync_' are not allowed in document body" });
     }
     const baseRev = url.searchParams.get("rev") ?? (typeof body._rev === "string" ? body._rev : undefined);
     const live = current && !current.deleted;
