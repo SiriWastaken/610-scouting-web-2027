@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { ArrowDown, ArrowUp, Sigma } from "lucide-react";
+import { buttonClass, EmptyState, selectClass, theadClass } from "@/components/ui/kit";
 import type { TeamAggregate } from "@/types/scouting";
 import { useAggregateRealtime } from "@/lib/realtime/hooks";
 
@@ -56,15 +58,12 @@ function formatValue(value: unknown): string {
 export function MetricBoard({
   teams,
   initialStat,
-  eyebrow,
-  title,
-  description,
+  header,
 }: {
   teams: TeamAggregate[];
   initialStat: StatKey;
-  eyebrow: string;
-  title: string;
-  description: string;
+  /** The page's header, rendered by the server page. */
+  header: ReactNode;
 }) {
   const liveTeams = useAggregateRealtime(teams);
   const [sortKey, setSortKey] = useState<StatKey>(initialStat);
@@ -85,78 +84,85 @@ export function MetricBoard({
     [ascending, sortKey, liveTeams]
   );
 
-  return (
-    <div className="mx-auto max-w-[1320px]">
-      <div className="mb-7 max-w-2xl">
-        <div className="mb-3 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--green)]">{eyebrow}</div>
-        <h1 className="text-3xl font-medium tracking-tight">{title}</h1>
-        <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{description}</p>
-      </div>
+  const sortedLabel = rawStatLabels.find((stat) => stat.key === sortKey)?.label ?? "";
 
-      <section className="overflow-hidden border border-[var(--line)] bg-[var(--panel)]">
-        <div className="flex flex-col gap-3 border-b border-[var(--line)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--muted)]">
-            {sorted.length} teams indexed
+  return (
+    <div>
+      {header}
+
+      <section className="overflow-hidden rounded-lg border border-line bg-surface shadow-sm">
+        <div className="flex flex-col gap-3 border-b border-line px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm text-muted">
+            <span className="font-semibold text-ink">{sorted.length} teams indexed</span>
+            {sorted.length > 0 && <> · ranked by <span className="text-accent-text">{sortedLabel}</span></>}
           </div>
-          <select
-            aria-label="Sort statistics by"
-            value={sortKey}
-            onChange={(event) => setSortKey(event.target.value as StatKey)}
-            className="h-8 w-full border border-[var(--line)] bg-[#0f1513] px-3 text-xs text-[var(--foreground)] outline-none focus:border-[var(--green-strong)] sm:w-auto"
-          >
-            {rawStatLabels.map((stat) => (
-              <option key={stat.key} value={stat.key}>
-                {stat.label} {stat.suffix ?? ""}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            <select
+              aria-label="Sort statistics by"
+              value={sortKey}
+              onChange={(event) => setSortKey(event.target.value as StatKey)}
+              className={`${selectClass} sm:w-64`}
+            >
+              {rawStatLabels.map((stat) => (
+                <option key={stat.key} value={stat.key}>
+                  {stat.label} {stat.suffix ?? ""}
+                </option>
+              ))}
+            </select>
+            <button type="button" onClick={() => setAscending((value) => !value)} className={`${buttonClass} shrink-0 whitespace-nowrap`} title="Switch sort direction">
+              {ascending ? <ArrowUp className="h-4 w-4" aria-hidden="true" /> : <ArrowDown className="h-4 w-4" aria-hidden="true" />}{ascending ? "Lowest first" : "Highest first"}
+            </button>
+          </div>
         </div>
 
         {sorted.length === 0 ? (
-          <div className="border-t border-[var(--line)] px-4 py-12 text-center text-sm text-[var(--muted)]">
-            No live aggregate data is available. Configure Couchbase to populate this table.
-          </div>
+          <EmptyState icon={Sigma} title="No averages yet">
+            No live aggregate data is available. Once scouted matches sync (and Couchbase is configured), every team shows up here.
+          </EmptyState>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] border-collapse text-left text-xs">
-              <thead className="bg-[#101613] font-mono text-[10px] uppercase tracking-wider text-[var(--muted)]">
+            <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+              <thead className={theadClass}>
                 <tr>
-                  <th className="px-4 py-3 text-left font-normal">Team</th>
-                  {rawStatLabels.map((stat) => (
-                    <th key={stat.key} className="px-3 py-3 text-right font-normal">
-                      <button
-                        type="button"
-                        aria-label={`Sort by ${stat.label}`}
-                        onClick={() => {
-                          if (sortKey === stat.key) setAscending((value) => !value);
-                          else {
-                            setSortKey(stat.key);
-                            setAscending(true);
-                          }
-                        }}
-                        className="hover:text-[var(--green)]"
-                      >
-                        {stat.label} {stat.suffix ?? ""}
-                        {sortKey === stat.key ? (ascending ? " ↑" : " ↓") : ""}
-                      </button>
-                    </th>
-                  ))}
+                  <th className="sticky left-0 z-10 bg-surface-2 px-4 py-2.5 text-left">Team</th>
+                  {rawStatLabels.map((stat) => {
+                    const active = stat.key === sortKey;
+                    return (
+                      <th key={stat.key} className={`px-3 py-2.5 text-right align-bottom ${active ? "bg-accent-soft text-accent-text" : ""}`} aria-sort={active ? (ascending ? "ascending" : "descending") : undefined}>
+                        <button
+                          type="button"
+                          aria-label={`Sort by ${stat.label}`}
+                          onClick={() => {
+                            if (sortKey === stat.key) setAscending((value) => !value);
+                            else {
+                              setSortKey(stat.key);
+                              setAscending(true);
+                            }
+                          }}
+                          className="inline-flex max-w-[9rem] items-end justify-end gap-1 text-right uppercase hover:text-ink"
+                        >
+                          <span>{stat.label} {stat.suffix ?? ""}</span>
+                          {active && (ascending ? <ArrowUp className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> : <ArrowDown className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />)}
+                        </button>
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
                 {sorted.map((team) => (
-                  <tr key={team.team} className="border-t border-[var(--line)] hover:bg-[var(--panel-raised)]">
-                    <td className="px-4 py-3">
-                      <Link href={`/teams/${team.team}`} className="flex items-center gap-3 hover:text-[var(--green)]">
-                        <span className="font-mono text-[var(--green)]">{team.team}</span>
-                        <span className="text-[var(--foreground)]">{team.name}</span>
+                  <tr key={team.team} className="group border-t border-line">
+                    <td className="sticky left-0 z-10 bg-surface px-4 py-2.5 group-hover:bg-surface-2">
+                      <Link href={`/teams/${team.team}`} className="flex items-baseline gap-2.5 hover:text-accent-text">
+                        <span className="font-mono font-semibold text-accent-text">{team.team}</span>
+                        <span className="max-w-[12rem] truncate text-ink">{team.name}</span>
                       </Link>
                     </td>
                     {rawStatLabels.map((stat) => (
                       <td
                         key={stat.key}
-                        className={`px-3 py-3 text-right font-mono ${
-                          stat.key === sortKey ? "text-[var(--green)]" : "text-[var(--muted)]"
+                        className={`whitespace-nowrap px-3 py-2.5 text-right font-mono group-hover:bg-surface-2 ${
+                          stat.key === sortKey ? "bg-accent-soft/50 font-semibold text-ink" : "text-ink-2"
                         }`}
                       >
                         {formatValue(team.rawData[stat.key])}{stat.suffix ?? ""}

@@ -37,5 +37,12 @@ export function RealtimeConnection({ initialCursor, initialNames }: { initialCur
     setResyncs((count) => count + 1);
   });
 
-  return <div className="mb-5 flex items-center gap-2 border border-[var(--line)] bg-[var(--panel)] px-4 py-3 text-xs text-[var(--muted)]" aria-live="polite" data-realtime-status={status}><span className={`h-2 w-2 rounded-full ${status === "connected" ? "bg-[var(--green)]" : status === "reconnecting" ? "bg-amber-400" : "bg-[#64736a]"}`} />{statusLabel[status]}</div>;
+  const tone = status === "connected" ? "bg-good" : status === "reconnecting" ? "bg-warn" : "bg-muted";
+  return <div className="inline-flex h-9 items-center gap-2 rounded-md border border-line bg-surface px-3 text-xs font-medium text-ink-2" aria-live="polite" data-realtime-status={status}>
+    <span className="relative flex h-2 w-2">
+      {status === "connected" && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-good opacity-40 [animation-duration:2.5s]" />}
+      <span className={`relative inline-flex h-2 w-2 rounded-full ${tone}`} />
+    </span>
+    {statusLabel[status]}
+  </div>;
 }

@@ -1,6 +1,7 @@
 import { connection } from "next/server";
+import { Sigma } from "lucide-react";
 import { requirePage } from "@/lib/auth/pages";
-import { AccessDenied } from "@/components/ui/kit";
+import { AccessDenied, PageHeader } from "@/components/ui/kit";
 import { MetricBoard } from "@/components/dashboard/metric-board";
 import { fetchTeamAggregatesSnapshot } from "@/services/couchbase";
 import { RealtimeConnection } from "@/components/dashboard/live-status";
@@ -12,15 +13,10 @@ export default async function AveragesPage() {
   const { teams, lastSeq, names } = await fetchTeamAggregatesSnapshot();
 
   return (
-    <>
-    <RealtimeConnection initialCursor={lastSeq} initialNames={names} />
     <MetricBoard
       teams={teams}
       initialStat="matchesPlayed"
-      eyebrow="02 / AGGREGATE DATA"
-      title="Averages"
-      description="Event-wide performance averages calculated from the current scouting sample. Select a column heading to reorder the board."
+      header={<PageHeader icon={Sigma} title="Averages" description="Every team, every stat, averaged across the matches we have scouted. Tap a column heading to rank the board." aside={<RealtimeConnection initialCursor={lastSeq} initialNames={names} />} />}
     />
-    </>
   );
 }
