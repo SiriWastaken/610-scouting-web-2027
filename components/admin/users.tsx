@@ -68,7 +68,7 @@ export function UsersTable() {
       {error && <p role="alert" className="border-b border-line px-5 py-3 text-sm text-bad">{error}</p>}
       {users === null ? <EmptyRow>Loading accounts…</EmptyRow> : filtered.length === 0 ? <EmptyRow>{users.length === 0 ? "Nobody has signed in yet." : "No accounts match these filters."}</EmptyRow> :
         <div className="overflow-x-auto"><table className="w-full min-w-[820px] text-left text-sm">
-          <thead className="border-b border-line bg-surface-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted"><tr><th className="px-5 py-3">Person</th><th className="px-4 py-3">Role</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Last sign-in</th><th className="px-4 py-3">Scouting</th><th className="px-4 py-3">Sessions</th><th className="px-4 py-3"><span className="sr-only">Actions</span></th></tr></thead>
+          <thead className="border-b border-line bg-surface-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted"><tr><th className="px-5 py-3">Person</th><th className="px-4 py-3">Role</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Last sign-in</th><th className="px-4 py-3">Scouting</th><th className="px-4 py-3">Sessions</th><th className="px-4 py-3"><span className="sr-only">Actions</span></th></tr></thead>
           <tbody>{filtered.map((user) => <tr key={user.id} className="border-t border-line hover:bg-surface-2" data-user-row={user.email}>
             <td className="px-5 py-3"><Link href={`/admin/users/${user.id}`} className="flex items-center gap-3">
               <Avatar name={user.displayName} picture={user.picture} provider={user.lastSignInProvider} size={32} />

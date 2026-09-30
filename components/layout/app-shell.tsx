@@ -8,13 +8,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[232px_1fr]">
       {/* Desktop: sidebar. */}
-      <aside className="hidden border-r border-line bg-surface lg:block">
+      <aside className="hidden border-r border-line bg-sidebar lg:block">
         <div className="sticky top-0 flex h-screen flex-col px-3 py-5">
-          <Link href="/teams" className="mb-7 block rounded-md px-2">
+          <Link href="/teams" className="mb-6 block rounded-md px-2">
             <BrandMark />
           </Link>
           <NavLinks />
-          <div className="mt-auto space-y-3">
+          <div className="mt-auto space-y-3 border-t border-line pt-3">
             <div className="px-3 text-xs text-muted">
               <span className="font-semibold text-ink-2">2026 season</span> · REBUILT
             </div>
@@ -23,7 +23,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
       {/* Tablet and phone: header with a tab strip. */}
-      <header className="sticky top-0 z-20 border-b border-line bg-surface/95 backdrop-blur-sm lg:hidden">
+      <header className="sticky top-0 z-20 border-b border-line bg-sidebar/95 backdrop-blur-sm lg:hidden">
         <div className="flex h-14 items-center justify-between px-4">
           <Link href="/teams" className="rounded-md"><BrandMark /></Link>
           <AccountChip compact />

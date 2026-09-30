@@ -63,7 +63,7 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
           {error && <p role="alert" className="mt-5 rounded-md border-l-4 border-bad bg-bad-soft px-3 py-2 text-sm text-ink" data-welcome-error={errorCode ?? reason}>{error}</p>}
           {notice && <p role="status" className="mt-5 rounded-md border-l-4 border-good bg-good-soft px-3 py-2 text-sm text-ink">{notice}</p>}
           {setupProblems.length > 0 && <div className="mt-3 rounded-md border border-line bg-surface-2 px-3 py-2 text-xs leading-5 text-muted" data-setup-problems>
-            <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-warn">Development: fix in .env.local, then restart</div>
+            <div className="mb-1 text-xs font-semibold uppercase tracking-[0.08em] text-warn">Development: fix in .env.local, then restart</div>
             <ul className="list-disc pl-4">{setupProblems.map((problem) => <li key={problem}>{problem}</li>)}</ul>
             <div className="mt-1">Run <code className="text-ink">npm run auth:check</code> for details.</div>
           </div>}

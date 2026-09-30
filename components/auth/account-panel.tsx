@@ -106,7 +106,7 @@ export function AccountPanel() {
     }}>{revoking ? "Signing out…" : "Sign out other devices"}</button>}>
       {sessionsError ? <p className="px-5 py-4 text-sm text-bad">{sessionsError}</p> : sessions === null ? <p className="px-5 py-4 text-sm text-muted">Loading…</p> :
         <ul>{sessions.map((entry, index) => <li key={index} className="flex flex-wrap items-center justify-between gap-2 border-t border-line px-5 py-3 text-sm first:border-t-0">
-          <span className="inline-flex items-center gap-2"><ProviderIcon provider={entry.provider} className="h-3.5 w-3.5" />{entry.device ?? "Unknown device"}{entry.current && <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-accent-text">This device</span>}</span>
+          <span className="inline-flex items-center gap-2"><ProviderIcon provider={entry.provider} className="h-3.5 w-3.5" />{entry.device ?? "Unknown device"}{entry.current && <span className="text-xs font-semibold uppercase tracking-[0.08em] text-accent-text">This device</span>}</span>
           <span className="text-xs text-muted">active {formatDate(entry.lastSeenAt, { relative: true })} · started {formatDate(entry.createdAt)}</span>
         </li>)}</ul>}
     </Panel>

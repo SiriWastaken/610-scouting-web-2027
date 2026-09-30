@@ -90,9 +90,9 @@ export function RealtimeMonitor() {
       <StatTile label="Errors" value={r ? r.feedErrors + r.sendErrors : "—"} hint={r ? `feed ${r.feedErrors} · send ${r.sendErrors} · resync ${r.resyncs} · malformed ${r.invalidSubscriptions} · timeouts ${r.subscriptionTimeouts} · sessions ended ${r.sessionEnded}` : undefined} tone={r && r.feedErrors + r.sendErrors > 0 ? "bad" : "good"} />
     </TileGrid>
 
-    <Panel title="Upstream changes feed" action={<span className="font-mono text-[10px] text-muted">Sync Gateway _changes</span>}>
+    <Panel title="Upstream changes feed" action={<span className="font-mono text-xs text-muted">Sync Gateway _changes</span>}>
       <dl className="grid grid-cols-2 gap-px bg-line sm:grid-cols-4">
-        {[["Responses", up?.polls ?? "—"], ["Failed requests", up?.pollErrors ?? "—"], ["Last answer", formatDate(up?.lastPollOkAt, { relative: true })], ["New database sequences seen", up?.uniqueChanges ?? "—"]].map(([label, value]) => <div key={String(label)} className="bg-surface px-4 py-3"><dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">{label}</dt><dd className="mt-1 font-mono text-sm">{value}</dd></div>)}
+        {[["Responses", up?.polls ?? "—"], ["Failed requests", up?.pollErrors ?? "—"], ["Last answer", formatDate(up?.lastPollOkAt, { relative: true })], ["New database sequences seen", up?.uniqueChanges ?? "—"]].map(([label, value]) => <div key={String(label)} className="bg-surface px-4 py-3"><dt className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{label}</dt><dd className="mt-1 font-mono text-sm">{value}</dd></div>)}
       </dl>
       {up?.lastPollError && <p className="border-t border-line px-5 py-3 text-xs text-bad">Last failure {formatDate(up.lastPollErrorAt, { relative: true })}: {up.lastPollError}</p>}
     </Panel>
@@ -100,7 +100,7 @@ export function RealtimeMonitor() {
     <Panel title={`Open connections (${r?.connections.length ?? 0})`}>
       {!r || r.connections.length === 0 ? <EmptyRow>No browsers are connected to this server right now.</EmptyRow> :
         <div className="overflow-x-auto"><table className="w-full min-w-[640px] text-left text-xs">
-          <thead className="border-b border-line bg-surface-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted"><tr><th className="px-5 py-3">#</th><th className="px-4 py-3">Account</th><th className="px-4 py-3">Connected for</th><th className="px-4 py-3">From sequence</th><th className="px-4 py-3">Frames / changes</th><th className="px-4 py-3">Last frame</th></tr></thead>
+          <thead className="border-b border-line bg-surface-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted"><tr><th className="px-5 py-3">#</th><th className="px-4 py-3">Account</th><th className="px-4 py-3">Connected for</th><th className="px-4 py-3">From sequence</th><th className="px-4 py-3">Frames / changes</th><th className="px-4 py-3">Last frame</th></tr></thead>
           <tbody>{r.connections.map((connection) => <tr key={connection.id} className="border-t border-line">
             <td className="px-5 py-2.5 font-mono text-muted">{connection.id}</td>
             <td className="px-4 py-2.5">{connection.userId ? <Link className="text-accent-text hover:underline" href={`/admin/users/${connection.userId}`}>{connection.role ?? "user"}</Link> : "—"}</td>
@@ -118,7 +118,7 @@ export function RealtimeMonitor() {
       </select></label>}>
       {events.length === 0 ? <EmptyRow>No events recorded yet.</EmptyRow> :
         <div className="max-h-96 overflow-y-auto"><table className="w-full text-left text-xs">
-          <thead className="sticky top-0 border-b border-line bg-surface-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted"><tr><th className="px-5 py-2">Time</th><th className="px-4 py-2">Event</th><th className="px-4 py-2">Conn.</th><th className="px-4 py-2">Detail</th></tr></thead>
+          <thead className="sticky top-0 border-b border-line bg-surface-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted"><tr><th className="px-5 py-2">Time</th><th className="px-4 py-2">Event</th><th className="px-4 py-2">Conn.</th><th className="px-4 py-2">Detail</th></tr></thead>
           <tbody>{events.slice(0, 100).map((event, index) => <tr key={index} className="border-t border-line">
             <td className="whitespace-nowrap px-5 py-2 font-mono text-muted">{new Date(event.at).toLocaleTimeString()}</td>
             <td className={`px-4 py-2 font-mono ${/error|rejected|malformed|timeout|resync/.test(event.type) ? "text-warn" : "text-ink"}`}>{event.type}</td>

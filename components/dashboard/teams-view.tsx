@@ -439,8 +439,8 @@ function MatchDataTable({ matches }: { matches: MatchData[] }) {
     );
   }
 
-  const thCls = 'px-2.5 py-2 text-center text-[11px] font-semibold uppercase tracking-[0.06em] text-muted whitespace-nowrap';
-  const groupCls = 'px-2.5 pt-2.5 pb-1.5 text-center text-[11px] font-bold uppercase tracking-[0.08em] whitespace-nowrap border-t-[3px]';
+  const thCls = 'px-2.5 py-2 text-center text-xs font-semibold uppercase tracking-[0.06em] text-muted whitespace-nowrap';
+  const groupCls = 'px-2.5 pt-2.5 pb-1.5 text-center text-xs font-bold uppercase tracking-[0.08em] whitespace-nowrap border-t-[3px]';
   const tdCls = 'px-2.5 py-2.5 text-center whitespace-nowrap font-mono';
 
   return (
@@ -532,7 +532,7 @@ function MatchDataTable({ matches }: { matches: MatchData[] }) {
                   </td>
                   <td className={tdCls}>
                     {tele.playedDefense ? (
-                      <span className="rounded bg-accent-soft px-1.5 py-0.5 text-[11px] font-bold text-accent-text">DEF</span>
+                      <span className="rounded bg-accent-muted px-1.5 py-0.5 text-xs font-bold text-accent-text">DEF</span>
                     ) : (
                       <span className="text-muted">-</span>
                     )}
@@ -601,7 +601,7 @@ function ReportSection({ title, source, children }: { title: string; source?: 'A
       <div className="mb-3 flex items-center gap-2">
         <h3 className="text-sm font-semibold text-ink">{title}</h3>
         {source && (
-          <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${source === 'Observed' ? 'bg-teleop-soft text-teleop' : 'bg-surface-2 text-muted'}`}>
+          <span className={`rounded px-1.5 py-0.5 text-xs font-bold uppercase tracking-[0.08em] ${source === 'Observed' ? 'bg-teleop-soft text-teleop' : 'bg-surface-2 text-muted'}`}>
             {source}
           </span>
         )}
@@ -656,7 +656,7 @@ function RatingBlock({
             <span
               key={n}
               className={`flex h-7 flex-1 items-center justify-center rounded text-xs font-bold ${
-                value && n <= value ? (n === value ? 'bg-accent text-accent-ink' : 'bg-accent-soft text-accent-text') : 'bg-surface-2 text-muted'
+                value && n <= value ? (n === value ? 'bg-accent text-accent-foreground' : 'bg-accent-muted text-accent-text') : 'bg-surface-2 text-muted'
               }`}
             >
               {n}
@@ -878,9 +878,7 @@ function CardReportsTable({ teamNumber }: { teamNumber: string | number }) {
  * AUTO PATH VISUALIZATION
  * ==========================================================================*/
 
-// Path colour runs from the start of auto (teal) to the end (orange).
-const PATH_START = [15, 118, 110];
-const PATH_END = [194, 65, 12];
+// Path colour runs from the start of auto (teleop cyan) to the end (endgame violet): phase tokens, never the brand accent.
 
 function AutoPathVisualization({
   match,
@@ -897,7 +895,7 @@ function AutoPathVisualization({
   const isFieldFlipped = Boolean(match?.auto?.fieldFlipped);
   const teamNumber = match?.teamNumber?.toString() || '';
 
-  const markerColor = (type: 'pickup' | 'scoring') => (type === 'pickup' ? 'var(--teleop)' : 'var(--accent)');
+  const markerColor = (type: 'pickup' | 'scoring') => (type === 'pickup' ? 'var(--teleop)' : 'var(--endgame)');
 
   const PIXELS_PER_FOOT = canvasWidth / 27.135;
   const ROBOT_SIZE = 30;
@@ -942,8 +940,7 @@ function AutoPathVisualization({
 
   const interpolateColor = (ratio: number) => {
     const s = Math.max(0, Math.min(1, ratio));
-    const [r, g, b] = PATH_START.map((from, i) => Math.round(from + (PATH_END[i] - from) * s));
-    return `rgb(${r}, ${g}, ${b})`;
+    return `color-mix(in oklab, var(--endgame) ${Math.round(s * 100)}%, var(--teleop))`;
   };
 
   useEffect(() => {
@@ -1024,7 +1021,7 @@ function AutoPathVisualization({
                     if (distance >= totalDist && totalDist > 0) setDistance(0);
                     setIsPlaying(true);
                   }}
-                  className={`${smallButton} border-accent bg-accent text-accent-ink hover:bg-accent-hover`}
+                  className={`${smallButton} border-accent bg-accent text-accent-foreground hover:bg-accent-hover`}
                 >
                   <Play className="h-4 w-4" aria-hidden="true" />
                   Play
@@ -1114,11 +1111,11 @@ function AutoPathVisualization({
                     width={ROBOT_SIZE}
                     height={ROBOT_SIZE}
                     fill="rgb(23 25 28 / 0.8)"
-                    stroke="var(--accent)"
+                    stroke="var(--ink)"
                     strokeWidth={2}
                     rx={4}
                   />
-                  <rect x={ROBOT_SIZE / 2 - 4} y={-ROBOT_SIZE / 2} width={4} height={ROBOT_SIZE} fill="var(--accent)" rx={1} />
+                  <rect x={ROBOT_SIZE / 2 - 4} y={-ROBOT_SIZE / 2} width={4} height={ROBOT_SIZE} fill="var(--ink)" rx={1} />
                   <text x={0} y={ROBOT_SIZE / 4 - 2} fontSize={Math.max(10, ROBOT_SIZE * 0.4)} fontWeight="bold" fill="white" textAnchor="middle">
                     {teamNumber}
                   </text>
@@ -1130,8 +1127,8 @@ function AutoPathVisualization({
 
         <ul className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-1 text-xs text-muted" aria-label="Legend">
           <li className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-teleop" />P = pickup</li>
-          <li className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-accent" />S = scoring</li>
-          <li className="flex items-center gap-1.5"><span className="h-1 w-6 rounded-full bg-gradient-to-r from-teleop to-accent" />path start → end</li>
+          <li className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-endgame" />S = scoring</li>
+          <li className="flex items-center gap-1.5"><span className="h-1 w-6 rounded-full bg-gradient-to-r from-teleop to-endgame" />path start → end</li>
         </ul>
       </div>
     </Section>

@@ -23,10 +23,10 @@ export function CheckCard({ title, check, href }: { title: string; check: Check 
   const body = <>
     <div className="flex items-center justify-between gap-2">
       <span className="text-sm">{title}</span>
-      {check ? <StatusPill status={check.status} /> : <span className="font-mono text-[10px] text-muted">…</span>}
+      {check ? <StatusPill status={check.status} /> : <span className="font-mono text-xs text-muted">…</span>}
     </div>
     <p className="mt-2 min-h-10 text-xs leading-5 text-muted">{check?.summary ?? "Checking…"}</p>
-    <div className="mt-2 flex justify-between font-mono text-[10px] text-muted"><span>{check?.latencyMs != null ? `${check.latencyMs} ms` : ""}</span><span>{check ? `checked ${formatDate(check.checkedAt, { relative: true })}` : ""}</span></div>
+    <div className="mt-2 flex justify-between font-mono text-xs text-muted"><span>{check?.latencyMs != null ? `${check.latencyMs} ms` : ""}</span><span>{check ? `checked ${formatDate(check.checkedAt, { relative: true })}` : ""}</span></div>
   </>;
   const className = "block bg-surface px-4 py-4";
   return href ? <Link href={href} className={`${className} hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent`} data-check={title}>{body}</Link> : <div className={className} data-check={title}>{body}</div>;
@@ -70,14 +70,14 @@ export function Overview() {
             ["Node.js", data.server.nodeVersion],
             ["Memory", `${data.server.memoryMb} MB`],
             ["Started", formatDate(data.server.startedAt)],
-          ].map(([label, value]) => <div key={label} className="bg-surface px-4 py-3"><dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">{label}</dt><dd className="mt-1 truncate font-mono text-xs" title={String(value)}>{value}</dd></div>)}
+          ].map(([label, value]) => <div key={label} className="bg-surface px-4 py-3"><dt className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{label}</dt><dd className="mt-1 truncate font-mono text-xs" title={String(value)}>{value}</dd></div>)}
         </dl> : <EmptyRow>No server information.</EmptyRow>}
         {data?.server.platform === "vercel" && <p className="border-t border-line px-4 py-3 text-xs text-muted">Counters are per server instance. On Vercel each request may reach a different instance.</p>}
       </Panel>
-      <Panel title="Recent errors" action={<span className="font-mono text-[10px] text-muted">last 50, this process</span>}>
+      <Panel title="Recent errors" action={<span className="font-mono text-xs text-muted">last 50, this process</span>}>
         {!m || m.errors.length === 0 ? <EmptyRow>No errors recorded since the server started {data ? formatDate(data.server.startedAt, { relative: true }) : ""}.</EmptyRow> :
           <ul className="max-h-80 overflow-y-auto">{m.errors.slice(0, 20).map((entry, index) => <li key={index} className="border-t border-line px-5 py-2.5 first:border-t-0">
-            <div className="flex justify-between gap-3 text-[11px] font-semibold uppercase tracking-[0.08em]"><span className="text-bad">{entry.source}</span><span className="text-muted">{formatDate(entry.at, { relative: true })}</span></div>
+            <div className="flex justify-between gap-3 text-xs font-semibold uppercase tracking-[0.08em]"><span className="text-bad">{entry.source}</span><span className="text-muted">{formatDate(entry.at, { relative: true })}</span></div>
             <div className="mt-1 break-words text-xs text-ink">{entry.message}{entry.path && <span className="text-muted"> · {entry.path}</span>}</div>
           </li>)}</ul>}
       </Panel>
@@ -113,9 +113,9 @@ export function SyncMonitor() {
     </TileGrid>
 
     <div className="grid gap-5 lg:grid-cols-2">
-      <Panel title="Server snapshot" action={<span className="font-mono text-[10px] text-muted">what pages render from</span>}>
+      <Panel title="Server snapshot" action={<span className="font-mono text-xs text-muted">what pages render from</span>}>
         <dl className="grid grid-cols-2 gap-px bg-line">
-          {[["Last fetched", formatDate(snapshot?.lastOkAt, { relative: true })], ["Fetch time", snapshot?.durationMs != null ? `${snapshot.durationMs} ms` : "—"], ["Documents", snapshot?.documents ?? "—"], ["Feed sequence", snapshot?.lastSeq ?? "—"], ["Fetches", snapshot?.fetches ?? 0], ["Failed fetches", snapshot?.failures ?? 0]].map(([label, value]) => <div key={String(label)} className="bg-surface px-4 py-3"><dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">{label}</dt><dd className="mt-1 font-mono text-sm">{value}</dd></div>)}
+          {[["Last fetched", formatDate(snapshot?.lastOkAt, { relative: true })], ["Fetch time", snapshot?.durationMs != null ? `${snapshot.durationMs} ms` : "—"], ["Documents", snapshot?.documents ?? "—"], ["Feed sequence", snapshot?.lastSeq ?? "—"], ["Fetches", snapshot?.fetches ?? 0], ["Failed fetches", snapshot?.failures ?? 0]].map(([label, value]) => <div key={String(label)} className="bg-surface px-4 py-3"><dt className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{label}</dt><dd className="mt-1 font-mono text-sm">{value}</dd></div>)}
         </dl>
         {snapshot?.lastError && <p className="border-t border-line px-5 py-3 text-xs text-bad">Last failure {formatDate(snapshot.lastErrorAt, { relative: true })}: {snapshot.lastError}</p>}
       </Panel>
@@ -160,7 +160,7 @@ export function ApiMonitor() {
       <Panel title="Busiest routes">
         {!http || http.routes.length === 0 ? <EmptyRow>No requests yet.</EmptyRow> :
           <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-left text-xs">
-            <thead className="border-b border-line bg-surface-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted"><tr><th className="px-5 py-3">Route</th><th className="px-4 py-3 text-right">Requests</th><th className="px-4 py-3 text-right">5xx</th><th className="px-4 py-3 text-right">Avg ms</th></tr></thead>
+            <thead className="border-b border-line bg-surface-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted"><tr><th className="px-5 py-3">Route</th><th className="px-4 py-3 text-right">Requests</th><th className="px-4 py-3 text-right">5xx</th><th className="px-4 py-3 text-right">Avg ms</th></tr></thead>
             <tbody>{http.routes.map((route) => <tr key={route.route} className="border-t border-line"><td className="px-5 py-2.5 font-mono">{route.route}</td><td className="px-4 py-2.5 text-right font-mono tabular-nums">{route.count}</td><td className={`px-4 py-2.5 text-right font-mono tabular-nums ${route.errors ? "text-bad" : "text-muted"}`}>{route.errors}</td><td className="px-4 py-2.5 text-right font-mono tabular-nums">{route.avgMs}</td></tr>)}</tbody>
           </table></div>}
       </Panel>

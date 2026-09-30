@@ -128,7 +128,7 @@ export function MetricBoard({
                   {rawStatLabels.map((stat) => {
                     const active = stat.key === sortKey;
                     return (
-                      <th key={stat.key} className={`px-3 py-2.5 text-right align-bottom ${active ? "bg-accent-soft text-accent-text" : ""}`} aria-sort={active ? (ascending ? "ascending" : "descending") : undefined}>
+                      <th key={stat.key} className={`px-3 py-2.5 text-right align-bottom ${active ? "bg-accent-muted text-accent-text" : ""}`} aria-sort={active ? (ascending ? "ascending" : "descending") : undefined}>
                         <button
                           type="button"
                           aria-label={`Sort by ${stat.label}`}
@@ -162,7 +162,7 @@ export function MetricBoard({
                       <td
                         key={stat.key}
                         className={`whitespace-nowrap px-3 py-2.5 text-right font-mono group-hover:bg-surface-2 ${
-                          stat.key === sortKey ? "bg-accent-soft/50 font-semibold text-ink" : "text-ink-2"
+                          stat.key === sortKey ? "bg-accent-muted/50 font-semibold text-ink" : "text-ink-2"
                         }`}
                       >
                         {formatValue(team.rawData[stat.key])}{stat.suffix ?? ""}

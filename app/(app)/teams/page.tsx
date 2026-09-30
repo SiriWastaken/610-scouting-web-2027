@@ -46,6 +46,7 @@ export default async function TeamsPage() {
     <>
       <PageHeader
         icon={Bot}
+        tab="teams"
         title="Teams"
         description="Pick a team to see its averages, every scouted match, the pit interview, and any cards."
         aside={<RealtimeConnection initialCursor={lastSeq} initialNames={names} />}

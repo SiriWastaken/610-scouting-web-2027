@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, type ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { labelClass } from "@/components/ui/kit";
+import { DEFENSE_RATING_SCALE, DRIVER_SKILL_SCALE } from "@/lib/data/team-stats";
 import { useAggregateRealtime } from "@/lib/realtime/hooks";
 import type { TeamAggregate } from "@/types/scouting";
 
@@ -11,12 +12,12 @@ export function TeamDetailLive({ team: initialTeam, live }: { team: TeamAggregat
   const initialTeams = useMemo(() => [initialTeam], [initialTeam]);
   const teams = useAggregateRealtime(initialTeams);
   const team = teams.find((candidate) => candidate.team === initialTeam.team) ?? initialTeam;
-  // Phase colours match the rest of the app: auto amber, teleop teal, endgame violet.
+  // Phase colours match the rest of the app: auto periwinkle, teleop cyan, endgame violet.
   const metrics: [string, string, string?][] = [
     ["Auto PPG", team.autoPpg.toFixed(1), "text-auto"], ["Teleop PPG", team.teleopPpg.toFixed(1), "text-teleop"],
     ["Endgame PPG", team.endgamePpg.toFixed(1), "text-endgame"], ["Fuel / match", team.fuelPerMatch.toFixed(1)],
-    ["Fuel accuracy", `${team.fuelAccuracy}%`], ["Driver skill", `${team.driverSkill.toFixed(1)} / 10`],
-    ["Defense rating", `${team.defenseRating.toFixed(1)} / 5`], ["Break rate", `${team.breakRate}%`],
+    ["Fuel accuracy", `${team.fuelAccuracy}%`], ["Driver skill", `${team.driverSkill.toFixed(1)} / ${DRIVER_SKILL_SCALE}`],
+    ["Defense rating", `${team.defenseRating.toFixed(1)} / ${DEFENSE_RATING_SCALE}`], ["Break rate", `${team.breakRate}%`],
   ];
   return <div className="mx-auto max-w-[1120px]">
     <div className="flex items-center justify-between gap-3">

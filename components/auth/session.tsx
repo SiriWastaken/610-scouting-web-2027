@@ -109,7 +109,7 @@ export function AccountChip({ compact = false }: { compact?: boolean }) {
       <Avatar name={user.displayName} picture={user.picture} provider={provider} size={34} />
       <span className="min-w-0">
         <span className="block truncate text-sm text-ink" data-account-name>{user.displayName}</span>
-        <span className="block truncate text-[11px] font-semibold uppercase tracking-[0.08em] text-muted" data-account-role={user.role}>{ROLE_LABELS[user.role]}</span>
+        <span className="block truncate text-xs font-semibold uppercase tracking-[0.08em] text-muted" data-account-role={user.role}>{ROLE_LABELS[user.role]}</span>
       </span>
     </Link>
     <button type="button" onClick={() => void signOut()} disabled={signingOut} aria-label="Sign out" title="Sign out" className="rounded-md p-2 text-muted hover:bg-surface hover:text-ink disabled:opacity-50">

@@ -33,12 +33,12 @@ export function DataTable({ teams, compact = false }: { teams: TeamAggregate[]; 
 
   return <section className="overflow-hidden border border-line bg-surface">
     <div className="flex flex-col gap-3 border-b border-line px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">{filtered.length} teams indexed</div>
+      <div className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{filtered.length} teams indexed</div>
       <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search team or name" className="h-8 w-full border border-line bg-surface px-3 text-xs text-ink outline-none placeholder:text-muted focus:border-accent sm:w-56" />
     </div>
     {teams.length === 0 ? <div className="border-t border-line px-4 py-12 text-center text-sm text-muted">No live aggregate data is available. Configure Couchbase to populate this table.</div> : <div className="overflow-x-auto">
       <table className="w-full min-w-[760px] border-collapse text-left text-xs">
-        <thead className="border-b border-line bg-surface-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted">
+        <thead className="border-b border-line bg-surface-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted">
         
         
           <tr><th className="px-4 py-3">Team</th>{!compact && <th className="px-3 py-3">Matches</th>}{columns.map((column) => <th key={column.key} className="px-3 py-3 text-right font-normal"><button onClick={() => changeSort(column.key)} className="hover:text-accent-text">{column.label} {sortKey === column.key ? (ascending ? <ArrowUp className="inline h-3 w-3" aria-hidden="true" /> : <ArrowDown className="inline h-3 w-3" aria-hidden="true" />) : null}</button></th>)}</tr>

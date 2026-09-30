@@ -6,14 +6,15 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowLeft, CircleCheck, CircleDashed, CircleHelp, CircleMinus, CircleX, Inbox, Lock, TriangleAlert, type LucideIcon } from "lucide-react";
 import type { CheckStatus } from "@/services/health";
+import { tabVars, type TabName } from "@/lib/ui/tabs";
 
 // ── from panel.tsx ────────────────────
 
-/** Page title block: the page's nav icon, the title, one line of context, and an optional right-hand slot (live status, actions). */
-export function PageHeader({ icon: Icon, title, description, aside }: { icon?: LucideIcon; title: ReactNode; description?: ReactNode; aside?: ReactNode }) {
+/** Page title block: the page's nav icon (tinted with its tab's hue when `tab` is given), the title, one line of context, and an optional right-hand slot (live status, actions). */
+export function PageHeader({ icon: Icon, title, description, aside, tab }: { icon?: LucideIcon; title: ReactNode; description?: ReactNode; aside?: ReactNode; tab?: TabName }) {
   return <header className="mb-6 flex flex-col gap-4 border-b border-line pb-5 sm:flex-row sm:items-end sm:justify-between">
     <div className="flex min-w-0 items-start gap-3">
-      {Icon && <span className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-text`}><Icon className="h-5 w-5" aria-hidden="true" strokeWidth={2} /></span>}
+      {Icon && <span style={tab ? tabVars(tab) : undefined} className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${tab ? "bg-(--tab-bg) text-(--tab)" : "bg-surface-2 text-ink-2"}`}><Icon className="h-5 w-5" aria-hidden="true" strokeWidth={2} /></span>}
       <div className="min-w-0">
         <h1 className="font-display text-3xl font-semibold leading-none tracking-tight text-ink">{title}</h1>
         {description && <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">{description}</p>}
@@ -24,7 +25,7 @@ export function PageHeader({ icon: Icon, title, description, aside }: { icon?: L
 }
 
 /** Small uppercase label used above values and as table-group names. */
-export const labelClass = "text-[11px] font-semibold uppercase tracking-[0.08em] text-muted";
+export const labelClass = "text-xs font-semibold uppercase tracking-[0.08em] text-muted";
 
 /** The bordered section used across the app: a header row with a title (and optional action) over a body. */
 export function Panel({ title, action, children, className = "", icon: Icon }: { title: string; action?: ReactNode; children: ReactNode; className?: string; icon?: LucideIcon }) {
@@ -45,16 +46,16 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 }
 
 const buttonBase = "inline-flex h-10 items-center justify-center gap-2 rounded-md border px-3.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50";
-export const buttonClass = `${buttonBase} border-line-strong bg-surface text-ink hover:bg-surface-2`;
-export const primaryButtonClass = `${buttonBase} border-accent bg-accent text-accent-ink hover:border-accent-hover hover:bg-accent-hover`;
+export const buttonClass = `${buttonBase} border-line-strong bg-raised text-ink hover:bg-surface-2`;
+export const primaryButtonClass = `${buttonBase} border-accent bg-accent text-accent-foreground hover:border-accent-hover hover:bg-accent-hover`;
 export const dangerButtonClass = `${buttonBase} border-bad/40 bg-surface text-bad hover:bg-bad-soft`;
-export const inputClass = "h-10 w-full rounded-md border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none";
+export const inputClass = "h-10 w-full rounded-md border border-line-strong bg-raised px-3 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none";
 /** Native selects get the input look plus a drawn chevron, so they read as dropdowns on every platform. */
 export const selectClass = `${inputClass} cursor-pointer appearance-none bg-[length:16px] bg-[position:right_0.6rem_center] bg-no-repeat pr-9 bg-[url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")]`;
 
 /** Shared table styling so every data table in the app reads the same. */
 export const tableClass = "w-full border-collapse text-left text-sm";
-export const theadClass = "border-b border-line bg-surface-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted";
+export const theadClass = "border-b border-line bg-surface-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted";
 export const rowClass = "border-t border-line first:border-t-0 transition-colors hover:bg-surface-2/70";
 
 export function formatDate(value: string | number | null | undefined, { relative = false }: { relative?: boolean } = {}) {
@@ -100,6 +101,13 @@ export function StatusPill({ status, label }: { status: CheckStatus; label?: str
 }
 
 export function statusText(status: CheckStatus) { return STYLE[status].label; }
+
+/** A small neutral note beside a value (icon + words, no hue): "Low sample", "Outlier". Never colour alone. */
+export function NoteChip({ icon: Icon, children, title }: { icon: LucideIcon; children: ReactNode; title?: string }) {
+  return <span title={title} className="inline-flex items-center gap-1 whitespace-nowrap rounded border border-line-strong bg-surface-2 px-1.5 py-0.5 text-xs font-medium leading-4 text-ink-2">
+    <Icon className="h-3 w-3 shrink-0" aria-hidden="true" strokeWidth={2.25} />{children}
+  </span>;
+}
 
 /** One number with its label. `tone` colours the number only when it means something (good / warn / bad). */
 export function StatTile({ label, value, hint, tone = "normal" }: { label: string; value: ReactNode; hint?: ReactNode; tone?: "normal" | "warn" | "bad" | "good" }) {

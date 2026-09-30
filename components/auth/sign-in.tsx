@@ -21,9 +21,9 @@ export function SignInButtons({ providers, next }: { providers: ProviderId[]; ne
       return <a key={provider} href={href} data-signin={provider}
         aria-disabled={busy !== null}
         onClick={(event) => { if (busy) { event.preventDefault(); return; } setBusy(provider); }}
-        className={`flex h-12 w-full items-center justify-center gap-3 rounded-md border text-sm font-semibold transition-colors ${busy && busy !== provider ? "pointer-events-none opacity-40" : ""} ${primary ? "border-accent bg-accent text-accent-ink hover:bg-accent-hover" : "border-line-strong bg-surface text-ink hover:bg-surface-2"}`}>
+        className={`flex h-12 w-full items-center justify-center gap-3 rounded-md border text-sm font-semibold transition-colors ${busy && busy !== provider ? "pointer-events-none opacity-40" : ""} ${primary ? "border-accent bg-accent text-accent-foreground hover:bg-accent-hover" : "border-line-strong bg-surface text-ink hover:bg-surface-2"}`}>
         {busy === provider
-          ? <><span className={`h-4 w-4 animate-spin rounded-full border-2 border-t-transparent ${primary ? "border-accent-ink" : "border-ink"}`} />Redirecting to {provider === "google" ? "Google" : "Apple"}…</>
+          ? <><span className={`h-4 w-4 animate-spin rounded-full border-2 border-t-transparent ${primary ? "border-accent-foreground" : "border-ink"}`} />Redirecting to {provider === "google" ? "Google" : "Apple"}…</>
           : <>{provider === "google" ? <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white"><GoogleIcon className="h-4 w-4" /></span> : <AppleIcon className="h-5 w-5" />}{LABEL[provider]}</>}
       </a>;
     })}

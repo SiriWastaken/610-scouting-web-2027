@@ -49,7 +49,7 @@ export function Avatar({ name, picture, provider, size = 36 }: { name: string; p
       // Profile photos are Google-hosted and vary per user, so next/image's allow-list does not fit; no-referrer is what Google expects.
       // eslint-disable-next-line @next/next/no-img-element
       ? <img src={picture} alt="" width={size} height={size} referrerPolicy="no-referrer" className="h-full w-full rounded-full border border-line object-cover" />
-      : <span aria-hidden="true" className="flex h-full w-full items-center justify-center rounded-full bg-accent-soft font-display font-bold text-accent-text" style={{ fontSize: Math.round(size * 0.36) }}>{initials(name)}</span>}
+      : <span aria-hidden="true" className="flex h-full w-full items-center justify-center rounded-full bg-accent-muted font-display font-bold text-accent-text" style={{ fontSize: Math.round(size * 0.36) }}>{initials(name)}</span>}
     {provider && (provider === "google" || provider === "apple") && <span title={`Signed in with ${providerLabel(provider)}`} className="absolute -bottom-0.5 -right-0.5 flex items-center justify-center rounded-full border border-line bg-surface text-ink shadow-sm" style={{ width: badge, height: badge }}>
       <ProviderIcon provider={provider} className="h-[60%] w-[60%]" />
     </span>}
@@ -61,17 +61,17 @@ export function Avatar({ name, picture, provider, size = 36 }: { name: string; p
 const tone: Record<Role, string> = {
   MEMBER: "border-line text-muted",
   SCOUT: "border-line-strong text-ink",
-  SCOUT_LEAD: "border-transparent bg-accent-soft text-accent-text",
-  MENTOR: "border-transparent bg-brand-soft text-brand",
+  SCOUT_LEAD: "border-transparent bg-accent-muted text-accent-text",
+  MENTOR: "border-transparent bg-surface-2 text-ink",
   OWNER: "border-transparent bg-warn-soft text-warn",
 };
 
 export function RoleBadge({ role }: { role: Role }) {
-  return <span className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] ${tone[role]}`}>{ROLE_LABELS[role]}</span>;
+  return <span className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-xs font-semibold uppercase tracking-[0.08em] ${tone[role]}`}>{ROLE_LABELS[role]}</span>;
 }
 
 export function AccountStatusBadge({ status }: { status: AccountStatus }) {
   const style = status === "active" ? "text-good" : status === "pending" ? "text-warn" : "text-bad";
   const Icon = status === "active" ? CircleCheck : status === "pending" ? Hourglass : Ban;
-  return <span className={`inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.08em] ${style}`}><Icon className="h-3.5 w-3.5" aria-hidden="true" />{status}</span>;
+  return <span className={`inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.08em] ${style}`}><Icon className="h-3.5 w-3.5" aria-hidden="true" />{status}</span>;
 }
