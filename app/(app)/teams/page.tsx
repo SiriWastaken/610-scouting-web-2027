@@ -1,7 +1,8 @@
 // app/teams/page.tsx
 import { connection } from 'next/server';
 import { requirePage } from '@/lib/auth/pages';
-import { AccessDenied } from '@/components/ui/kit';
+import { Bot } from 'lucide-react';
+import { AccessDenied, PageHeader } from '@/components/ui/kit';
 import { fetchTeamAggregatesSnapshot } from '@/services/couchbase';
 import TeamsClientView from '@/components/dashboard/teams-view';
 import { RealtimeConnection } from '@/components/dashboard/live-status';
@@ -42,22 +43,15 @@ export default async function TeamsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)] data-grid p-6 md:p-10 font-sans selection:bg-[rgba(120,192,145,0.25)]">
-      <div className="max-w-7xl mx-auto space-y-8">
-        
-        {/* Header Section */}
-        <header className="bg-[var(--panel)] p-6 rounded-2xl border border-[var(--line)] shadow-xl">
-          <h1 className="text-3xl font-bold tracking-tight text-[var(--foreground)]">Team Analytics Hub</h1>
-          <p className="text-[var(--muted)] text-sm mt-1">
-            Web scouting dashboard powered by Couchbase & The Blue Alliance.
-          </p>
-        </header>
-
-        {/* Pass server-fetched data to the client interactive view */}
-        <RealtimeConnection initialCursor={lastSeq} initialNames={names} />
-        <TeamsClientView initialTeams={teamStats} teamNames={teamNames} />
-
-      </div>
-    </main>
+    <>
+      <PageHeader
+        icon={Bot}
+        tab="teams"
+        title="Teams"
+        description="Pick a team to see its averages, every scouted match, the pit interview, and any cards."
+        aside={<RealtimeConnection initialCursor={lastSeq} initialNames={names} />}
+      />
+      <TeamsClientView initialTeams={teamStats} teamNames={teamNames} />
+    </>
   );
 }

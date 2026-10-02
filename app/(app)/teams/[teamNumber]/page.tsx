@@ -15,8 +15,5 @@ export default async function TeamDetailPage({ params }: { params: Promise<{ tea
   const { teams, lastSeq, names } = await fetchTeamAggregatesSnapshot();
   const team = teams.find((candidate) => candidate.team === teamId);
   if (!team) notFound();
-  return <>
-    <RealtimeConnection initialCursor={lastSeq} initialNames={names} />
-    <TeamDetailLive team={team} />
-  </>;
+  return <TeamDetailLive team={team} live={<RealtimeConnection initialCursor={lastSeq} initialNames={names} />} />;
 }

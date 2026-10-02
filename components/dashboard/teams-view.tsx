@@ -4,9 +4,27 @@ import {
   useEffect,
   useMemo,
   useState,
-  type CSSProperties,
   type ReactNode,
 } from 'react';
+import {
+  Ban,
+  Bot,
+  Check,
+  ClipboardList,
+  FileQuestion,
+  Flag,
+  ListOrdered,
+  MessageSquareText,
+  Play,
+  RectangleVertical,
+  RotateCcw,
+  Route,
+  ShieldCheck,
+  Square,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
+import { EmptyState, labelClass, rowClass, selectClass, tableClass, theadClass } from '@/components/ui/kit';
 import type { TeamAggregate } from '@/types/scouting';
 import { useAggregateRealtime, useRealtimeDocuments, useRealtimeResync } from '@/lib/realtime/hooks';
 import { sanitizeMatchData } from '@/lib/data/match-data';
@@ -209,94 +227,52 @@ interface TeamsClientViewProps {
 }
 
 /* ============================================================================
- * SHARED ICONS (inline SVG, no extra dependency)
- * ==========================================================================*/
-
-const Icon = {
-  check: (props: { size?: number; color?: string }) => (
-    <svg width={props.size ?? 16} height={props.size ?? 16} viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="10" fill={props.color ?? 'var(--green)'} />
-      <path d="M7 12.5l3 3 7-7" stroke="var(--panel)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  ),
-  x: (props: { size?: number; color?: string }) => (
-    <svg width={props.size ?? 16} height={props.size ?? 16} viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="10" fill={props.color ?? '#e05252'} />
-      <path d="M8 8l8 8M16 8l-8 8" stroke="var(--panel)" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  ),
-  ban: (props: { size?: number; color?: string }) => (
-    <svg width={props.size ?? 16} height={props.size ?? 16} viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="9" stroke={props.color ?? 'var(--muted)'} strokeWidth="2" />
-      <path d="M6 6l12 12" stroke={props.color ?? 'var(--muted)'} strokeWidth="2" />
-    </svg>
-  ),
-  chat: (props: { size?: number; color?: string }) => (
-    <svg width={props.size ?? 20} height={props.size ?? 20} viewBox="0 0 24 24" fill="none">
-      <path
-        d="M21 12a8 8 0 01-11.6 7.1L4 20l1.2-4.3A8 8 0 1121 12z"
-        stroke={props.color ?? 'var(--green)'}
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-    </svg>
-  ),
-  eye: (props: { size?: number; color?: string }) => (
-    <svg width={props.size ?? 18} height={props.size ?? 18} viewBox="0 0 24 24" fill="none">
-      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" stroke={props.color ?? '#e0a458'} strokeWidth="1.8" />
-      <circle cx="12" cy="12" r="3" stroke={props.color ?? '#e0a458'} strokeWidth="1.8" />
-    </svg>
-  ),
-  doc: (props: { size?: number; color?: string }) => (
-    <svg width={props.size ?? 40} height={props.size ?? 40} viewBox="0 0 24 24" fill="none">
-      <path
-        d="M7 3h7l4 4v14a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1z"
-        stroke={props.color ?? 'var(--muted)'}
-        strokeWidth="1.5"
-      />
-      <path d="M9 12h6M9 16h6M9 8h2" stroke={props.color ?? 'var(--muted)'} strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  ),
-};
-
-/* ============================================================================
  * SMALL SHARED UI PRIMITIVES
  * ==========================================================================*/
 
-function Card({
+function Section({
+  title,
+  icon: Icon,
+  aside,
   children,
   className = '',
-  style,
 }: {
+  title: string;
+  icon?: LucideIcon;
+  aside?: ReactNode;
   children: ReactNode;
   className?: string;
-  style?: CSSProperties;
 }) {
   return (
-    <div className={`bg-[var(--panel)] rounded-2xl border border-[var(--line)] ${className}`} style={style}>
+    <section className={`overflow-hidden rounded-lg border border-line bg-surface shadow-sm ${className}`}>
+      <div className="flex min-h-12 flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-2.5 sm:px-5">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
+          {Icon && <Icon className="h-4 w-4 text-muted" aria-hidden="true" />}
+          {title}
+        </h2>
+        {aside}
+      </div>
       {children}
-    </div>
+    </section>
   );
 }
 
 function NativeSelect({
+  id,
   value,
   onChange,
   options,
   placeholder,
 }: {
+  id: string;
   value: string | null;
   onChange: (value: string) => void;
   options: { label: string; value: string }[];
   placeholder: string;
 }) {
   return (
-    <select
-      value={value ?? ''}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-[var(--panel-raised)] text-[var(--foreground)] rounded-lg px-3 py-3 border border-[var(--line)] outline-none focus:border-[var(--green)] transition-colors appearance-none"
-    >
-      <option value="" disabled className="text-[var(--muted)]">
+    <select id={id} value={value ?? ''} onChange={(e) => onChange(e.target.value)} className={`${selectClass} h-11 text-base sm:text-sm`}>
+      <option value="" disabled>
         {placeholder}
       </option>
       {options.map((opt) => (
@@ -305,6 +281,18 @@ function NativeSelect({
         </option>
       ))}
     </select>
+  );
+}
+
+/** A value in the alliance's colour, with the word, so it never relies on colour alone. */
+function AllianceTag({ alliance }: { alliance?: string }) {
+  const side = alliance?.toLowerCase();
+  const color = side === 'blue' ? 'text-alliance-blue' : side === 'red' ? 'text-alliance-red' : 'text-muted';
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.08em] ${color}`}>
+      <span className="h-3 w-1.5 rounded-sm bg-current" aria-hidden="true" />
+      {side === 'blue' || side === 'red' ? `${side} alliance` : 'Alliance unknown'}
+    </span>
   );
 }
 
@@ -333,9 +321,10 @@ function TeamSelector({
   );
 
   return (
-    <div className="mb-4">
-      <p className="text-[var(--foreground)] text-sm font-semibold mb-2">Select Team</p>
+    <div>
+      <label htmlFor="team-select" className={`mb-1.5 block ${labelClass}`}>Team</label>
       <NativeSelect
+        id="team-select"
         value={selectedTeam ? selectedTeam.team.toString() : null}
         onChange={(val) => {
           const team = teams.find((t) => t.team.toString() === val);
@@ -371,9 +360,10 @@ function MatchSelector({
   const selectedIndex = selectedMatch ? matches.indexOf(selectedMatch) : -1;
 
   return (
-    <div className="mb-4">
-      <p className="text-[var(--foreground)] text-sm font-semibold mb-2">Select Match</p>
+    <div>
+      <label htmlFor="match-select" className={`mb-1.5 block ${labelClass}`}>Match</label>
       <NativeSelect
+        id="match-select"
         value={selectedIndex >= 0 ? selectedIndex.toString() : null}
         onChange={(val) => {
           const match = matches[parseInt(val, 10)];
@@ -391,47 +381,40 @@ function MatchSelector({
  * ==========================================================================*/
 
 function MatchDetails({ match }: { match: MatchData }) {
-  const alliance = match.start?.alliance;
-  const badgeBg = alliance === 'blue' ? 'bg-blue-500' : alliance === 'red' ? 'bg-red-500' : 'bg-[var(--panel-raised)]';
   const climb = match.teleop?.L3hang ? 'L3' : match.teleop?.L2hang ? 'L2' : match.teleop?.L1hang ? 'L1' : '-';
 
   return (
-    <Card className="p-5 mb-6">
-      <div className="flex justify-between items-center mb-3">
-        <p className="text-[var(--foreground)] text-lg font-bold">Match {match.start?.match ?? 'N/A'}</p>
-        <span className={`px-3 py-1 rounded-full text-xs font-bold text-white ${badgeBg}`}>
-          {alliance?.toUpperCase() ?? 'UNK'}
-        </span>
-      </div>
+    <Section
+      title={`Match ${match.start?.match ?? 'N/A'}`}
+      icon={Flag}
+      aside={<AllianceTag alliance={match.start?.alliance} />}
+    >
+      <dl className="grid grid-cols-2 gap-px bg-line">
+        <div className="bg-surface px-4 py-3 sm:px-5">
+          <dt className={labelClass}>Scout</dt>
+          <dd className="mt-1 truncate text-sm font-medium text-ink">{match.start?.scoutName || 'Unknown'}</dd>
+        </div>
+        <div className="bg-surface px-4 py-3 sm:px-5">
+          <dt className={labelClass}>Position</dt>
+          <dd className="mt-1 text-sm font-medium text-ink">{match.start?.position?.toUpperCase() || 'Unknown'}</dd>
+        </div>
+        <div className="bg-surface px-4 py-3 sm:px-5">
+          <dt className={`${labelClass} !text-teleop`}>Fuel scored</dt>
+          <dd className="mt-0.5 font-display text-3xl font-semibold leading-none text-ink">{match.teleop?.fuelscored ?? 0}</dd>
+        </div>
+        <div className="bg-surface px-4 py-3 sm:px-5">
+          <dt className={`${labelClass} !text-endgame`}>Climb</dt>
+          <dd className="mt-0.5 font-display text-3xl font-semibold leading-none text-ink">{climb}</dd>
+        </div>
+      </dl>
 
-      <div className="flex flex-wrap gap-2 mb-3">
-        <div className="flex-1 min-w-[100px] bg-[var(--panel-raised)] p-2 rounded-lg">
-          <p className="text-[var(--muted)] text-xs">Scout</p>
-          <p className="text-[var(--foreground)] text-sm font-semibold">{match.start?.scoutName || 'Unknown'}</p>
-        </div>
-        <div className="flex-1 min-w-[100px] bg-[var(--panel-raised)] p-2 rounded-lg">
-          <p className="text-[var(--muted)] text-xs">Position</p>
-          <p className="text-[var(--foreground)] text-sm font-semibold">
-            {match.start?.position?.toUpperCase() || 'Unknown'}
-          </p>
-        </div>
-        <div className="flex-1 min-w-[100px] p-2 rounded-lg" style={{ background: 'rgba(120,192,145,0.12)' }}>
-          <p className="text-[var(--green)] text-xs">Fuel</p>
-          <p className="text-[var(--green)] text-lg font-bold font-mono">{match.teleop?.fuelscored ?? 0}</p>
-        </div>
-        <div className="flex-1 min-w-[100px] bg-purple-500/10 p-2 rounded-lg">
-          <p className="text-purple-300 text-xs">Climb</p>
-          <p className="text-purple-300 text-lg font-bold font-mono">{climb}</p>
-        </div>
+      <div className="border-t border-line px-4 py-3 sm:px-5">
+        <p className={labelClass}>Match notes</p>
+        <p className={`mt-1 text-sm leading-6 ${match.teleop?.general ? 'text-ink' : 'text-muted'}`}>
+          {match.teleop?.general || 'The scout left no notes for this match.'}
+        </p>
       </div>
-
-      {match.teleop?.general && (
-        <div className="bg-[var(--panel-raised)] p-3 rounded-lg border border-[var(--line)]">
-          <p className="text-[var(--muted)] text-xs font-semibold mb-1">Match Notes</p>
-          <p className="text-[var(--foreground)] text-sm leading-5">{match.teleop.general}</p>
-        </div>
-      )}
-    </Card>
+    </Section>
   );
 }
 
@@ -440,53 +423,53 @@ function MatchDetails({ match }: { match: MatchData }) {
  * ==========================================================================*/
 
 function RenderStatus({ success = 0, failure = 0 }: { success?: number; failure?: number }) {
-  if (success > 0) return <Icon.check size={16} />;
-  if (failure > 0) return <Icon.x size={16} />;
-  return <span className="text-[var(--muted)]">-</span>;
+  if (success > 0) return <Check className="mx-auto h-4 w-4 text-good" strokeWidth={3} aria-label="Succeeded" />;
+  if (failure > 0) return <X className="mx-auto h-4 w-4 text-bad" strokeWidth={3} aria-label="Missed" />;
+  return <span className="text-muted">-</span>;
 }
 
 function MatchDataTable({ matches }: { matches: MatchData[] }) {
   if (!matches || matches.length === 0) {
     return (
-      <Card className="p-5 mt-8 mb-6 items-center">
-        <p className="text-[var(--muted)] text-center font-medium">No match data recorded yet.</p>
-      </Card>
+      <Section title="Match Performance Log" icon={ListOrdered}>
+        <EmptyState icon={ClipboardList} title="No match data recorded yet.">
+          Once a scout submits a match for this team it shows up here, live.
+        </EmptyState>
+      </Section>
     );
   }
 
-  const thCls = 'px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wide text-[var(--muted)] whitespace-nowrap';
-  const tdCls = 'px-3 py-2 text-center whitespace-nowrap';
+  const thCls = 'px-2.5 py-2 text-center text-xs font-semibold uppercase tracking-[0.06em] text-muted whitespace-nowrap';
+  const groupCls = 'px-2.5 pt-2.5 pb-1.5 text-center text-xs font-bold uppercase tracking-[0.08em] whitespace-nowrap border-t-[3px]';
+  const tdCls = 'px-2.5 py-2.5 text-center whitespace-nowrap font-mono';
 
   return (
-    <Card className="overflow-hidden mt-8 mb-6">
-      <div className="px-5 py-3 border-b border-[var(--line)] flex justify-between items-center">
-        <p className="text-[var(--foreground)] text-lg font-bold">Match Performance Log</p>
-        <span className="bg-[var(--green-strong)] px-3 py-1 rounded-full text-white text-xs font-bold">
-          {matches.length} Matches
-        </span>
-      </div>
-
+    <Section
+      title="Match Performance Log"
+      icon={ListOrdered}
+      aside={<span className="font-mono text-xs font-medium text-muted">{matches.length} Matches</span>}
+    >
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="bg-[var(--panel-raised)] border-b border-[var(--line)]">
-              <th className={thCls} rowSpan={2}>
+          <thead className="bg-surface-2">
+            <tr>
+              <th className={`${thCls} border-t-[3px] border-transparent text-left`} rowSpan={2}>
                 Match
               </th>
-              <th className={`${thCls} text-blue-400`} colSpan={2}>
+              <th className={`${groupCls} border-auto text-auto`} colSpan={2}>
                 Autonomous
               </th>
-              <th className={`${thCls} text-[var(--green)]`} colSpan={4}>
+              <th className={`${groupCls} border-teleop text-teleop`} colSpan={4}>
                 Teleop
               </th>
-              <th className={`${thCls} text-purple-300`} colSpan={4}>
+              <th className={`${groupCls} border-endgame text-endgame`} colSpan={4}>
                 Endgame
               </th>
-              <th className={thCls} colSpan={3}>
+              <th className={`${groupCls} border-line-strong text-ink-2`} colSpan={3}>
                 Status
               </th>
             </tr>
-            <tr className="bg-[var(--panel-raised)] border-b border-[var(--line)]">
+            <tr className="border-b border-line">
               <th className={thCls}>Score</th>
               <th className={thCls}>Fed</th>
               <th className={thCls}>Score</th>
@@ -517,24 +500,20 @@ function MatchDataTable({ matches }: { matches: MatchData[] }) {
                 (tele.missedL3 ?? 0) > 0;
 
               return (
-                <tr
-                  key={idx}
-                  className={`border-b border-[var(--line)] ${idx % 2 === 1 ? 'bg-[var(--panel-raised)]/40' : ''}`}
-                >
-                  <td className={`${tdCls} text-left font-bold text-[var(--foreground)]`}>
+                <tr key={idx} className="border-t border-line transition-colors first:border-t-0 hover:bg-surface-2/70">
+                  <td className={`${tdCls} text-left font-semibold text-ink`}>
                     <span
-                      className={`inline-block w-1.5 h-4 rounded mr-2 align-middle ${
-                        isBlue ? 'bg-blue-500' : 'bg-red-500'
-                      }`}
+                      className={`mr-2 inline-block h-4 w-1.5 rounded-sm align-middle ${isBlue ? 'bg-alliance-blue' : 'bg-alliance-red'}`}
+                      title={isBlue ? 'Blue alliance' : 'Red alliance'}
                     />
                     {start.match ?? '-'}
                   </td>
-                  <td className={`${tdCls} text-blue-300 font-medium`}>{auto.fuelScored ?? 0}</td>
-                  <td className={`${tdCls} text-[var(--muted)]`}>{auto.fuelFed ?? 0}</td>
-                  <td className={`${tdCls} text-[var(--green)] font-bold`}>{tele.fuelscored ?? 0}</td>
-                  <td className={`${tdCls} text-[var(--muted)]`}>{tele.fuelpassed ?? 0}</td>
-                  <td className={`${tdCls} text-sky-300`}>{tele.teleopFuelFed ?? 0}</td>
-                  <td className={`${tdCls} text-orange-300`}>{tele.fuelPlowed ?? 0}</td>
+                  <td className={`${tdCls} font-semibold text-ink`}>{auto.fuelScored ?? 0}</td>
+                  <td className={`${tdCls} text-muted`}>{auto.fuelFed ?? 0}</td>
+                  <td className={`${tdCls} font-semibold text-ink`}>{tele.fuelscored ?? 0}</td>
+                  <td className={`${tdCls} text-muted`}>{tele.fuelpassed ?? 0}</td>
+                  <td className={`${tdCls} text-muted`}>{tele.teleopFuelFed ?? 0}</td>
+                  <td className={`${tdCls} text-muted`}>{tele.fuelPlowed ?? 0}</td>
                   <td className={tdCls}>
                     <RenderStatus success={tele.L1hang} failure={tele.missedL1} />
                   </td>
@@ -545,32 +524,34 @@ function MatchDataTable({ matches }: { matches: MatchData[] }) {
                     <RenderStatus success={tele.L3hang} failure={tele.missedL3} />
                   </td>
                   <td className={tdCls}>
-                    {!attemptedClimb ? <Icon.ban size={16} /> : <span className="text-[var(--muted)]">-</span>}
+                    {!attemptedClimb ? (
+                      <Ban className="mx-auto h-4 w-4 text-muted" aria-label="No climb attempted" />
+                    ) : (
+                      <span className="text-muted">-</span>
+                    )}
                   </td>
                   <td className={tdCls}>
                     {tele.playedDefense ? (
-                      <span className="bg-blue-500/15 text-blue-300 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-500/40">
-                        DEF
-                      </span>
+                      <span className="rounded bg-accent-muted px-1.5 py-0.5 text-xs font-bold text-accent-text">DEF</span>
                     ) : (
-                      <span className="text-[var(--muted)]">-</span>
+                      <span className="text-muted">-</span>
                     )}
                   </td>
                   <td className={tdCls}>
                     {tele.breakDuration ? (
-                      <span className="text-orange-300 font-bold text-xs">{tele.breakDuration}s</span>
+                      <span className="font-semibold text-bad">{tele.breakDuration}s</span>
                     ) : (
-                      <span className="text-[var(--muted)]">-</span>
+                      <span className="text-muted">-</span>
                     )}
                   </td>
-                  <td className={`${tdCls} text-[var(--muted)] text-[11px]`}>{tele.breakSeverity || '-'}</td>
+                  <td className={`${tdCls} font-sans text-xs text-muted`}>{tele.breakSeverity || '-'}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
-    </Card>
+    </Section>
   );
 }
 
@@ -613,52 +594,44 @@ const HP_LABELS: Record<number, string> = {
   5: 'Extremely confident & practiced',
 };
 
-function ReportSection({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
+/** One group of the interview. `source` says whether the answer was asked or seen, which matters when trusting it. */
+function ReportSection({ title, source, children }: { title: string; source?: 'Ask' | 'Interview' | 'Observed' | 'Legacy'; children: ReactNode }) {
   return (
-    <div className="mb-5">
-      <div className="flex items-center gap-2 mb-3 border-b border-[var(--line)] pb-2">
-        {icon}
-        <p className="text-[var(--green)] text-sm font-bold uppercase tracking-wide">{title}</p>
+    <div className="border-t border-line px-4 py-4 first:border-t-0 sm:px-5">
+      <div className="mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-ink">{title}</h3>
+        {source && (
+          <span className={`rounded px-1.5 py-0.5 text-xs font-bold uppercase tracking-[0.08em] ${source === 'Observed' ? 'bg-teleop-soft text-teleop' : 'bg-surface-2 text-muted'}`}>
+            {source}
+          </span>
+        )}
       </div>
-      <div className="flex flex-col gap-3">{children}</div>
+      <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">{children}</dl>
     </div>
   );
 }
 
-function InfoBlock({ label, value, half, highlight }: { label: string; value?: string; half?: boolean; highlight?: boolean }) {
+function InfoBlock({ label, value, highlight, wide }: { label: string; value?: string; half?: boolean; highlight?: boolean; wide?: boolean }) {
   return (
-    <div className={half ? 'w-[48%]' : 'w-full'}>
-      <p className="text-[var(--muted)] text-xs font-bold uppercase mb-1 ml-1">{label}</p>
-      <div
-        className={`p-3 rounded-xl border text-sm font-medium leading-5 ${
-          highlight ? 'border-[var(--green)]/30 text-[var(--green)]' : 'border-[var(--line)] text-[var(--foreground)]'
-        }`}
-        style={{ background: highlight ? 'rgba(120,192,145,0.08)' : 'var(--panel-raised)' }}
-      >
+    <div className={wide ? 'sm:col-span-2' : ''}>
+      <dt className={labelClass}>{label}</dt>
+      <dd className={`mt-0.5 text-sm leading-6 ${!value ? 'text-muted' : highlight ? 'font-semibold text-accent-text' : 'text-ink'}`}>
         {value || 'N/A'}
-      </div>
+      </dd>
     </div>
   );
 }
 
-function BadgeBlock({ label, value, half }: { label: string; value?: string; half?: boolean }) {
+function BadgeBlock({ label, value }: { label: string; value?: string; half?: boolean }) {
   const isYes = value?.toLowerCase() === 'yes';
   const isNo = value?.toLowerCase() === 'no';
   return (
-    <div className={half ? 'w-[48%]' : 'w-full'}>
-      <p className="text-[var(--muted)] text-xs font-bold uppercase mb-1 ml-1">{label}</p>
-      <div
-        className={`p-3 rounded-xl border text-sm font-bold ${
-          isYes
-            ? 'bg-[var(--green)]/10 border-[var(--green)]/30 text-[var(--green)]'
-            : isNo
-            ? 'bg-red-500/10 border-red-500/30 text-red-400'
-            : 'border-[var(--line)] text-[var(--muted)]'
-        }`}
-        style={!isYes && !isNo ? { background: 'var(--panel-raised)' } : undefined}
-      >
-        {isYes ? '✓ Yes' : isNo ? '✗ No' : 'N/A'}
-      </div>
+    <div>
+      <dt className={labelClass}>{label}</dt>
+      <dd className={`mt-0.5 flex items-center gap-1.5 text-sm ${isYes ? 'font-semibold text-good' : isNo ? 'font-semibold text-bad' : 'text-muted'}`}>
+        {isYes ? <Check className="h-4 w-4" strokeWidth={3} aria-hidden="true" /> : isNo ? <X className="h-4 w-4" strokeWidth={3} aria-hidden="true" /> : null}
+        {isYes ? 'Yes' : isNo ? 'No' : 'N/A'}
+      </dd>
     </div>
   );
 }
@@ -676,27 +649,22 @@ function RatingBlock({
 }) {
   return (
     <div>
-      <p className="text-[var(--muted)] text-xs font-bold uppercase mb-1 ml-1">{label}</p>
-      <div className="bg-[var(--panel-raised)] p-3 rounded-xl border border-[var(--line)]">
-        <div className="flex gap-1 mb-1">
+      <dt className={labelClass}>{label}</dt>
+      <dd className="mt-1.5">
+        <div className="flex gap-1" role="img" aria-label={value ? `${value} out of ${max}` : 'Not rated'}>
           {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
-            <div
+            <span
               key={n}
-              className={`flex-1 py-1 rounded text-center text-xs font-bold ${
-                value === n ? 'text-[var(--panel)]' : 'text-[var(--muted)] bg-[var(--panel)]/60'
+              className={`flex h-7 flex-1 items-center justify-center rounded text-xs font-bold ${
+                value && n <= value ? (n === value ? 'bg-accent text-accent-foreground' : 'bg-accent-muted text-accent-text') : 'bg-surface-2 text-muted'
               }`}
-              style={value === n ? { background: 'var(--green)' } : undefined}
             >
               {n}
-            </div>
+            </span>
           ))}
         </div>
-        {descriptions && value ? (
-          <p className="text-[var(--muted)] text-xs italic mt-1">{descriptions[value]}</p>
-        ) : (
-          <p className="text-[var(--muted)] text-xs italic">Not rated</p>
-        )}
-      </div>
+        <p className="mt-1 text-xs text-muted">{descriptions && value ? descriptions[value] : value ? `${value} of ${max}` : 'Not rated'}</p>
+      </dd>
     </div>
   );
 }
@@ -704,72 +672,59 @@ function RatingBlock({
 function ExpertScoutReport({ pitData, teamNumber }: { pitData?: PitData; teamNumber: number }) {
   if (!pitData) {
     return (
-      <Card className="p-6 border-dashed items-center mt-6 mb-8 text-center">
-        <Icon.doc />
-        <p className="text-[var(--muted)] italic mt-2">No Expert Scout Interview recorded for Team {teamNumber}</p>
-      </Card>
+      <Section title="Expert Scout Report" icon={MessageSquareText}>
+        <EmptyState icon={FileQuestion} title={`No pit interview for ${teamNumber} yet`}>
+          Swing by their pit! The report appears here as soon as the interview is synced.
+        </EmptyState>
+      </Section>
     );
   }
 
   const photoUri = resolvePhotoUri(pitData.robotPhoto);
 
   return (
-    <Card className="overflow-hidden mt-6 mb-8" style={{ borderColor: 'rgba(120,192,145,0.3)' }}>
-      <div className="p-4 border-b flex items-center gap-2" style={{ background: 'rgba(120,192,145,0.08)', borderColor: 'rgba(120,192,145,0.2)' }}>
-        <Icon.chat size={20} />
-        <p className="text-[var(--green)] text-lg font-bold uppercase tracking-wider">Expert Scout Report</p>
+    <Section
+      title="Expert Scout Report"
+      icon={MessageSquareText}
+      aside={pitData.scoutName ? <span className="text-xs text-muted">Interviewed by {pitData.scoutName}</span> : undefined}
+    >
+      <div className={photoUri ? 'grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]' : ''}>
+        {photoUri && (
+          <div className="border-b border-line bg-surface-2 p-3 md:border-b-0 md:border-r">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={photoUri} alt={`Team ${teamNumber} robot`} className="mx-auto h-64 w-full rounded-md object-contain" />
+          </div>
+        )}
+        <ReportSection title="Drivetrain" source="Ask">
+          <InfoBlock label="Drivetrain" value={capitalizeSelector(pitData.drivetrainType || pitData.driveBase)} />
+          <InfoBlock label="Swerve Orientation" value={capitalizeSelector(pitData.swerveOrientation)} />
+          <InfoBlock label="Drive Motors" value={capitalizeSelector(pitData.driveMotors)} />
+          <InfoBlock label="Dimensions + Bumper" value={capitalizeSelector(pitData.drivetrainDimensions)} />
+          <InfoBlock label="Weight (lbs)" value={pitData.robotWeight} />
+          <InfoBlock label="Height (in)" value={pitData.robotHeight} />
+        </ReportSection>
       </div>
 
-      <div className="p-5">
-        <div className="mb-6 flex flex-wrap items-start gap-4">
-          {photoUri && (
-            <div className="flex-[0.42] min-w-[220px]">
-              <div className="rounded-2xl border border-white/10 bg-black/30 overflow-hidden p-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photoUri} alt={`Team ${teamNumber} robot`} className="w-full h-64 object-contain mx-auto" />
-              </div>
-            </div>
-          )}
-
-          <div className="min-w-[240px]" style={{ flex: photoUri ? 0.58 : 1 }}>
-            <ReportSection icon={<span className="w-4 h-4 rounded-sm bg-blue-400" />} title="Drivetrain — Ask">
-              <div className="flex flex-wrap justify-between gap-y-3">
-                <InfoBlock label="Drivetrain" value={capitalizeSelector(pitData.drivetrainType || pitData.driveBase)} half />
-                <InfoBlock label="Swerve Orientation" value={capitalizeSelector(pitData.swerveOrientation)} half />
-                <InfoBlock label="Drive Motors" value={capitalizeSelector(pitData.driveMotors)} half />
-                <InfoBlock label="Dimensions + Bumper" value={capitalizeSelector(pitData.drivetrainDimensions)} half />
-                <InfoBlock label="Weight (lbs)" value={pitData.robotWeight} half />
-                <InfoBlock label="Height (in)" value={pitData.robotHeight} half />
-              </div>
-            </ReportSection>
-          </div>
-        </div>
-
-        <ReportSection icon={<span className="w-4 h-4 rounded-sm bg-blue-400" />} title="Subsystems - Ask">
-          <div className="flex flex-wrap justify-between gap-y-3">
-            <InfoBlock label="Top (Corral)" value={capitalizeSelector(pitData.openOrClosedTop)} half />
-            <BadgeBlock label="Functional Intake?" value={pitData.funcIntake} half />
-            <InfoBlock label="Type of Shooter" value={capitalizeSelector(pitData.typeOfShooter)} half />
-            <InfoBlock label="Type of Indexer" value={capitalizeSelector(pitData.typeOfIndexer)} half />
-          </div>
+      <div className="border-t border-line">
+        <ReportSection title="Subsystems" source="Ask">
+          <InfoBlock label="Top (Corral)" value={capitalizeSelector(pitData.openOrClosedTop)} />
+          <BadgeBlock label="Functional Intake?" value={pitData.funcIntake} />
+          <InfoBlock label="Type of Shooter" value={capitalizeSelector(pitData.typeOfShooter)} />
+          <InfoBlock label="Type of Indexer" value={capitalizeSelector(pitData.typeOfIndexer)} />
           <InfoBlock label="Hopper Capacity" value={pitData.hopperCapacity?.toString()} />
         </ReportSection>
 
-        <ReportSection icon={<span className="w-4 h-4 rounded-sm bg-blue-400" />} title="Capabilities - Interview">
-          <div className="flex flex-wrap justify-between gap-y-3">
-            <BadgeBlock label="Over Bump?" value={capitalizeSelector(pitData.canDriveOverBump)} half />
-            <BadgeBlock label="Under Trench?" value={capitalizeSelector(pitData.canGoUnderTrench)} half />
-          </div>
+        <ReportSection title="Capabilities" source="Interview">
+          <BadgeBlock label="Over Bump?" value={capitalizeSelector(pitData.canDriveOverBump)} />
+          <BadgeBlock label="Under Trench?" value={capitalizeSelector(pitData.canGoUnderTrench)} />
           <InfoBlock label="Scoring Zones (Claimed)" value={capitalizeSelector(pitData.scoringZones)} />
           <InfoBlock label="Auton Start Position" value={capitalizeSelector(pitData.autonStartPosition)} />
           <InfoBlock label="Climb Capability" value={capitalizeSelector(pitData.climbCapability)} highlight />
-          <div className="flex flex-wrap justify-between gap-y-3">
-            <BadgeBlock label="Can Pass Fuel?" value={capitalizeSelector(pitData.canPassFuel)} half />
-            <BadgeBlock label="Practiced Passing?" value={capitalizeSelector(pitData.hasPassedBefore)} half />
-          </div>
+          <BadgeBlock label="Can Pass Fuel?" value={capitalizeSelector(pitData.canPassFuel)} />
+          <BadgeBlock label="Practiced Passing?" value={capitalizeSelector(pitData.hasPassedBefore)} />
         </ReportSection>
 
-        <ReportSection icon={<span className="w-4 h-4 rounded-sm bg-blue-400" />} title="Driver & Strategy - Interview">
+        <ReportSection title="Driver & Strategy" source="Interview">
           <RatingBlock
             label="Driver Years Exp (1-4)"
             value={pitData.driverYearsExperience || Number(pitData.driverExperience)}
@@ -784,37 +739,35 @@ function ExpertScoutReport({ pitData, teamNumber }: { pitData?: PitData; teamNum
           <RatingBlock label="Human Player Confidence (1-5)" value={pitData.humanPlayerConfidence} max={5} descriptions={HP_LABELS} />
         </ReportSection>
 
-        <ReportSection icon={<span className="w-4 h-4 rounded-sm bg-purple-400" />} title="Qualitative - Interview">
+        <ReportSection title="Getting to know them" source="Interview">
           <InfoBlock label="Favorite Part of Robot" value={capitalizeSelector(pitData.favoriteRobotPart)} />
           <InfoBlock label="Team Fun Fact" value={capitalizeSelector(pitData.teamFunFact)} />
-          <InfoBlock label="Team Goals" value={capitalizeSelector(pitData.teamGoals)} />
+          <InfoBlock label="Team Goals" value={capitalizeSelector(pitData.teamGoals)} wide />
           {pitData.hasRobotName && (
             <>
               <BadgeBlock label="Has Robot Name?" value={pitData.hasRobotName} />
               {pitData.hasRobotName.toLowerCase() === 'yes' && (
-                <div className="flex flex-wrap justify-between gap-y-3">
-                  <InfoBlock label="Robot Name" value={pitData.robotName} half />
-                  <InfoBlock label="Name Origin" value={pitData.robotNameOrigin} half />
-                </div>
+                <>
+                  <InfoBlock label="Robot Name" value={pitData.robotName} />
+                  <InfoBlock label="Name Origin" value={pitData.robotNameOrigin} />
+                </>
               )}
             </>
           )}
         </ReportSection>
 
-        <ReportSection icon={<Icon.eye size={18} />} title="Pit Scouter Observations">
-          <div className="flex flex-wrap justify-between gap-y-3">
-            <BadgeBlock label="Zones Verified?" value={capitalizeSelector(pitData.scoringZonesVerified)} half />
-            <BadgeBlock label="Vision Verified?" value={capitalizeSelector(pitData.hasVisionTracking)} half />
-          </div>
+        <ReportSection title="Pit Scouter Observations" source="Observed">
+          <BadgeBlock label="Zones Verified?" value={capitalizeSelector(pitData.scoringZonesVerified)} />
+          <BadgeBlock label="Vision Verified?" value={capitalizeSelector(pitData.hasVisionTracking)} />
           <InfoBlock label="Scoring Aids Observed" value={capitalizeSelector(pitData.scoringAids)} />
           <BadgeBlock label="Scoring Aids Verified?" value={capitalizeSelector(pitData.scoringAidsVerified)} />
           <BadgeBlock label="Jank or Tippy?" value={capitalizeSelector(pitData.robotJankOrTippy)} />
           <InfoBlock label="Red Flags" value={capitalizeSelector(pitData.redFlags)} highlight={!!pitData.redFlags} />
-          <InfoBlock label="Extra Comments" value={capitalizeSelector(pitData.extraComments)} />
+          <InfoBlock label="Extra Comments" value={capitalizeSelector(pitData.extraComments)} wide />
         </ReportSection>
 
         {(pitData.qualStrategy || pitData.playoffStrategy || pitData.robotUnique || pitData.teamUnique || pitData.idealAlliance) && (
-          <ReportSection icon={<span className="w-4 h-4 rounded-sm bg-[var(--muted)]" />} title="Legacy Data">
+          <ReportSection title="Legacy Data" source="Legacy">
             {pitData.qualStrategy && <InfoBlock label="Qual Strategy" value={pitData.qualStrategy} />}
             {pitData.playoffStrategy && <InfoBlock label="Playoff Strategy" value={pitData.playoffStrategy} />}
             {pitData.robotUnique && <InfoBlock label="Robot Uniqueness" value={pitData.robotUnique} />}
@@ -822,14 +775,8 @@ function ExpertScoutReport({ pitData, teamNumber }: { pitData?: PitData; teamNum
             {pitData.idealAlliance && <InfoBlock label="Dream Alliance" value={pitData.idealAlliance} highlight />}
           </ReportSection>
         )}
-
-        {pitData.scoutName && (
-          <div className="mt-6 pt-4 border-t border-[var(--line)] flex justify-end">
-            <p className="text-[var(--muted)] text-xs italic">Interviewed by {pitData.scoutName}</p>
-          </div>
-        )}
       </div>
-    </Card>
+    </Section>
   );
 }
 
@@ -876,64 +823,62 @@ function CardReportsTable({ teamNumber }: { teamNumber: string | number }) {
   );
 
   if (loading && !reports.length) {
-    return (
-      <Card className="p-6 items-center mt-2 text-center">
-        <p className="text-yellow-400 text-xs uppercase tracking-widest">Pulling Card Data...</p>
-      </Card>
-    );
+    return <p className="px-5 py-8 text-center text-sm text-muted">Pulling card data…</p>;
   }
 
   if (!reports.length) {
     return (
-      <Card className="p-6 border-dashed items-center mt-2 text-center">
-        <p className="text-[var(--foreground)] font-bold">No Card Reports</p>
-        <p className="text-[var(--muted)] text-xs mt-1">No card violations recorded for this team.</p>
-      </Card>
+      <EmptyState icon={ShieldCheck} title="No Card Reports">
+        No card violations recorded for this team. Clean driving!
+      </EmptyState>
     );
   }
 
-  const thCls = 'px-3 py-2 text-center text-xs font-bold text-[var(--muted)]';
-  const tdCls = 'px-3 py-3 text-center text-sm text-[var(--foreground)]';
+  const thCls = 'px-4 py-2.5 text-left';
+  const tdCls = 'px-4 py-3 text-sm text-ink';
 
   return (
-    <Card className="overflow-hidden mt-2">
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="border-b border-[var(--line)]">
-              <th className={thCls}>Match</th>
-              <th className={thCls}>Team</th>
-              <th className={thCls}>Card</th>
-              <th className={thCls}>Rule</th>
-              <th className={thCls}>Notes</th>
-              <th className={`${thCls} text-right`}>Timestamp</th>
-            </tr>
-          </thead>
-          <tbody>
-            {reports.map((r) => (
-              <tr key={r.sourceId} className="border-b border-[var(--line)] last:border-b-0">
-                <td className={tdCls}>{r.match}</td>
-                <td className={tdCls}>{r.team}</td>
-                <td className={`${tdCls} font-bold ${r.cardType === 'Yellow' ? 'text-yellow-400' : 'text-red-400'}`}>
+    <div className="overflow-x-auto">
+      <table className={tableClass}>
+        <thead className={theadClass}>
+          <tr>
+            <th className={thCls}>Match</th>
+            <th className={thCls}>Team</th>
+            <th className={thCls}>Card</th>
+            <th className={thCls}>Rule</th>
+            <th className={thCls}>Notes</th>
+            <th className={`${thCls} text-right`}>Timestamp</th>
+          </tr>
+        </thead>
+        <tbody>
+          {reports.map((r) => (
+            <tr key={r.sourceId} className={rowClass}>
+              <td className={`${tdCls} font-mono`}>{r.match}</td>
+              <td className={`${tdCls} font-mono`}>{r.team}</td>
+              <td className={`${tdCls} font-semibold`}>
+                <span className="inline-flex items-center gap-2">
+                  <span className={`h-4 w-3 rounded-[2px] ${r.cardType === 'Yellow' ? 'bg-[#f5c518]' : 'bg-alliance-red'}`} aria-hidden="true" />
                   {r.cardType}
-                </td>
-                <td className={tdCls}>{r.ruleViolation}</td>
-                <td className={tdCls}>{r.notes}</td>
-                <td className={`${tdCls} text-right text-[var(--muted)] text-xs`}>
-                  {r.timestamp ? new Date(r.timestamp).toLocaleString() : 'N/A'}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Card>
+                </span>
+              </td>
+              <td className={`${tdCls} font-mono`}>{r.ruleViolation}</td>
+              <td className={tdCls}>{r.notes}</td>
+              <td className={`${tdCls} text-right text-xs text-muted`}>
+                {r.timestamp ? new Date(r.timestamp).toLocaleString() : 'N/A'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
 /* ============================================================================
  * AUTO PATH VISUALIZATION
  * ==========================================================================*/
+
+// Path colour runs from the start of auto (teleop cyan) to the end (endgame violet): phase tokens, never the brand accent.
 
 function AutoPathVisualization({
   match,
@@ -950,9 +895,7 @@ function AutoPathVisualization({
   const isFieldFlipped = Boolean(match?.auto?.fieldFlipped);
   const teamNumber = match?.teamNumber?.toString() || '';
 
-  const BLUE = '#0066B3';
-  const RED = '#ED1C24';
-  const markerColor = (type: 'pickup' | 'scoring') => (type === 'pickup' ? BLUE : RED);
+  const markerColor = (type: 'pickup' | 'scoring') => (type === 'pickup' ? 'var(--teleop)' : 'var(--endgame)');
 
   const PIXELS_PER_FOOT = canvasWidth / 27.135;
   const ROBOT_SIZE = 30;
@@ -978,7 +921,6 @@ function AutoPathVisualization({
     paths.forEach((p) => {
       const matchesFound = [...p.matchAll(/([ML])\s*([\d.]+),([\d.]+)/gi)];
       let lastPt: { x: number; y: number } | null = null;
-
       matchesFound.forEach((m) => {
         const cmd = m[1].toUpperCase();
         const pt = { x: parseFloat(m[2]) * canvasWidth, y: parseFloat(m[3]) * canvasHeight };
@@ -993,16 +935,12 @@ function AutoPathVisualization({
         lastPt = pt;
       });
     });
-
     return { segments: segs, totalDist: d };
   }, [match, canvasWidth, canvasHeight]);
 
   const interpolateColor = (ratio: number) => {
     const s = Math.max(0, Math.min(1, ratio));
-    const r = Math.round(0 + (237 - 0) * s);
-    const g = Math.round(102 + (28 - 102) * s);
-    const b = Math.round(179 + (36 - 179) * s);
-    return `rgb(${r}, ${g}, ${b})`;
+    return `color-mix(in oklab, var(--endgame) ${Math.round(s * 100)}%, var(--teleop))`;
   };
 
   useEffect(() => {
@@ -1026,7 +964,6 @@ function AutoPathVisualization({
       });
       reqId = requestAnimationFrame(tick);
     };
-
     reqId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(reqId);
   }, [isPlaying, velocity, totalDist, PIXELS_PER_FOOT]);
@@ -1044,151 +981,157 @@ function AutoPathVisualization({
     robotAngle = seg.angle;
   }
 
+  const smallButton = 'inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-colors';
+
   return (
-    <Card className="p-4 mb-4">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-[var(--foreground)] text-lg font-bold">Auto Path</p>
+    <Section
+      title="Auto Path"
+      icon={Route}
+      aside={
         <button
+          type="button"
           onClick={() => {
             if (showViewer) setIsPlaying(false);
             setShowViewer(!showViewer);
           }}
-          className="bg-[var(--panel-raised)] hover:bg-[var(--line)] transition-colors px-3 py-1.5 rounded text-sm font-bold text-[var(--foreground)]"
+          className="text-sm font-medium text-accent-text hover:underline"
         >
           {showViewer ? 'Hide Auto Path Viewer' : 'Show Auto Path Viewer'}
         </button>
-      </div>
-
-      {showViewer && (
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <div className="flex items-center gap-2">
-            <span className="text-[var(--muted)] text-sm">Vel (ft/s):</span>
-            <input
-              className="bg-[var(--panel-raised)] text-[var(--foreground)] px-2 py-1 rounded w-16 text-center text-sm border border-[var(--line)] outline-none focus:border-[var(--green)]"
-              value={velocity}
-              onChange={(e) => setVelocity(cleanNumberInput(e.target.value))}
-              inputMode="decimal"
-            />
-          </div>
-
-          <div className="flex gap-2">
-            {!isPlaying ? (
+      }
+    >
+      <div className="p-4 sm:p-5">
+        {showViewer && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <label className="flex items-center gap-2 text-sm text-muted">
+              Speed
+              <input
+                className="h-9 w-16 rounded-md border border-line-strong bg-surface px-2 text-center font-mono text-sm text-ink outline-none focus:border-accent"
+                value={velocity}
+                onChange={(e) => setVelocity(cleanNumberInput(e.target.value))}
+                inputMode="decimal"
+              />
+              ft/s
+            </label>
+            <div className="flex gap-2">
+              {!isPlaying ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (distance >= totalDist && totalDist > 0) setDistance(0);
+                    setIsPlaying(true);
+                  }}
+                  className={`${smallButton} border-accent bg-accent text-accent-foreground hover:bg-accent-hover`}
+                >
+                  <Play className="h-4 w-4" aria-hidden="true" />
+                  Play
+                </button>
+              ) : (
+                <button type="button" onClick={() => setIsPlaying(false)} className={`${smallButton} border-bad/40 text-bad hover:bg-bad-soft`}>
+                  <Square className="h-4 w-4" aria-hidden="true" />
+                  Stop
+                </button>
+              )}
               <button
+                type="button"
                 onClick={() => {
-                  if (distance >= totalDist && totalDist > 0) setDistance(0);
-                  setIsPlaying(true);
+                  setDistance(0);
+                  setIsPlaying(false);
                 }}
-                className="text-white font-bold text-sm px-3 py-1.5 rounded"
-                style={{ background: 'var(--green-strong)' }}
+                className={`${smallButton} border-line-strong text-ink hover:bg-surface-2`}
               >
-                Play
+                <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                Restart
               </button>
-            ) : (
-              <button onClick={() => setIsPlaying(false)} className="bg-red-600 text-white font-bold text-sm px-3 py-1.5 rounded">
-                Stop
-              </button>
-            )}
-            <button
-              onClick={() => {
-                setDistance(0);
-                setIsPlaying(false);
-              }}
-              className="bg-blue-600 text-white font-bold text-sm px-3 py-1.5 rounded"
-            >
-              Restart
-            </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <div
-        style={{
-          width: '100%',
-          maxWidth: canvasWidth,
-          aspectRatio: `${canvasWidth} / ${canvasHeight}`,
-          background: 'var(--panel-raised)',
-          border: '1px solid var(--line)',
-          borderRadius: 8,
-          overflow: 'hidden',
-          position: 'relative',
-          margin: '0 auto',
-        }}
-      >
         <div
-          style={{
-            width: '100%',
-            height: '100%',
-            transform: `rotate(${isFieldFlipped ? 180 : 0}deg)`,
-            transition: 'transform 420ms cubic-bezier(0.65, 0, 0.35, 1)',
-          }}
+          className="relative mx-auto w-full overflow-hidden rounded-md border border-line bg-surface-2"
+          style={{ maxWidth: canvasWidth, aspectRatio: `${canvasWidth} / ${canvasHeight}` }}
         >
-          {/* Place your field image at /public/field.png (matches the RN app's assets/images/field.png) */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/field.png"
-            alt="Field"
+          <div
             style={{
-              width: '200%',
+              width: '100%',
               height: '100%',
-              position: 'absolute',
-              left: shouldFlipImage ? '-100%' : 0,
-              top: 0,
-              objectFit: 'cover',
+              transform: `rotate(${isFieldFlipped ? 180 : 0}deg)`,
+              transition: 'transform 420ms cubic-bezier(0.65, 0, 0.35, 1)',
             }}
-          />
+          >
+            {/* Place your field image at /public/field.png (matches the RN app's assets/images/field.png) */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/field.png"
+              alt="Field"
+              style={{
+                width: '200%',
+                height: '100%',
+                position: 'absolute',
+                left: shouldFlipImage ? '-100%' : 0,
+                top: 0,
+                objectFit: 'cover',
+              }}
+            />
+            <svg width={canvasWidth} height={canvasHeight} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
+              {segments.map((seg, idx) => {
+                const ratio = totalDist > 0 ? (seg.startDist + seg.length / 2) / totalDist : 0;
+                return (
+                  <line
+                    key={`seg-${idx}`}
+                    x1={seg.p1.x}
+                    y1={seg.p1.y}
+                    x2={seg.p2.x}
+                    y2={seg.p2.y}
+                    stroke={interpolateColor(ratio)}
+                    strokeWidth={5}
+                    strokeLinecap="round"
+                  />
+                );
+              })}
 
-          <svg width={canvasWidth} height={canvasHeight} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
-            {segments.map((seg, idx) => {
-              const ratio = totalDist > 0 ? (seg.startDist + seg.length / 2) / totalDist : 0;
-              return (
-                <line
-                  key={`seg-${idx}`}
-                  x1={seg.p1.x}
-                  y1={seg.p1.y}
-                  x2={seg.p2.x}
-                  y2={seg.p2.y}
-                  stroke={interpolateColor(ratio)}
-                  strokeWidth={5}
-                  strokeLinecap="round"
-                />
-              );
-            })}
+              {markers.map((marker, idx) => {
+                const mx = marker.x * canvasWidth;
+                const my = marker.y * canvasHeight;
+                return (
+                  <g key={`marker-${idx}`}>
+                    <circle cx={mx} cy={my} r={16} fill={markerColor(marker.type)} stroke="white" strokeWidth={2} />
+                    <text x={mx} y={my + 5} fontSize={14} fontWeight="bold" fill="white" textAnchor="middle">
+                      {marker.type === 'pickup' ? 'P' : 'S'}
+                    </text>
+                  </g>
+                );
+              })}
 
-            {markers.map((marker, idx) => {
-              const mx = marker.x * canvasWidth;
-              const my = marker.y * canvasHeight;
-              return (
-                <g key={`marker-${idx}`}>
-                  <circle cx={mx} cy={my} r={18} fill={markerColor(marker.type)} stroke="white" strokeWidth={2} />
-                  <text x={mx} y={my + 5} fontSize={14} fontWeight="bold" fill="white" textAnchor="middle">
-                    {marker.type === 'pickup' ? 'P' : 'S'}
+              {showViewer && segments.length > 0 && (
+                <g transform={`translate(${robotX}, ${robotY}) rotate(${robotAngle})`}>
+                  <rect
+                    x={-ROBOT_SIZE / 2}
+                    y={-ROBOT_SIZE / 2}
+                    width={ROBOT_SIZE}
+                    height={ROBOT_SIZE}
+                    fill="rgb(23 25 28 / 0.8)"
+                    stroke="var(--ink)"
+                    strokeWidth={2}
+                    rx={4}
+                  />
+                  <rect x={ROBOT_SIZE / 2 - 4} y={-ROBOT_SIZE / 2} width={4} height={ROBOT_SIZE} fill="var(--ink)" rx={1} />
+                  <text x={0} y={ROBOT_SIZE / 4 - 2} fontSize={Math.max(10, ROBOT_SIZE * 0.4)} fontWeight="bold" fill="white" textAnchor="middle">
+                    {teamNumber}
                   </text>
                 </g>
-              );
-            })}
-
-            {showViewer && segments.length > 0 && (
-              <g transform={`translate(${robotX}, ${robotY}) rotate(${robotAngle})`}>
-                <rect
-                  x={-ROBOT_SIZE / 2}
-                  y={-ROBOT_SIZE / 2}
-                  width={ROBOT_SIZE}
-                  height={ROBOT_SIZE}
-                  fill="rgba(0,0,0,0.6)"
-                  stroke="var(--green)"
-                  strokeWidth={2}
-                  rx={4}
-                />
-                <rect x={ROBOT_SIZE / 2 - 4} y={-ROBOT_SIZE / 2} width={4} height={ROBOT_SIZE} fill="var(--green)" rx={1} />
-                <text x={0} y={ROBOT_SIZE / 4 - 2} fontSize={Math.max(10, ROBOT_SIZE * 0.4)} fontWeight="bold" fill="white" textAnchor="middle">
-                  {teamNumber}
-                </text>
-              </g>
-            )}
-          </svg>
+              )}
+            </svg>
+          </div>
         </div>
+
+        <ul className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-1 text-xs text-muted" aria-label="Legend">
+          <li className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-teleop" />P = pickup</li>
+          <li className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-endgame" />S = scoring</li>
+          <li className="flex items-center gap-1.5"><span className="h-1 w-6 rounded-full bg-gradient-to-r from-teleop to-endgame" />path start → end</li>
+        </ul>
       </div>
-    </Card>
+    </Section>
   );
 }
 
@@ -1196,32 +1139,48 @@ function AutoPathVisualization({
  * TEAM STAT SUMMARY (from the aggregate doc, shown above the match browser)
  * ==========================================================================*/
 
-function TeamStatSummary({ team }: { team: TeamAggregate }) {
-  const stats: { label: string; value: string | number }[] = [
-    { label: 'Rank', value: team.rank || '-' },
-    { label: 'Matches', value: team.matches },
-    { label: 'Auto PPG', value: team.autoPpg.toFixed(1) },
-    { label: 'Teleop PPG', value: team.teleopPpg.toFixed(1) },
-    { label: 'Endgame PPG', value: team.endgamePpg.toFixed(1) },
+function TeamStatSummary({ team, nickname }: { team: TeamAggregate; nickname?: string }) {
+  // Phase colours match the match log, so "auto" looks the same everywhere.
+  const stats: { label: string; value: string | number; tone?: string }[] = [
+    { label: 'Auto PPG', value: team.autoPpg.toFixed(1), tone: 'text-auto' },
+    { label: 'Teleop PPG', value: team.teleopPpg.toFixed(1), tone: 'text-teleop' },
+    { label: 'Endgame PPG', value: team.endgamePpg.toFixed(1), tone: 'text-endgame' },
     { label: 'Fuel / Match', value: team.fuelPerMatch.toFixed(1) },
     { label: 'Fuel Accuracy', value: `${team.fuelAccuracy}%` },
     { label: 'Defense', value: team.defenseRating.toFixed(1) },
     { label: 'Driver Skill', value: team.driverSkill.toFixed(1) },
-    { label: 'Break Rate', value: `${team.breakRate}%` },
+    { label: 'Break Rate', value: `${team.breakRate}%`, tone: team.breakRate >= 25 ? 'text-bad' : undefined },
   ];
-
   return (
-    <Card className="p-5 mb-6">
-      <p className="text-[var(--foreground)] text-lg font-bold mb-4">{team.name}</p>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+    <section className="overflow-hidden rounded-lg border border-line bg-surface shadow-sm">
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-line px-4 py-4 sm:px-5">
+        <div className="flex min-w-0 items-baseline gap-3">
+          <span className="font-display text-5xl font-bold leading-none text-accent-text">{team.team}</span>
+          <div className="min-w-0">
+            <p className="truncate text-lg font-semibold text-ink">{nickname || team.name}</p>
+            {nickname && nickname !== team.name && <p className="truncate text-xs text-muted">{team.name}</p>}
+          </div>
+        </div>
+        <div className="flex gap-6">
+          <div>
+            <p className={labelClass}>Rank</p>
+            <p className="font-display text-3xl font-semibold leading-none text-ink">{team.rank ? `#${team.rank}` : '-'}</p>
+          </div>
+          <div>
+            <p className={labelClass}>Matches</p>
+            <p className="font-display text-3xl font-semibold leading-none text-ink">{team.matches}</p>
+          </div>
+        </div>
+      </div>
+      <dl className="grid grid-cols-2 gap-px bg-line sm:grid-cols-4">
         {stats.map((s) => (
-          <div key={s.label} className="bg-[var(--panel-raised)] rounded-lg p-3">
-            <p className="text-[var(--muted)] text-[11px] uppercase tracking-wide mb-1">{s.label}</p>
-            <p className="text-[var(--foreground)] text-lg font-bold font-mono">{s.value}</p>
+          <div key={s.label} className="bg-surface px-4 py-3 sm:px-5">
+            <dt className={labelClass}>{s.label}</dt>
+            <dd className={`mt-1 font-mono text-xl font-semibold ${s.tone ?? 'text-ink'}`}>{s.value}</dd>
           </div>
         ))}
-      </div>
-    </Card>
+      </dl>
+    </section>
   );
 }
 
@@ -1251,9 +1210,11 @@ export default function TeamsClientView({ initialTeams, teamNames = {} }: TeamsC
           queryDashboardDocuments('matches', selectedTeamNumber),
           queryDashboardDocuments('pit', selectedTeamNumber),
         ]);
+
         if (matchDocs.length === 0) {
           console.warn(`[TeamsClientView] No "${MATCH_DOC_ID_PREFIX}${selectedTeamNumber}_*" docs found.`);
         }
+
         if (isMounted) setDetail({ team: selectedTeamNumber, matches: matchDocs.map(unwrapDoc), pit: pitDocs.map(unwrapDoc) });
       } catch (error) {
         console.error('Error loading team detail:', error);
@@ -1286,39 +1247,38 @@ export default function TeamsClientView({ initialTeams, teamNames = {} }: TeamsC
   const selectedMatch = matches.find((match) => match._id === selectedMatchId) ?? matches[0] ?? null;
 
   return (
-    <div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <TeamSelector teams={liveTeams} selectedTeam={selectedTeam} teamNames={teamNames} onSelectTeam={(team) => { setSelectedTeamId(team.team); setSelectedMatchId(null); }} />
         <MatchSelector matches={matches} selectedMatch={selectedMatch} onSelectMatch={(match) => setSelectedMatchId(match._id ?? null)} />
       </div>
 
       {!selectedTeam ? (
-        <Card className="p-6 text-center">
-          <p className="text-[var(--muted)]">No teams available yet.</p>
-        </Card>
+        <div className="rounded-lg border border-dashed border-line-strong bg-surface">
+          <EmptyState icon={Bot} title="No teams available yet.">
+            Teams appear once the first match of the event is scouted and synced.
+          </EmptyState>
+        </div>
       ) : (
         <>
-          <TeamStatSummary team={selectedTeam} />
+          <TeamStatSummary team={selectedTeam} nickname={teamNames[selectedTeam.team]} />
 
-          {loadingDetail && (
-            <p className="text-[var(--muted)] text-sm mb-4">Loading match data…</p>
-          )}
+          {loadingDetail && <p className="text-sm text-muted" role="status">Loading match data…</p>}
 
           {selectedMatch && (
-            <>
+            <div className="grid gap-5 xl:grid-cols-2">
               <MatchDetails match={selectedMatch} />
               <AutoPathVisualization match={selectedMatch} />
-            </>
+            </div>
           )}
 
           <MatchDataTable matches={matches} />
 
           <ExpertScoutReport pitData={pitData} teamNumber={selectedTeam.team} />
 
-          <div className="mb-8">
-            <p className="text-[var(--foreground)] text-lg font-bold mb-2">Card Reports</p>
+          <Section title="Card Reports" icon={RectangleVertical}>
             <CardReportsTable teamNumber={selectedTeam.team} />
-          </div>
+          </Section>
         </>
       )}
     </div>

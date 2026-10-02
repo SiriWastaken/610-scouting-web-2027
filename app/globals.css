@@ -1,46 +1,225 @@
 @import "tailwindcss";
 
+/*
+ * 610 Scouting design tokens. Every colour in the app comes from here; components
+ * use the Tailwind names mapped in @theme below (bg-surface, text-muted, …).
+ * Colours are OKLCH (L lightness, C chroma, h hue) so families share L and C.
+ *
+ * Colour jobs, one per family:
+ *   accent    the brand green (the 610 logo tile): primary actions, links, focus rings,
+ *             selected states, headline numbers. Change --accent and the app re-themes:
+ *             the logo tile, hover, tint, ring and text-on-accent all derive from it.
+ *   tab-*     navigation only: one pastel per sidebar tab, shown only while it is active.
+ *             Never used in cards, charts, tables or badges.
+ *   auto / teleop / endgame   match phases, the only data hues, used the same way everywhere
+ *   status-success            "it is working": the live dot, success badges. A more saturated,
+ *                             darker green than the accent, and always with an icon or word
+ *   red / blue                alliances only, never decoration or errors
+ *   good / warn / bad         status
+ *
+ * Surfaces, darkest to lightest: sidebar, bg (page), surface (card), surface-2 (fills inside
+ * a card), raised (inputs, popovers). Borders are 1px and low contrast.
+ */
 :root {
-  --background: #0d1110;
-  --foreground: #edf2ee;
-  --panel: #141a18;
-  --panel-raised: #19211e;
-  --line: #2b3732;
-  --muted: #8d9b93;
-  --green: #78c091;
-  --green-strong: #3f9b61;
+  color-scheme: light;
+  --bg: #f4f3ee;
+  --sidebar: #ece9e1;
+  --surface: #ffffff;
+  --surface-2: #f0eee8;
+  --raised: #ffffff;
+  --ink: #17191c;
+  --ink-2: #3b4048;
+  --muted: #646a73;
+  --line: #e2dfd7;
+  --line-strong: #c9c5bb;
+
+  --accent: oklch(0.8 0.14 155);
+  --accent-hover: oklch(0.84 0.14 155);
+  --accent-muted: oklch(0.8 0.14 155 / 0.22);
+  --accent-foreground: oklch(0.2 0.03 155);
+  --accent-text: oklch(0.42 0.11 155);
+  --ring: oklch(0.55 0.14 155);
+
+  /* The logo tile is the accent, so the mark and the app can never drift apart. */
+  --brand: var(--accent);
+  --brand-soft: var(--accent-muted);
+  --brand-ink: var(--accent-foreground);
+
+  /* Tabs share one lightness and chroma per theme and vary only in hue. */
+  --tab-l: 0.44;
+  --tab-c: 0.11;
+  --tab-alpha: 0.14;
+  --tab-teams: oklch(var(--tab-l) var(--tab-c) 155);
+  --tab-teams-bg: oklch(var(--tab-l) var(--tab-c) 155 / var(--tab-alpha));
+  --tab-averages: oklch(var(--tab-l) var(--tab-c) 250);
+  --tab-averages-bg: oklch(var(--tab-l) var(--tab-c) 250 / var(--tab-alpha));
+  --tab-strategy: oklch(var(--tab-l) var(--tab-c) 75);
+  --tab-strategy-bg: oklch(var(--tab-l) var(--tab-c) 75 / var(--tab-alpha));
+  --tab-boxplot: oklch(var(--tab-l) var(--tab-c) 305);
+  --tab-boxplot-bg: oklch(var(--tab-l) var(--tab-c) 305 / var(--tab-alpha));
+  --tab-coverage: oklch(var(--tab-l) var(--tab-c) 200);
+  --tab-coverage-bg: oklch(var(--tab-l) var(--tab-c) 200 / var(--tab-alpha));
+  --tab-admin: oklch(var(--tab-l) var(--tab-c) 20);
+  --tab-admin-bg: oklch(var(--tab-l) var(--tab-c) 20 / var(--tab-alpha));
+
+  --auto: oklch(0.5 0.15 275);
+  --auto-soft: oklch(0.93 0.04 275);
+  --teleop: oklch(0.5 0.1 225);
+  --teleop-soft: oklch(0.93 0.03 225);
+  --endgame: oklch(0.48 0.16 305);
+  --endgame-soft: oklch(0.93 0.04 305);
+
+  --alliance-red: #d42a2a;
+  --alliance-blue: #1d5fb8;
+
+  --status-success: oklch(0.52 0.16 148);
+  --status-success-muted: oklch(0.52 0.16 148 / 0.14);
+  --good: var(--status-success);
+  --good-soft: var(--status-success-muted);
+  --warn: #a15c07;
+  --warn-soft: #fcefd6;
+  --bad: #c0262d;
+  --bad-soft: #fbe4e3;
+
+  --elevation: 0 1px 2px rgb(23 25 28 / 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #121417;
+    --sidebar: #0d0f11;
+    --surface: #171a1e;
+    --surface-2: #1c2025;
+    --raised: #21262c;
+    --ink: #ecebe6;
+    --ink-2: #c4c8ce;
+    --muted: #98a0aa;
+    --line: rgb(255 255 255 / 0.07);
+    --line-strong: rgb(255 255 255 / 0.13);
+
+    --accent: oklch(0.85 0.13 155);
+    --accent-hover: oklch(0.89 0.13 155);
+    --accent-muted: oklch(0.85 0.13 155 / 0.14);
+    --accent-foreground: oklch(0.2 0.03 155);
+    --accent-text: var(--accent);
+    --ring: var(--accent);
+
+    --tab-l: 0.82;
+    --tab-c: 0.09;
+    --tab-alpha: 0.13;
+
+    --auto: oklch(0.62 0.13 275);
+    --auto-soft: oklch(0.27 0.05 275);
+    --teleop: oklch(0.8 0.11 225);
+    --teleop-soft: oklch(0.28 0.04 225);
+    --endgame: oklch(0.7 0.13 305);
+    --endgame-soft: oklch(0.27 0.05 305);
+
+    --alliance-red: #f0564f;
+    --alliance-blue: #5b9bf0;
+
+    --status-success: oklch(0.72 0.19 148);
+    --status-success-muted: oklch(0.72 0.19 148 / 0.15);
+    --warn: #eaaa45;
+    --warn-soft: #362810;
+    --bad: #f26d6d;
+    --bad-soft: #3a1a1c;
+
+    --elevation: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 1px 2px rgb(0 0 0 / 0.3);
+  }
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-sidebar: var(--sidebar);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-raised: var(--raised);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-muted: var(--accent-muted);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-text: var(--accent-text);
+  --color-ring: var(--ring);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-ink: var(--brand-ink);
+  --color-auto: var(--auto);
+  --color-auto-soft: var(--auto-soft);
+  --color-teleop: var(--teleop);
+  --color-teleop-soft: var(--teleop-soft);
+  --color-endgame: var(--endgame);
+  --color-endgame-soft: var(--endgame-soft);
+  --color-alliance-red: var(--alliance-red);
+  --color-alliance-blue: var(--alliance-blue);
+  --color-status-success: var(--status-success);
+  --color-status-success-muted: var(--status-success-muted);
+  --color-good: var(--good);
+  --color-good-soft: var(--good-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  --font-display: var(--font-barlow), var(--font-plex-sans), sans-serif;
+
+  --shadow-sm: var(--elevation);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), "Avenir Next", sans-serif;
+@layer base {
+  :root {
+    accent-color: var(--accent);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+  }
+
+  * {
+    border-color: var(--line);
+  }
+
+  ::selection {
+    background: var(--accent-muted);
+  }
+
+  button,
+  a,
+  input,
+  select {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* One focus ring for every interactive element. */
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
 }
 
-* {
-  border-color: var(--line);
+/* Numbers line up in every table and stat. */
+.font-mono,
+.font-display,
+td,
+th {
+  font-variant-numeric: tabular-nums;
 }
 
-::selection {
-  background: rgba(120, 192, 145, 0.25);
-}
-
-button,
-a,
-input,
-select {
-  -webkit-tap-highlight-color: transparent;
-}
-
-.data-grid {
-  background-image: linear-gradient(rgba(120, 192, 145, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(120, 192, 145, 0.035) 1px, transparent 1px);
-  background-size: 32px 32px;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -2,33 +2,36 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { NavLinks } from "@/components/layout/nav-links";
 import { AccountChip } from "@/components/auth/session";
+import { BrandMark } from "@/components/layout/brand-mark";
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen lg:grid lg:grid-cols-[224px_1fr]">
-      <aside className="border-b border-[var(--line)] bg-[#101614] lg:min-h-screen lg:border-b-0 lg:border-r">
-        <div className="flex h-full flex-col px-4 py-5 lg:sticky lg:top-0 lg:h-screen">
-          <div className="mb-8 flex items-start justify-between">
-            <Link href="/teams" className="block px-3">
-              <div className="font-mono text-[11px] font-bold tracking-[0.24em] text-[var(--green)]">610 / SCOUTING</div>
-              <div className="mt-2 text-xs text-[var(--muted)]">Crescent Coyotes</div>
-            </Link>
-            <div className="lg:hidden"><AccountChip compact /></div>
-          </div>
+    <div className="min-h-screen lg:grid lg:grid-cols-[232px_1fr]">
+      {/* Desktop: sidebar. */}
+      <aside className="hidden border-r border-line bg-sidebar lg:block">
+        <div className="sticky top-0 flex h-screen flex-col px-3 py-5">
+          <Link href="/teams" className="mb-6 block rounded-md px-2">
+            <BrandMark />
+          </Link>
           <NavLinks />
-          <div className="mt-auto hidden space-y-4 lg:block">
-            <div className="border-t border-[var(--line)] px-3 pt-4">
-              <div className="font-mono text-[10px] uppercase tracking-wider text-[var(--muted)]">2026 season</div>
-              <div className="mt-1 text-xs text-[#64736a]">Data workspace / local mock</div>
+          <div className="mt-auto space-y-3 border-t border-line pt-3">
+            <div className="px-3 text-xs text-muted">
+              <span className="font-semibold text-ink-2">2026 season</span> · REBUILT
             </div>
             <AccountChip />
           </div>
         </div>
       </aside>
+      {/* Tablet and phone: header with a tab strip. */}
+      <header className="sticky top-0 z-20 border-b border-line bg-sidebar/95 backdrop-blur-sm lg:hidden">
+        <div className="flex h-14 items-center justify-between px-4">
+          <Link href="/teams" className="rounded-md"><BrandMark /></Link>
+          <AccountChip compact />
+        </div>
+        <NavLinks layout="tabs" />
+      </header>
       <main className="min-w-0">
-        <header className="flex h-14 items-center justify-between border-b border-[var(--line)] px-5 lg:px-8">
-        </header>
-        <div className="data-grid min-h-[calc(100vh-3.5rem)] px-5 py-7 lg:px-8 lg:py-9">{children}</div>
+        <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</div>
       </main>
     </div>
   );

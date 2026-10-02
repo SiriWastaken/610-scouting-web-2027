@@ -45,7 +45,7 @@ test("strategy page estimates the default alliance from the top three teams", as
   const { page, errors } = await openPage(browser, app.base, "/strategy", member);
   await waitForText(page, (text) => /estimated alliance score/i.test(text), "strategy rendered");
   let score = "";
-  await waitFor(async () => (score = await page.locator(".text-3xl.font-mono").innerText()) === expectedDefaultAllianceScore, "alliance score", 15_000, () => score);
+  await waitFor(async () => (score = await page.locator('[data-alliance-score="red"]').innerText()) === expectedDefaultAllianceScore, "alliance score", 15_000, () => score);
   assert.deepEqual(errors, []);
   await page.context().close();
 });

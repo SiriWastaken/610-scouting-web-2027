@@ -1,18 +1,37 @@
-// Shared building blocks for every screen: panels and fields, button and input
+// Shared building blocks for every screen: page headers, panels and fields, button and input
 // styles, status pills and stat tiles, empty and access-denied states, and
 // date/duration formatting. Server-safe (no hooks), so pages and client
 // components both use it.
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { ArrowLeft, CircleCheck, CircleDashed, CircleHelp, CircleMinus, CircleX, Inbox, Lock, TriangleAlert, type LucideIcon } from "lucide-react";
 import type { CheckStatus } from "@/services/health";
+import { tabVars, type TabName } from "@/lib/ui/tabs";
 
 // ── from panel.tsx ────────────────────
 
-/** The bordered section used across the app: a mono eyebrow header and a body. */
-export function Panel({ title, action, children, className = "" }: { title: string; action?: ReactNode; children: ReactNode; className?: string }) {
-  return <section className={`overflow-hidden border border-[var(--line)] bg-[var(--panel)] ${className}`}>
-    <div className="flex min-h-12 items-center justify-between gap-3 border-b border-[var(--line)] px-5 py-3">
-      <h2 className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--muted)]">{title}</h2>
+/** Page title block: the page's nav icon (tinted with its tab's hue when `tab` is given), the title, one line of context, and an optional right-hand slot (live status, actions). */
+export function PageHeader({ icon: Icon, title, description, aside, tab }: { icon?: LucideIcon; title: ReactNode; description?: ReactNode; aside?: ReactNode; tab?: TabName }) {
+  return <header className="mb-6 flex flex-col gap-4 border-b border-line pb-5 sm:flex-row sm:items-end sm:justify-between">
+    <div className="flex min-w-0 items-start gap-3">
+      {Icon && <span style={tab ? tabVars(tab) : undefined} className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${tab ? "bg-(--tab-bg) text-(--tab)" : "bg-surface-2 text-ink-2"}`}><Icon className="h-5 w-5" aria-hidden="true" strokeWidth={2} /></span>}
+      <div className="min-w-0">
+        <h1 className="font-display text-3xl font-semibold leading-none tracking-tight text-ink">{title}</h1>
+        {description && <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">{description}</p>}
+      </div>
+    </div>
+    {aside && <div className="shrink-0">{aside}</div>}
+  </header>;
+}
+
+/** Small uppercase label used above values and as table-group names. */
+export const labelClass = "text-xs font-semibold uppercase tracking-[0.08em] text-muted";
+
+/** The bordered section used across the app: a header row with a title (and optional action) over a body. */
+export function Panel({ title, action, children, className = "", icon: Icon }: { title: string; action?: ReactNode; children: ReactNode; className?: string; icon?: LucideIcon }) {
+  return <section className={`overflow-hidden rounded-lg border border-line bg-surface shadow-sm ${className}`}>
+    <div className="flex min-h-12 items-center justify-between gap-3 border-b border-line px-5 py-3">
+      <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">{Icon && <Icon className="h-4 w-4 text-muted" aria-hidden="true" />}{title}</h2>
       {action}
     </div>
     {children}
@@ -20,16 +39,24 @@ export function Panel({ title, action, children, className = "" }: { title: stri
 }
 
 export function Field({ label, children }: { label: string; children: ReactNode }) {
-  return <div className="flex flex-col gap-1 border-t border-[var(--line)] px-5 py-3 first:border-t-0 sm:flex-row sm:items-center sm:gap-4">
-    <dt className="w-40 shrink-0 font-mono text-[10px] uppercase tracking-wider text-[var(--muted)]">{label}</dt>
-    <dd className="min-w-0 text-sm text-[var(--foreground)]">{children}</dd>
+  return <div className="flex flex-col gap-1 border-t border-line px-5 py-3 first:border-t-0 sm:flex-row sm:items-center sm:gap-4">
+    <dt className={`w-40 shrink-0 ${labelClass}`}>{label}</dt>
+    <dd className="min-w-0 text-sm text-ink">{children}</dd>
   </div>;
 }
 
-export const buttonClass = "inline-flex h-9 items-center justify-center gap-2 rounded-sm border border-[var(--line)] px-3 text-sm text-[var(--foreground)] hover:border-[var(--muted)] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--green)]";
-export const primaryButtonClass = "inline-flex h-9 items-center justify-center gap-2 rounded-sm border border-[var(--green)] bg-[var(--green)] px-3 text-sm font-medium text-[#0d1110] hover:bg-[#8fd0a5] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green)]";
-export const dangerButtonClass = "inline-flex h-9 items-center justify-center gap-2 rounded-sm border border-red-400/50 px-3 text-sm text-red-300 hover:bg-red-400/10 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-400";
-export const inputClass = "h-9 w-full rounded-sm border border-[var(--line)] bg-[#0f1412] px-3 text-sm text-[var(--foreground)] placeholder:text-[#58665e] focus:border-[var(--green)] focus:outline-none";
+const buttonBase = "inline-flex h-10 items-center justify-center gap-2 rounded-md border px-3.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50";
+export const buttonClass = `${buttonBase} border-line-strong bg-raised text-ink hover:bg-surface-2`;
+export const primaryButtonClass = `${buttonBase} border-accent bg-accent text-accent-foreground hover:border-accent-hover hover:bg-accent-hover`;
+export const dangerButtonClass = `${buttonBase} border-bad/40 bg-surface text-bad hover:bg-bad-soft`;
+export const inputClass = "h-10 w-full rounded-md border border-line-strong bg-raised px-3 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none";
+/** Native selects get the input look plus a drawn chevron, so they read as dropdowns on every platform. */
+export const selectClass = `${inputClass} cursor-pointer appearance-none bg-[length:16px] bg-[position:right_0.6rem_center] bg-no-repeat pr-9 bg-[url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")]`;
+
+/** Shared table styling so every data table in the app reads the same. */
+export const tableClass = "w-full border-collapse text-left text-sm";
+export const theadClass = "border-b border-line bg-surface-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted";
+export const rowClass = "border-t border-line first:border-t-0 transition-colors hover:bg-surface-2/70";
 
 export function formatDate(value: string | number | null | undefined, { relative = false }: { relative?: boolean } = {}) {
   if (value === null || value === undefined) return "—";
@@ -55,41 +82,58 @@ export function formatDuration(ms: number | null | undefined) {
 
 // ── from status.tsx ────────────────────
 
-// Status always carries a symbol and a word, never color alone.
-const STYLE: Record<CheckStatus, { symbol: string; label: string; text: string; ring: string }> = {
-  ok: { symbol: "●", label: "Healthy", text: "text-[var(--green)]", ring: "border-[rgba(120,192,145,0.45)]" },
-  degraded: { symbol: "▲", label: "Degraded", text: "text-amber-300", ring: "border-amber-400/50" },
-  down: { symbol: "✕", label: "Down", text: "text-red-400", ring: "border-red-400/60" },
-  idle: { symbol: "○", label: "Idle", text: "text-[var(--muted)]", ring: "border-[var(--line)]" },
-  unknown: { symbol: "?", label: "Unknown", text: "text-amber-300", ring: "border-amber-400/40" },
-  unconfigured: { symbol: "–", label: "Not configured", text: "text-[var(--muted)]", ring: "border-[var(--line)]" },
+// Status always carries an icon and a word, never colour alone.
+const STYLE: Record<CheckStatus, { icon: LucideIcon; label: string; className: string }> = {
+  ok: { icon: CircleCheck, label: "Healthy", className: "bg-good-soft text-good" },
+  degraded: { icon: TriangleAlert, label: "Degraded", className: "bg-warn-soft text-warn" },
+  down: { icon: CircleX, label: "Down", className: "bg-bad-soft text-bad" },
+  idle: { icon: CircleDashed, label: "Idle", className: "bg-surface-2 text-muted" },
+  unknown: { icon: CircleHelp, label: "Unknown", className: "bg-warn-soft text-warn" },
+  unconfigured: { icon: CircleMinus, label: "Not configured", className: "bg-surface-2 text-muted" },
 };
 
 export function StatusPill({ status, label }: { status: CheckStatus; label?: string }) {
   const style = STYLE[status];
-  return <span className={`inline-flex items-center gap-1.5 rounded-sm border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${style.text} ${style.ring}`} data-status={status}>
-    <span aria-hidden="true">{style.symbol}</span>{label ?? style.label}
+  const Icon = style.icon;
+  return <span className={`inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-xs font-semibold ${style.className}`} data-status={status}>
+    <Icon className="h-3.5 w-3.5" aria-hidden="true" strokeWidth={2.25} />{label ?? style.label}
   </span>;
 }
 
 export function statusText(status: CheckStatus) { return STYLE[status].label; }
 
-/** One number with its label, in the app's tile style. `tone` colours the number only for warnings. */
+/** A small neutral note beside a value (icon + words, no hue): "Low sample", "Outlier". Never colour alone. */
+export function NoteChip({ icon: Icon, children, title }: { icon: LucideIcon; children: ReactNode; title?: string }) {
+  return <span title={title} className="inline-flex items-center gap-1 whitespace-nowrap rounded border border-line-strong bg-surface-2 px-1.5 py-0.5 text-xs font-medium leading-4 text-ink-2">
+    <Icon className="h-3 w-3 shrink-0" aria-hidden="true" strokeWidth={2.25} />{children}
+  </span>;
+}
+
+/** One number with its label. `tone` colours the number only when it means something (good / warn / bad). */
 export function StatTile({ label, value, hint, tone = "normal" }: { label: string; value: ReactNode; hint?: ReactNode; tone?: "normal" | "warn" | "bad" | "good" }) {
-  const color = tone === "bad" ? "text-red-400" : tone === "warn" ? "text-amber-300" : tone === "good" ? "text-[var(--green)]" : "text-[var(--foreground)]";
-  return <div className="bg-[var(--panel)] px-4 py-4">
-    <div className={`font-mono text-xl tabular-nums ${color}`}>{value}</div>
-    <div className="mt-1 text-[10px] uppercase tracking-wider text-[var(--muted)]">{label}</div>
-    {hint && <div className="mt-1 text-[11px] text-[#64736a]">{hint}</div>}
+  const color = tone === "bad" ? "text-bad" : tone === "warn" ? "text-warn" : tone === "good" ? "text-good" : "text-ink";
+  return <div className="bg-surface px-4 py-4">
+    <div className={labelClass}>{label}</div>
+    <div className={`mt-1.5 font-mono text-xl font-medium ${color}`} data-stat-value>{value}</div>
+    {hint && <div className="mt-1 text-xs text-muted">{hint}</div>}
   </div>;
 }
 
 export function TileGrid({ children, columns = "sm:grid-cols-4" }: { children: ReactNode; columns?: string }) {
-  return <div className={`grid grid-cols-2 gap-px border border-[var(--line)] bg-[var(--line)] ${columns}`}>{children}</div>;
+  return <div className={`grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line shadow-sm ${columns}`}>{children}</div>;
 }
 
 export function EmptyRow({ children }: { children: ReactNode }) {
-  return <div className="px-5 py-10 text-center text-sm text-[var(--muted)]">{children}</div>;
+  return <div className="px-5 py-10 text-center text-sm text-muted">{children}</div>;
+}
+
+/** A friendly "nothing here yet" block with an icon, a headline, and a hint. */
+export function EmptyState({ icon: Icon = Inbox, title, children }: { icon?: LucideIcon; title: string; children?: ReactNode }) {
+  return <div className="flex flex-col items-center px-6 py-10 text-center">
+    <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-surface-2 text-muted"><Icon className="h-5 w-5" aria-hidden="true" /></span>
+    <p className="text-sm font-semibold text-ink">{title}</p>
+    {children && <p className="mt-1 max-w-sm text-sm leading-6 text-muted">{children}</p>}
+  </div>;
 }
 
 // ── from access-denied.tsx ────────────────────
@@ -97,9 +141,10 @@ export function EmptyRow({ children }: { children: ReactNode }) {
 /** Shown to a signed-in user whose role does not include a page. The server also refuses the page's APIs. */
 export function AccessDenied({ title = "You don't have access to this page", message = "Your role doesn't include this area. If you need it, ask a mentor or your scout lead to change your role." }: { title?: string; message?: string }) {
   return <div className="mx-auto max-w-lg py-16 text-center">
-    <div className="mb-3 font-mono text-[10px] uppercase tracking-[0.2em] text-amber-300">403 / RESTRICTED</div>
-    <h1 className="text-2xl font-medium tracking-tight">{title}</h1>
-    <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{message}</p>
-    <Link href="/teams" className="mt-6 inline-flex rounded-sm border border-[var(--line)] px-4 py-2 text-sm text-[var(--foreground)] hover:border-[var(--green)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--green)]">Back to the dashboard</Link>
+    <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-warn-soft text-warn"><Lock className="h-5 w-5" aria-hidden="true" /></span>
+    <div className="mb-2 font-mono text-xs font-semibold tracking-[0.12em] text-warn">403 / RESTRICTED</div>
+    <h1 className="font-display text-3xl font-semibold tracking-tight">{title}</h1>
+    <p className="mt-3 text-sm leading-6 text-muted">{message}</p>
+    <Link href="/teams" className={`mt-6 ${buttonClass}`}><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back to the dashboard</Link>
   </div>;
 }

@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 import { requirePage } from "@/lib/auth/pages";
-import { AccessDenied } from "@/components/ui/kit";
+import { Target } from "lucide-react";
+import { AccessDenied, PageHeader } from "@/components/ui/kit";
 import { StrategyTools } from "@/components/dashboard/strategy-tools";
 import { fetchTeamAggregatesSnapshot } from "@/services/couchbase";
 import { RealtimeConnection } from "@/components/dashboard/live-status";
@@ -11,8 +12,7 @@ export default async function StrategyPage() {
   if (!(await requirePage("dashboard:read")).allowed) return <AccessDenied />;
   const { teams, lastSeq, names } = await fetchTeamAggregatesSnapshot();
   return <div className="mx-auto max-w-[1080px]">
-    <RealtimeConnection initialCursor={lastSeq} initialNames={names} />
-    <div className="mb-9 max-w-2xl"><div className="mb-3 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--green)]">03 / DECISION SUPPORT</div><h1 className="text-3xl font-medium tracking-tight">Strategy Tools</h1><p className="mt-2 text-sm leading-6 text-[var(--muted)]">A home for scouting analysis used before and between matches. Tools will read from the same aggregate dataset as Teams and Averages.</p></div>
+    <PageHeader icon={Target} tab="strategy" title="Strategy" description="Line teams up against each other before a match. Everything here reads from the same averages as Teams." aside={<RealtimeConnection initialCursor={lastSeq} initialNames={names} />} />
     <StrategyTools teams={teams} />
   </div>;
 }

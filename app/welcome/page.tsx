@@ -3,6 +3,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Avatar } from "@/components/auth/identity";
+import { BrandMark } from "@/components/layout/brand-mark";
 import { SignInButtons, WelcomeSignOut } from "@/components/auth/sign-in";
 import { enabledProviders, readAuthConfig } from "@/lib/auth/config";
 import { getAuthentication } from "@/lib/auth/pages";
@@ -43,30 +44,33 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
   // While developing, say exactly which settings are wrong (names only, never values). Production keeps the generic message.
   const setupProblems = !configured.ok && process.env.NODE_ENV !== "production" ? configured.problems : [];
 
-  return <main className="data-grid flex min-h-screen items-center justify-center px-4 py-10">
-    <section className="w-full max-w-sm border border-[var(--line)] bg-[var(--panel)] shadow-2xl shadow-black/40" aria-labelledby="signin-title">
-      <div className="px-6 pb-7 pt-8">
-        <div className="font-mono text-[11px] font-bold tracking-[0.24em] text-[var(--green)]">610 / SCOUTING</div>
+  return <main className="flex min-h-screen flex-col items-center justify-center px-4 py-10">
+    <section className="w-full max-w-sm overflow-hidden rounded-xl border border-line bg-surface shadow-sm" aria-labelledby="signin-title">
+      <div className="h-1.5 bg-accent" aria-hidden="true" />
+      <div className="px-6 pb-7 pt-7">
+        <BrandMark />
         {pending ? <>
           <div className="mt-6 flex items-center gap-3">
             <Avatar name={pending.user.displayName} picture={pending.user.picture} provider={pending.session.provider} size={44} />
-            <div className="min-w-0"><div className="truncate text-sm">{pending.user.displayName}</div><div className="truncate text-xs text-[var(--muted)]">{pending.user.email}</div></div>
+            <div className="min-w-0"><div className="truncate text-sm">{pending.user.displayName}</div><div className="truncate text-xs text-muted">{pending.user.email}</div></div>
           </div>
-          <h1 id="signin-title" className="mt-6 text-xl font-medium tracking-tight">Waiting for approval</h1>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]" data-account-status={pending.principal.status}>A scout lead or mentor needs to approve your account. Once they have, reload this page.</p>
+          <h1 id="signin-title" className="mt-6 font-display text-3xl font-semibold tracking-tight">Waiting for approval</h1>
+          <p className="mt-2 text-sm leading-6 text-muted" data-account-status={pending.principal.status}>A scout lead or mentor needs to approve your account. Once they have, reload this page.</p>
           <div className="mt-6"><WelcomeSignOut /></div>
         </> : <>
-          <h1 id="signin-title" className="mt-6 text-2xl font-medium tracking-tight">Sign in</h1>
-          {error && <p role="alert" className="mt-5 border-l-2 border-red-400 bg-red-400/10 px-3 py-2 text-sm text-red-200" data-welcome-error={errorCode ?? reason}>{error}</p>}
-          {notice && <p role="status" className="mt-5 border-l-2 border-[var(--green)] bg-[rgba(120,192,145,0.08)] px-3 py-2 text-sm text-[var(--foreground)]">{notice}</p>}
-          {setupProblems.length > 0 && <div className="mt-3 border border-[var(--line)] bg-[#0f1412] px-3 py-2 text-xs leading-5 text-[var(--muted)]" data-setup-problems>
-            <div className="mb-1 font-mono text-[10px] uppercase tracking-wider text-amber-300">Development: fix in .env.local, then restart</div>
+          <h1 id="signin-title" className="mt-7 font-display text-3xl font-semibold tracking-tight">Sign in</h1>
+          <p className="mt-1 text-sm leading-6 text-muted">Use the account your scout lead approved.</p>
+          {error && <p role="alert" className="mt-5 rounded-md border-l-4 border-bad bg-bad-soft px-3 py-2 text-sm text-ink" data-welcome-error={errorCode ?? reason}>{error}</p>}
+          {notice && <p role="status" className="mt-5 rounded-md border-l-4 border-good bg-good-soft px-3 py-2 text-sm text-ink">{notice}</p>}
+          {setupProblems.length > 0 && <div className="mt-3 rounded-md border border-line bg-surface-2 px-3 py-2 text-xs leading-5 text-muted" data-setup-problems>
+            <div className="mb-1 text-xs font-semibold uppercase tracking-[0.08em] text-warn">Development: fix in .env.local, then restart</div>
             <ul className="list-disc pl-4">{setupProblems.map((problem) => <li key={problem}>{problem}</li>)}</ul>
-            <div className="mt-1">Run <code className="text-[var(--foreground)]">npm run auth:check</code> for details.</div>
+            <div className="mt-1">Run <code className="text-ink">npm run auth:check</code> for details.</div>
           </div>}
           <div className="mt-6"><SignInButtons providers={providers} next={next} /></div>
         </>}
       </div>
     </section>
+    <p className="mt-5 text-xs text-muted">FRC Team 610 · Crescent Coyotes</p>
   </main>;
 }

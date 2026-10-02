@@ -51,7 +51,7 @@ export function SelfTestResult({ result }: { result: SelfTest | null }) {
   return <div className="flex flex-wrap items-center gap-3 text-sm" role="status" data-selftest={result.status}>
     <StatusPill status={status} label={result.status === "running" ? "Running" : result.status === "ok" ? "Passed" : "Failed"} />
     <span>{result.detail}</span>
-    {result.openMs !== undefined && <span className="font-mono text-xs text-[var(--muted)]">open {result.openMs} ms{result.readyMs !== undefined ? ` · ready ${result.readyMs} ms` : ""}</span>}
+    {result.openMs !== undefined && <span className="font-mono text-xs text-muted">open {result.openMs} ms{result.readyMs !== undefined ? ` · ready ${result.readyMs} ms` : ""}</span>}
   </div>;
 }
 
@@ -75,7 +75,7 @@ export function RealtimeMonitor() {
           <button type="button" className={buttonClass} onClick={() => void run()} disabled={result?.status === "running"}>Run WebSocket self-test</button>
           <SelfTestResult result={result} />
         </div>
-        <p className="text-xs text-[var(--muted)]">The self-test opens a real connection from this browser through the dashboard&apos;s endpoint (origin and session checks, then the database feed) and closes it once the server reports ready.</p>
+        <p className="text-xs text-muted">The self-test opens a real connection from this browser through the dashboard&apos;s endpoint (origin and session checks, then the database feed) and closes it once the server reports ready.</p>
       </div>
     </Panel>
 
@@ -90,43 +90,43 @@ export function RealtimeMonitor() {
       <StatTile label="Errors" value={r ? r.feedErrors + r.sendErrors : "—"} hint={r ? `feed ${r.feedErrors} · send ${r.sendErrors} · resync ${r.resyncs} · malformed ${r.invalidSubscriptions} · timeouts ${r.subscriptionTimeouts} · sessions ended ${r.sessionEnded}` : undefined} tone={r && r.feedErrors + r.sendErrors > 0 ? "bad" : "good"} />
     </TileGrid>
 
-    <Panel title="Upstream changes feed" action={<span className="font-mono text-[10px] text-[var(--muted)]">Sync Gateway _changes</span>}>
-      <dl className="grid grid-cols-2 gap-px bg-[var(--line)] sm:grid-cols-4">
-        {[["Responses", up?.polls ?? "—"], ["Failed requests", up?.pollErrors ?? "—"], ["Last answer", formatDate(up?.lastPollOkAt, { relative: true })], ["New database sequences seen", up?.uniqueChanges ?? "—"]].map(([label, value]) => <div key={String(label)} className="bg-[var(--panel)] px-4 py-3"><dt className="font-mono text-[10px] uppercase tracking-wider text-[var(--muted)]">{label}</dt><dd className="mt-1 font-mono text-sm">{value}</dd></div>)}
+    <Panel title="Upstream changes feed" action={<span className="font-mono text-xs text-muted">Sync Gateway _changes</span>}>
+      <dl className="grid grid-cols-2 gap-px bg-line sm:grid-cols-4">
+        {[["Responses", up?.polls ?? "—"], ["Failed requests", up?.pollErrors ?? "—"], ["Last answer", formatDate(up?.lastPollOkAt, { relative: true })], ["New database sequences seen", up?.uniqueChanges ?? "—"]].map(([label, value]) => <div key={String(label)} className="bg-surface px-4 py-3"><dt className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{label}</dt><dd className="mt-1 font-mono text-sm">{value}</dd></div>)}
       </dl>
-      {up?.lastPollError && <p className="border-t border-[var(--line)] px-5 py-3 text-xs text-red-300">Last failure {formatDate(up.lastPollErrorAt, { relative: true })}: {up.lastPollError}</p>}
+      {up?.lastPollError && <p className="border-t border-line px-5 py-3 text-xs text-bad">Last failure {formatDate(up.lastPollErrorAt, { relative: true })}: {up.lastPollError}</p>}
     </Panel>
 
     <Panel title={`Open connections (${r?.connections.length ?? 0})`}>
       {!r || r.connections.length === 0 ? <EmptyRow>No browsers are connected to this server right now.</EmptyRow> :
         <div className="overflow-x-auto"><table className="w-full min-w-[640px] text-left text-xs">
-          <thead className="bg-[#101613] font-mono text-[10px] uppercase tracking-wider text-[var(--muted)]"><tr><th className="px-5 py-3 font-normal">#</th><th className="px-4 py-3 font-normal">Account</th><th className="px-4 py-3 font-normal">Connected for</th><th className="px-4 py-3 font-normal">From sequence</th><th className="px-4 py-3 font-normal">Frames / changes</th><th className="px-4 py-3 font-normal">Last frame</th></tr></thead>
-          <tbody>{r.connections.map((connection) => <tr key={connection.id} className="border-t border-[var(--line)]">
-            <td className="px-5 py-2.5 font-mono text-[var(--muted)]">{connection.id}</td>
-            <td className="px-4 py-2.5">{connection.userId ? <Link className="text-[var(--green)] hover:underline" href={`/admin/users/${connection.userId}`}>{connection.role ?? "user"}</Link> : "—"}</td>
+          <thead className="border-b border-line bg-surface-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted"><tr><th className="px-5 py-3">#</th><th className="px-4 py-3">Account</th><th className="px-4 py-3">Connected for</th><th className="px-4 py-3">From sequence</th><th className="px-4 py-3">Frames / changes</th><th className="px-4 py-3">Last frame</th></tr></thead>
+          <tbody>{r.connections.map((connection) => <tr key={connection.id} className="border-t border-line">
+            <td className="px-5 py-2.5 font-mono text-muted">{connection.id}</td>
+            <td className="px-4 py-2.5">{connection.userId ? <Link className="text-accent-text hover:underline" href={`/admin/users/${connection.userId}`}>{connection.role ?? "user"}</Link> : "—"}</td>
             <td className="px-4 py-2.5 font-mono">{formatDuration(connection.ageMs)}</td>
-            <td className="px-4 py-2.5 font-mono text-[var(--muted)]">{connection.since ?? (connection.subscribedAt ? "—" : "not subscribed")}</td>
+            <td className="px-4 py-2.5 font-mono text-muted">{connection.since ?? (connection.subscribedAt ? "—" : "not subscribed")}</td>
             <td className="px-4 py-2.5 font-mono">{connection.framesSent} / {connection.changesSent}</td>
-            <td className="px-4 py-2.5 text-[var(--muted)]">{formatDate(connection.lastFrameAt, { relative: true })}</td>
+            <td className="px-4 py-2.5 text-muted">{formatDate(connection.lastFrameAt, { relative: true })}</td>
           </tr>)}</tbody>
         </table></div>}
     </Panel>
 
-    <Panel title="Recent events" action={<label className="flex items-center gap-2 text-xs text-[var(--muted)]">Type
-      <select value={filter} onChange={(event) => setFilter(event.target.value)} className="h-8 rounded-sm border border-[var(--line)] bg-[#0f1412] px-2 text-xs text-[var(--foreground)]">
+    <Panel title="Recent events" action={<label className="flex items-center gap-2 text-xs text-muted">Type
+      <select value={filter} onChange={(event) => setFilter(event.target.value)} className="h-8 rounded-md border border-line bg-surface px-2 text-xs text-ink">
         <option value="all">All</option>{eventTypes.map((type) => <option key={type} value={type}>{type}</option>)}
       </select></label>}>
       {events.length === 0 ? <EmptyRow>No events recorded yet.</EmptyRow> :
         <div className="max-h-96 overflow-y-auto"><table className="w-full text-left text-xs">
-          <thead className="sticky top-0 bg-[#101613] font-mono text-[10px] uppercase tracking-wider text-[var(--muted)]"><tr><th className="px-5 py-2 font-normal">Time</th><th className="px-4 py-2 font-normal">Event</th><th className="px-4 py-2 font-normal">Conn.</th><th className="px-4 py-2 font-normal">Detail</th></tr></thead>
-          <tbody>{events.slice(0, 100).map((event, index) => <tr key={index} className="border-t border-[var(--line)]">
-            <td className="whitespace-nowrap px-5 py-2 font-mono text-[var(--muted)]">{new Date(event.at).toLocaleTimeString()}</td>
-            <td className={`px-4 py-2 font-mono ${/error|rejected|malformed|timeout|resync/.test(event.type) ? "text-amber-300" : "text-[var(--foreground)]"}`}>{event.type}</td>
-            <td className="px-4 py-2 font-mono text-[var(--muted)]">{event.connection ?? ""}</td>
-            <td className="px-4 py-2 text-[var(--muted)]">{event.detail ?? ""}</td>
+          <thead className="sticky top-0 border-b border-line bg-surface-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted"><tr><th className="px-5 py-2">Time</th><th className="px-4 py-2">Event</th><th className="px-4 py-2">Conn.</th><th className="px-4 py-2">Detail</th></tr></thead>
+          <tbody>{events.slice(0, 100).map((event, index) => <tr key={index} className="border-t border-line">
+            <td className="whitespace-nowrap px-5 py-2 font-mono text-muted">{new Date(event.at).toLocaleTimeString()}</td>
+            <td className={`px-4 py-2 font-mono ${/error|rejected|malformed|timeout|resync/.test(event.type) ? "text-warn" : "text-ink"}`}>{event.type}</td>
+            <td className="px-4 py-2 font-mono text-muted">{event.connection ?? ""}</td>
+            <td className="px-4 py-2 text-muted">{event.detail ?? ""}</td>
           </tr>)}</tbody>
         </table></div>}
     </Panel>
-    <p className="text-xs text-[#64736a]">Counts cover this server process since it started. The server cannot see a browser&apos;s own retry attempts, so reconnects are counted when the same account connects again within a minute of disconnecting.</p>
+    <p className="text-xs text-muted">Counts cover this server process since it started. The server cannot see a browser&apos;s own retry attempts, so reconnects are counted when the same account connects again within a minute of disconnecting.</p>
   </div>;
 }
