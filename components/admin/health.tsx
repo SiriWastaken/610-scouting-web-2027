@@ -8,7 +8,7 @@ import { SelfTestResult, useWebSocketSelfTest } from "@/components/admin/realtim
 import { FreshnessBar, useNow, useOps, type Check, type CheckName, type CheckStatus, type Overview } from "@/components/admin/shell";
 import { buttonClass, EmptyRow, formatDate, formatDuration, Panel, primaryButtonClass, StatTile, StatusPill, statusText, TileGrid } from "@/components/ui/kit";
 
-// ── from overview.tsx ────────────────────
+// ── Overview ──
 
 const CARDS: Array<{ key: Exclude<CheckName, "persistence">; title: string; href?: string }> = [
   { key: "api", title: "API", href: "/admin/api" },
@@ -86,7 +86,7 @@ export function Overview() {
   </div>;
 }
 
-// ── from sync-monitor.tsx ────────────────────
+// ── Sync monitor ──
 
 const KIND_LABEL: Record<string, string> = { scouting: "Match records", aggregate: "Team aggregates", pit: "Pit records", report: "Card reports", other: "Other documents" };
 
@@ -135,7 +135,7 @@ export function SyncMonitor() {
   </div>;
 }
 
-// ── from api-monitor.tsx ────────────────────
+// ── Api monitor ──
 
 export function ApiMonitor() {
   const { data, error, loading, clientLatencyMs } = useOps();
@@ -173,7 +173,7 @@ export function ApiMonitor() {
   </div>;
 }
 
-// ── from diagnostics.tsx ────────────────────
+// ── Diagnostics ──
 
 interface Answer { question: string; status: CheckStatus; answer: string }
 

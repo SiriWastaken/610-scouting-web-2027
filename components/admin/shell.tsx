@@ -16,7 +16,7 @@ import type { snapshotStatus } from "@/services/couchbase";
 
 export type { Check, CheckStatus };
 
-// ── from types.ts ────────────────────
+// ── Shared types ──
 
 export type CheckName = "api" | "syncGateway" | "couchbase" | "accountStore" | "realtime" | "auth" | "persistence";
 
@@ -30,7 +30,7 @@ export interface Overview {
   metrics: MetricsSnapshot;
 }
 
-// ── from ops-provider.tsx ────────────────────
+// ── Ops data provider ──
 
 interface OpsContextValue {
   data: Overview | null;
@@ -99,7 +99,7 @@ export function useOps(): OpsContextValue {
   return value;
 }
 
-// ── from admin-tabs.tsx ────────────────────
+// ── Admin tabs ──
 
 export function AdminTabs() {
   const pathname = usePathname();
@@ -123,7 +123,7 @@ export function FreshnessBar() {
   </div>;
 }
 
-// ── from use-now.ts ────────────────────
+// ── Clock hook ──
 
 /** The current time, updated every `intervalMs`, so render stays pure while "5s ago" labels keep moving. */
 export function useNow(intervalMs = 5_000): number {

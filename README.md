@@ -6,8 +6,10 @@ Everyone signs in with Google (or Apple) first. The server enforces five roles: 
 
 | Guide | What's in it |
 |---|---|
+| [docs/index.md](docs/index.md) | Start here: reading order and every page below |
 | [docs/authentication.md](docs/authentication.md) | Sign-in setup (Google, Apple, the account store), environment variables, roles and permissions, sessions, account management, audit log, security, local development, troubleshooting |
 | [docs/operations.md](docs/operations.md) | The admin panel: health checks, WebSocket and sync monitoring, API metrics, diagnostics, limitations, event-day troubleshooting |
+| [docs/architecture.md](docs/architecture.md), [data-model.md](docs/data-model.md), [realtime.md](docs/realtime.md), [pages.md](docs/pages.md), [design-system.md](docs/design-system.md), [development.md](docs/development.md) | How the app is built and how to change it |
 | [tests/README.md](tests/README.md) | The test bench |
 
 ## Project map
@@ -47,7 +49,7 @@ requires (one folder per URL); everything else is grouped by topic.
 |---|---|
 | `ui/kit.tsx` | Shared building blocks: panels, fields, buttons, status pills, stat tiles, empty and access-denied states, date formatting |
 | `layout/app-shell.tsx`, `layout/nav-links.tsx` | The sidebar and its tab links |
-| `dashboard/teams-view.tsx` | The Teams tab (match log, card reports, team switcher) |
+| `dashboard/teams-view.tsx`, `dashboard/teams/*` | The Teams tab: state and layout, plus one file per panel (match log, auto path, pit report, cards) |
 | `dashboard/team-detail.tsx`, `metric-board.tsx`, `coverage.tsx`, `strategy-tools.tsx` | One team, the Averages/Box Plot board, Coverage, Strategy |
 | `dashboard/live-status.tsx` | The "Live updates on" bar that keeps a page connected |
 | `auth/identity.tsx` | Avatars, Google/Apple icons, role and status badges |
@@ -59,7 +61,6 @@ requires (one folder per URL); everything else is grouped by topic.
 | `admin/realtime.tsx` | Realtime tab and the WebSocket self-test |
 | `admin/users.tsx` | Users list and one user's page |
 | `admin/audit-log.tsx` | Audit log tab |
-| `charts/box-plot-chart.tsx`, `dataTable.tsx` | Not used by any page yet (kept from the earlier app) |
 
 **Server logic** (`lib/`, `services/`, root files)
 
@@ -79,12 +80,14 @@ requires (one folder per URL); everything else is grouped by topic.
 | `lib/realtime/client.ts`, `hooks.ts` | The browser's WebSocket connection and the React hooks that use it |
 | `lib/realtime/server.ts`, `bridge.ts`, `couchbase-feed.ts` | The WebSocket server: upgrade checks, per-connection relay, Sync Gateway long-poll |
 | `lib/data/couchbase-config.ts` | Couchbase connection settings |
-| `lib/data/aggregates.ts`, `match-data.ts` | Turning scouting documents into team rows and match rows |
+| `lib/data/aggregates.ts`, `match-data.ts`, `team-documents.ts` | Turning scouting documents into team rows and match rows, and the Teams page's document helpers |
+| `lib/data/team-stats.ts` | Missing-vs-zero, outliers, and number formatting for comparisons |
 | `lib/ops/metrics.ts` | Counters for the admin panel (connections, requests, errors) |
 | `services/couchbase.ts` | Reading scouting data from Sync Gateway (with a 20 s cache) and Sync Gateway health probes |
 | `services/health.ts` | The admin panel's health checks |
-| `tba/blueAlliance.ts` | The Blue Alliance API client (not used yet) |
+| `tba/blueAlliance.ts` | The Blue Alliance API client (team nicknames on the Teams page, when `TBA_API_KEY` is set) |
 | `types/scouting.ts` | Shared scouting data types |
+| `public/field.png` | The field diagram behind the auto path |
 | `proxy.ts` | Sends signed-out visitors to the sign-in page (pages re-check for real) |
 | `instrumentation.ts` | Records server errors for the admin panel |
 | `next.config.ts` | Build info and security headers |
@@ -125,6 +128,8 @@ COUCHBASE_PASSWORD=your-password
 COUCHBASE_SCOPE=_default
 COUCHBASE_COLLECTION=_default
 ```
+
+Optionally set `TBA_API_KEY` (a Blue Alliance read key) to show official team nicknames.
 
 The repository reads `aggregate_data` documents and uses `pit` documents to enrich team names. No mock data is loaded when Couchbase is not configured; the data pages show an explicit empty state instead.
 

@@ -12,7 +12,7 @@ import { buttonClass, dangerButtonClass, EmptyRow, Field, formatDate, inputClass
 import { ROLE_DESCRIPTIONS, ROLE_LABELS, ROLES, roleRank, type AccountStatus, type Role } from "@/lib/auth/roles";
 import type { AuditEntry } from "@/lib/auth/audit";
 
-// ── from users-table.tsx ────────────────────
+// ── Users table ──
 
 export interface AdminUser {
   id: string; email: string; displayName: string; picture: string | null; role: Role; status: AccountStatus;
@@ -88,7 +88,7 @@ export function UsersTable() {
   </div>;
 }
 
-// ── from user-detail.tsx ────────────────────
+// ── User detail ──
 
 interface Detail {
   user: Omit<AdminUser, "activeSessions" | "scouting" | "manageable" | "assignableRoles"> & { rev: string; providerName: string | null; approvedBy: string | null; approvedAt: string | null; updatedAt: string };
