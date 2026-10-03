@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { AppleIcon, GoogleIcon } from "@/components/auth/identity";
 import type { ProviderId } from "@/lib/auth/config";
 
-// ── from welcome-actions.tsx ────────────────────
+// ── Welcome actions ──
 
 const LABEL: Record<ProviderId, string> = { google: "Continue with Google", apple: "Continue with Apple" };
 

@@ -5,7 +5,7 @@ import type { SVGProps } from "react";
 import { Ban, CircleCheck, Hourglass } from "lucide-react";
 import { ROLE_LABELS, type AccountStatus, type Role } from "@/lib/auth/roles";
 
-// ── from provider-icons.tsx ────────────────────
+// ── Provider icons ──
 
 export function GoogleIcon(props: SVGProps<SVGSVGElement>) {
   return <svg viewBox="0 0 18 18" aria-hidden="true" {...props}>
@@ -30,7 +30,7 @@ export function ProviderIcon({ provider, className }: { provider: string | null 
   return null;
 }
 
-// ── from avatar.tsx ────────────────────
+// ── Avatar ──
 
 export function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -56,7 +56,7 @@ export function Avatar({ name, picture, provider, size = 36 }: { name: string; p
   </span>;
 }
 
-// ── from role-badge.tsx ────────────────────
+// ── Role badge ──
 
 const tone: Record<Role, string> = {
   MEMBER: "border-line text-muted",

@@ -1,8 +1,20 @@
+---
+title: Operations: the admin panel
+description: The admin panel: health, WebSocket and sync monitoring, event-day troubleshooting
+verified_at: 27726e0 (2026-10-02)
+sources:
+  - components/admin/shell.tsx
+  - components/admin/health.tsx
+  - components/admin/realtime.tsx
+  - services/health.ts
+  - lib/ops/metrics.ts
+---
+
 # Operations: the admin panel
 
-**Admin** (the `06` item in the sidebar, shown to scout leads, mentors, and the Owner) is where
+**Admin** (the shield-icon item in the navigation, shown to scout leads, mentors, and the Owner) is where
 you answer "is everything working?" at an event, manage who has access, and see
-what changed. Access rules are in [authentication.md](authentication.md#roles-and-permissions);
+what changed. Access rules are in [[authentication]] (Roles and permissions);
 scout leads see only **Users**.
 
 Every number comes from the server. Health checks call Sync Gateway and the

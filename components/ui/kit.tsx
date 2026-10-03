@@ -8,7 +8,7 @@ import { ArrowLeft, CircleCheck, CircleDashed, CircleHelp, CircleMinus, CircleX,
 import type { CheckStatus } from "@/services/health";
 import { tabVars, type TabName } from "@/lib/ui/tabs";
 
-// ── from panel.tsx ────────────────────
+// ── Page layout and panels ──
 
 /** Page title block: the page's nav icon (tinted with its tab's hue when `tab` is given), the title, one line of context, and an optional right-hand slot (live status, actions). */
 export function PageHeader({ icon: Icon, title, description, aside, tab }: { icon?: LucideIcon; title: ReactNode; description?: ReactNode; aside?: ReactNode; tab?: TabName }) {
@@ -80,7 +80,7 @@ export function formatDuration(ms: number | null | undefined) {
   return `${Math.floor(seconds / 86400)}d ${Math.floor((seconds % 86400) / 3600)}h`;
 }
 
-// ── from status.tsx ────────────────────
+// ── Status pills ──
 
 // Status always carries an icon and a word, never colour alone.
 const STYLE: Record<CheckStatus, { icon: LucideIcon; label: string; className: string }> = {
@@ -136,7 +136,7 @@ export function EmptyState({ icon: Icon = Inbox, title, children }: { icon?: Luc
   </div>;
 }
 
-// ── from access-denied.tsx ────────────────────
+// ── Access denied ──
 
 /** Shown to a signed-in user whose role does not include a page. The server also refuses the page's APIs. */
 export function AccessDenied({ title = "You don't have access to this page", message = "Your role doesn't include this area. If you need it, ask a mentor or your scout lead to change your role." }: { title?: string; message?: string }) {

@@ -1,10 +1,25 @@
+---
+title: Authentication, roles, and accounts
+description: Sign-in setup, roles and permissions, sessions, audit log, security
+verified_at: 27726e0 (2026-10-02)
+sources:
+  - lib/auth/roles.ts
+  - lib/auth/config.ts
+  - lib/auth/sign-in.ts
+  - lib/auth/sessions.ts
+  - lib/auth/accounts.ts
+  - lib/auth/audit.ts
+  - lib/auth/store.ts
+  - .env.example
+---
+
 # Authentication, roles, and accounts
 
 Everyone signs in with **Google** or **Apple** before seeing any scouting data.
 Accounts have one of five roles, and the server decides what each role may do.
 This page covers how it works, how to set it up, and what to do when it breaks.
 Operations (the admin panel's health, realtime, and sync views) are in
-[operations.md](operations.md).
+[[operations]].
 
 ## Contents
 

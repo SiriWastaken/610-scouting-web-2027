@@ -12,7 +12,7 @@ import { realtime } from "@/lib/realtime/client";
 import type { ClientViewer } from "@/lib/auth/requests";
 import { ROLE_LABELS, type Permission } from "@/lib/auth/roles";
 
-// ── from session-provider.tsx ────────────────────
+// ── Session provider ──
 
 export interface SessionState extends ClientViewer {
   permissions: Partial<Record<Permission, boolean>>;
@@ -88,7 +88,7 @@ export function useSession(): SessionContextValue {
   return value;
 }
 
-// ── from account-chip.tsx ────────────────────
+// ── Account chip ──
 
 function SignOutIcon() {
   return <LogOut className="h-4 w-4" aria-hidden="true" />;

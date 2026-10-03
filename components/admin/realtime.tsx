@@ -8,7 +8,7 @@ import { useMemo, useState } from "react";
 import { FreshnessBar, useOps, type CheckStatus, type Overview } from "@/components/admin/shell";
 import { buttonClass, EmptyRow, formatDate, formatDuration, Panel, StatTile, StatusPill, TileGrid } from "@/components/ui/kit";
 
-// ── from realtime-monitor.tsx ────────────────────
+// ── Realtime monitor ──
 
 interface SelfTest { status: "running" | "ok" | "failed"; openMs?: number; readyMs?: number; detail: string }
 
