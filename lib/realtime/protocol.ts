@@ -75,7 +75,12 @@ export function projectDashboardDocument(id: string, doc: Record<string, unknown
     out.type = doc.type; out.match = doc.match ?? data.matchNumber; out.team = doc.team ?? data.teamNumber;
     out.data = pick(data, new Set(["cardType", "ruleViolation", "matchNumber", "teamNumber", "timestamp"]));
   }
-  return JSON.stringify(out).length <= MAX_DOC_BYTES ? out : null;
+  return fitsFrameBudget(out) ? out : null;
+}
+
+/** Deeply nested input overflows the stack in JSON.stringify; a document we cannot measure is dropped. */
+function fitsFrameBudget(doc: Record<string, unknown>): boolean {
+  try { return JSON.stringify(doc).length <= MAX_DOC_BYTES; } catch { return false; }
 }
 
 /** Converts raw Sync Gateway `_changes` rows into frames that are safe to relay. */
