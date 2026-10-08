@@ -17,8 +17,3 @@ export interface TeamAggregate {
   driverSkill: number;
   breakRate: number;
 }
-
-type TeamSortKey = keyof Pick<
-  TeamAggregate,
-  "team" | "rank" | "matches" | "autoPpg" | "teleopPpg" | "endgamePpg" | "fuelPerMatch" | "fuelAccuracy"
->;

@@ -256,4 +256,3 @@ export function publicUser(config: AuthConfig, userId: string, user: UserDoc, vi
     ...(view === "admin" ? { providerName: user.providerName ?? null, adminNote: user.adminNote ?? null, approvedBy: user.approvedBy ?? null, approvedAt: user.approvedAt ?? null, updatedAt: user.updatedAt } : {}),
   };
 }
-type PublicUser = ReturnType<typeof publicUser>;
