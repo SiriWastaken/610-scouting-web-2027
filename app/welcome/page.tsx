@@ -2,9 +2,8 @@
 // to it afterwards; signed-in accounts waiting for approval see their status.
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { Avatar } from "@/components/auth/identity";
 import { BrandMark } from "@/components/layout/brand-mark";
-import { SignInButtons, WelcomeSignOut } from "@/components/auth/sign-in";
+import { SignInButtons } from "@/components/auth/sign-in";
 import { enabledProviders, readAuthConfig } from "@/lib/auth/config";
 import { getAuthentication } from "@/lib/auth/pages";
 import { safeReturnTo } from "@/lib/auth/sign-in";
@@ -18,8 +17,7 @@ const ERRORS: Record<string, string> = {
   token_invalid: "We couldn't verify the sign-in with your provider. Please try again.",
   exchange_failed: "Your provider didn't respond. Check your connection and try again.",
   email_unverified: "That account's email address isn't verified with the provider.",
-  no_email: "Your provider didn't share an email address. With Apple, choose \"Share My Email\" when signing in.",
-  disabled: "This account has been disabled. Ask a mentor if you think this is a mistake.",
+  no_email: "Google didn't share an email address for that account. Choose a different Google account.",
   provider_unavailable: "That sign-in option isn't available right now.",
   store_unavailable: "Accounts are temporarily unavailable. Try again in a minute.",
   unavailable: "Sign-in isn't configured on this server yet (see docs/authentication.md).",
@@ -40,30 +38,26 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
   const unavailable = configured.ok ? ERRORS.store_unavailable : ERRORS.unavailable;
   const error = errorCode ? ERRORS[errorCode] ?? "Sign-in failed. Please try again." : auth.status === "unavailable" || reason === "unavailable" ? unavailable : null;
   const notice = !error && reason === "expired" ? "Your session expired. Sign in again to pick up where you left off." : !error && first(params.signedOut) ? "You're signed out." : null;
-  const pending = auth.status === "signed-in" ? auth.viewer : null;
+  // A denied account has no session (turning access off ends every session), so it shows up as a refused sign-in or a signed-out visit with this reason.
+  const accessOff = errorCode === "disabled" || reason === "disabled";
   // While developing, say exactly which settings are wrong (names only, never values). Production keeps the generic message.
   const setupProblems = !configured.ok && process.env.NODE_ENV !== "production" ? configured.problems : [];
 
   return <main className="flex min-h-screen flex-col items-center justify-center px-4 py-10">
-    <section className="w-full max-w-sm overflow-hidden rounded-xl border border-line bg-surface shadow-sm" aria-labelledby="signin-title">
-      <div className="h-1.5 bg-accent" aria-hidden="true" />
+    <section className="w-full max-w-sm overflow-hidden rounded-xl border border-line bg-surface" aria-labelledby="signin-title">
       <div className="px-6 pb-7 pt-7">
         <BrandMark />
-        {pending ? <>
-          <div className="mt-6 flex items-center gap-3">
-            <Avatar name={pending.user.displayName} picture={pending.user.picture} provider={pending.session.provider} size={44} />
-            <div className="min-w-0"><div className="truncate text-sm">{pending.user.displayName}</div><div className="truncate text-xs text-muted">{pending.user.email}</div></div>
-          </div>
-          <h1 id="signin-title" className="mt-6 font-display text-3xl font-semibold tracking-tight">Waiting for approval</h1>
-          <p className="mt-2 text-sm leading-6 text-muted" data-account-status={pending.principal.status}>A scout lead or mentor needs to approve your account. Once they have, reload this page.</p>
-          <div className="mt-6"><WelcomeSignOut /></div>
+        {accessOff ? <>
+          <h1 id="signin-title" className="mt-7 text-[28px] font-semibold leading-9 tracking-[-0.01em]">Access turned off</h1>
+          <p className="mt-1 text-sm leading-[22px] text-muted" data-account-status="disabled">A mentor or scout lead has turned off access for this account. If you think this is a mistake, contact them.</p>
+          <div className="mt-6"><SignInButtons providers={providers} next={next} /></div>
         </> : <>
-          <h1 id="signin-title" className="mt-7 font-display text-3xl font-semibold tracking-tight">Sign in</h1>
-          <p className="mt-1 text-sm leading-6 text-muted">Use the account your scout lead approved.</p>
+          <h1 id="signin-title" className="mt-7 text-[28px] font-semibold leading-9 tracking-[-0.01em]">Sign in</h1>
+          <p className="mt-1 text-sm leading-[22px] text-muted">Sign in with your Google account to continue.</p>
           {error && <p role="alert" className="mt-5 rounded-md border-l-4 border-bad bg-bad-soft px-3 py-2 text-sm text-ink" data-welcome-error={errorCode ?? reason}>{error}</p>}
           {notice && <p role="status" className="mt-5 rounded-md border-l-4 border-good bg-good-soft px-3 py-2 text-sm text-ink">{notice}</p>}
           {setupProblems.length > 0 && <div className="mt-3 rounded-md border border-line bg-surface-2 px-3 py-2 text-xs leading-5 text-muted" data-setup-problems>
-            <div className="mb-1 text-xs font-semibold uppercase tracking-[0.08em] text-warn">Development: fix in .env.local, then restart</div>
+            <div className="mb-1 text-xs font-semibold text-warn">Development: fix in .env.local, then restart</div>
             <ul className="list-disc pl-4">{setupProblems.map((problem) => <li key={problem}>{problem}</li>)}</ul>
             <div className="mt-1">Run <code className="text-ink">npm run auth:check</code> for details.</div>
           </div>}

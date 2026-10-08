@@ -1,14 +1,14 @@
 "use client";
 
-// Admin → Users: the account list (search, filters, approve) and one account's
+// Admin → Users: the account list (search, filters) and one account's
 // page (names, note, role, status, sessions, history). The server decides what
 // each viewer may change; this only hides what it would refuse.
 import Link from "next/link";
-import { ArrowLeft, Hourglass } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { AccountStatusBadge, Avatar, ProviderIcon, providerLabel, RoleBadge } from "@/components/auth/identity";
 import { useSession } from "@/components/auth/session";
-import { buttonClass, dangerButtonClass, EmptyRow, Field, formatDate, inputClass, Panel, primaryButtonClass } from "@/components/ui/kit";
+import { buttonClass, selectClass, dangerButtonClass, EmptyRow, Field, formatDate, inputClass, Panel, primaryButtonClass } from "@/components/ui/kit";
 import { ROLE_DESCRIPTIONS, ROLE_LABELS, ROLES, roleRank, type AccountStatus, type Role } from "@/lib/auth/roles";
 import type { AuditEntry } from "@/lib/auth/audit";
 
@@ -27,7 +27,6 @@ export function UsersTable() {
   const [query, setQuery] = useState("");
   const [role, setRole] = useState<"all" | Role>("all");
   const [status, setStatus] = useState<"all" | AccountStatus>("all");
-  const [approving, setApproving] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -39,39 +38,28 @@ export function UsersTable() {
   }, []);
   useEffect(() => { const timer = setTimeout(() => void load(), 0); return () => clearTimeout(timer); }, [load]);
 
-  const approve = async (user: AdminUser) => {
-    setApproving(user.id);
-    try {
-      const response = await fetch(`/api/admin/users/${user.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "active" }) });
-      if (!response.ok) setError(((await response.json()) as { message?: string }).message ?? "Couldn't approve");
-      await load();
-    } finally { setApproving(null); }
-  };
-
   const filtered = useMemo(() => (users ?? []).filter((user) => {
     const text = query.trim().toLowerCase();
     return (role === "all" || user.role === role) && (status === "all" || user.status === status)
       && (!text || [user.displayName, user.email, user.scoutName].some((value) => value?.toLowerCase().includes(text)));
   }), [users, query, role, status]);
-  const pending = users?.filter((user) => user.status === "pending").length ?? 0;
 
   return <div className="space-y-5">
-    {pending > 0 && <div className="flex items-center gap-3 rounded-lg border border-warn/40 bg-warn-soft px-5 py-3 text-sm" role="status"><Hourglass className="h-4 w-4 text-warn" aria-hidden="true" />{pending} account{pending === 1 ? "" : "s"} waiting for approval.</div>}
     <Panel title={`Accounts${users ? ` (${users.length})` : ""}`} action={<button type="button" className={buttonClass} onClick={() => void load()}>Refresh</button>}>
       <div className="flex flex-col gap-3 border-b border-line px-5 py-3 sm:flex-row">
         <label className="flex-1"><span className="sr-only">Search accounts</span><input className={inputClass} placeholder="Search name, email, or scout name" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
         <label className="sr-only" htmlFor="role-filter">Role</label>
-        <select id="role-filter" value={role} onChange={(event) => setRole(event.target.value as "all" | Role)} className={`${inputClass} sm:w-40`}><option value="all">All roles</option>{ROLES.map((value) => <option key={value} value={value}>{ROLE_LABELS[value]}</option>)}</select>
+        <select id="role-filter" value={role} onChange={(event) => setRole(event.target.value as "all" | Role)} className={`${selectClass} sm:w-40`}><option value="all">All roles</option>{ROLES.map((value) => <option key={value} value={value}>{ROLE_LABELS[value]}</option>)}</select>
         <label className="sr-only" htmlFor="status-filter">Status</label>
-        <select id="status-filter" value={status} onChange={(event) => setStatus(event.target.value as "all" | AccountStatus)} className={`${inputClass} sm:w-36`}><option value="all">All statuses</option><option value="active">Active</option><option value="pending">Pending</option><option value="disabled">Disabled</option></select>
+        <select id="status-filter" value={status} onChange={(event) => setStatus(event.target.value as "all" | AccountStatus)} className={`${selectClass} sm:w-36`}><option value="all">All statuses</option><option value="active">Active</option><option value="disabled">Denied</option></select>
       </div>
       {error && <p role="alert" className="border-b border-line px-5 py-3 text-sm text-bad">{error}</p>}
       {users === null ? <EmptyRow>Loading accounts…</EmptyRow> : filtered.length === 0 ? <EmptyRow>{users.length === 0 ? "Nobody has signed in yet." : "No accounts match these filters."}</EmptyRow> :
         <div className="overflow-x-auto"><table className="w-full min-w-[820px] text-left text-sm">
-          <thead className="border-b border-line bg-surface-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted"><tr><th className="px-5 py-3">Person</th><th className="px-4 py-3">Role</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Last sign-in</th><th className="px-4 py-3">Scouting</th><th className="px-4 py-3">Sessions</th><th className="px-4 py-3"><span className="sr-only">Actions</span></th></tr></thead>
+          <thead className="border-b border-line text-xs font-medium text-muted"><tr><th className="px-5 py-3">Person</th><th className="px-4 py-3">Role</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Last sign-in</th><th className="px-4 py-3">Scouting</th><th className="px-4 py-3">Sessions</th><th className="px-4 py-3"><span className="sr-only">Actions</span></th></tr></thead>
           <tbody>{filtered.map((user) => <tr key={user.id} className="border-t border-line hover:bg-surface-2" data-user-row={user.email}>
             <td className="px-5 py-3"><Link href={`/admin/users/${user.id}`} className="flex items-center gap-3">
-              <Avatar name={user.displayName} picture={user.picture} provider={user.lastSignInProvider} size={32} />
+              <Avatar name={user.displayName} picture={user.picture} size={32} />
               <span className="min-w-0"><span className="block truncate">{user.displayName}</span><span className="block truncate text-xs text-muted">{user.email}</span></span>
             </Link></td>
             <td className="px-4 py-3"><RoleBadge role={user.role} /></td>
@@ -79,9 +67,7 @@ export function UsersTable() {
             <td className="px-4 py-3 text-xs text-muted">{user.lastSignInAt ? formatDate(user.lastSignInAt, { relative: true }) : "never"}</td>
             <td className="px-4 py-3 text-xs text-muted">{user.scoutName ? <>{user.scoutName}<span className="block font-mono">{user.scouting?.submissions ?? 0} matches</span></> : "—"}</td>
             <td className="px-4 py-3 font-mono text-xs">{user.activeSessions}</td>
-            <td className="px-4 py-3 text-right">{user.status === "pending" && user.manageable
-              ? <button type="button" className={primaryButtonClass} disabled={approving === user.id} onClick={() => void approve(user)}>{approving === user.id ? "Approving…" : "Approve"}</button>
-              : <Link href={`/admin/users/${user.id}`} className="text-xs text-accent-text hover:underline">{user.manageable ? "Manage" : "View"}</Link>}</td>
+            <td className="px-4 py-3 text-right"><Link href={`/admin/users/${user.id}`} className="text-xs font-medium text-accent-text hover:underline">{user.manageable ? "Manage" : "View"}</Link></td>
           </tr>)}</tbody>
         </table></div>}
     </Panel>
@@ -97,6 +83,14 @@ interface Detail {
   history: AuditEntry[] | null;
   manageable: boolean;
   assignableRoles: Role[];
+}
+
+/** How the account came to have access, for the profile panel. */
+function accessNote(user: Detail["user"]) {
+  if (user.status === "disabled") return "Denied";
+  if (user.approvedBy === "automatic") return "Allowed automatically on first sign-in";
+  if (user.approvedBy === "configuration") return "Owner (set in the server configuration)";
+  return user.approvedAt ? `Allowed ${formatDate(user.approvedAt)}` : "Allowed";
 }
 
 interface Pending { patch: Record<string, unknown>; summary: string }
@@ -165,9 +159,9 @@ export function UserDetail({ id }: { id: string }) {
     <Link href="/admin/users" className="inline-flex items-center gap-1 text-sm font-medium text-muted hover:text-accent-text"><ArrowLeft className="h-4 w-4" aria-hidden="true" />All accounts</Link>
     <Panel title="Account">
       <div className="flex flex-col gap-5 px-5 py-5 sm:flex-row sm:items-center">
-        <Avatar name={user.displayName} picture={user.picture} provider={user.lastSignInProvider} size={64} />
+        <Avatar name={user.displayName} picture={user.picture} size={64} />
         <div className="min-w-0 flex-1">
-          <div className="truncate font-display text-2xl font-semibold tracking-tight">{user.displayName}</div>
+          <div className="truncate text-[22px] font-semibold leading-7 tracking-[-0.005em]">{user.displayName}</div>
           <div className="truncate text-sm text-muted">{user.email}</div>
           <div className="mt-2 flex flex-wrap items-center gap-3"><RoleBadge role={user.role} /><AccountStatusBadge status={user.status} /></div>
         </div>
@@ -201,16 +195,17 @@ export function UserDetail({ id }: { id: string }) {
       <Panel title="Access">
         <div className="space-y-4 px-5 py-5">
           <label className="block text-xs text-muted">Role
-            <select className={`${inputClass} mt-1`} value={role} disabled={!manageable} onChange={(event) => setRole(event.target.value as Role)}>
+            <select className={`${selectClass} mt-1`} value={role} disabled={!manageable} onChange={(event) => setRole(event.target.value as Role)}>
               {[...new Set([user.role, ...detail.assignableRoles])].map((value) => <option key={value} value={value} disabled={value !== user.role && !detail.assignableRoles.includes(value)}>{ROLE_LABELS[value]}</option>)}
             </select>
           </label>
           <p className="text-xs text-muted">{ROLE_DESCRIPTIONS[role]}</p>
           {manageable && <button type="button" className={primaryButtonClass} disabled={busy || role === user.role} onClick={() => request({ role }, `Role changed from ${ROLE_LABELS[user.role]} to ${ROLE_LABELS[role]}.`)}>Change role</button>}
-          {manageable && <div className="flex flex-wrap gap-2 border-t border-line pt-4">
-            {user.status === "pending" && <button type="button" className={primaryButtonClass} disabled={busy} onClick={() => setStatus("active", "Account approved.")}>Approve</button>}
-            {user.status === "disabled" && <button type="button" className={buttonClass} disabled={busy} onClick={() => setStatus("active", "Account re-enabled.")}>Enable account</button>}
-            {user.status !== "disabled" && <button type="button" className={dangerButtonClass} disabled={busy} onClick={() => setStatus("disabled", "Account disabled and signed out everywhere.")}>Disable account</button>}
+          {manageable && <div className="space-y-3 border-t border-line pt-4">
+            {user.status === "disabled"
+              ? <button type="button" className={primaryButtonClass} disabled={busy} onClick={() => setStatus("active", "Access allowed again.")}>Allow access</button>
+              : <button type="button" className={dangerButtonClass} disabled={busy} onClick={() => setStatus("disabled", "Access denied and signed out everywhere.")}>Deny access</button>}
+            <p className="text-xs leading-5 text-muted">{user.status === "disabled" ? "This person is signed out and cannot use the app. Allow access to let them back in." : "Denying access signs this person out everywhere. You can allow it again at any time."}</p>
           </div>}
         </div>
       </Panel>
@@ -233,7 +228,7 @@ export function UserDetail({ id }: { id: string }) {
         <Field label="Name from provider">{user.providerName ?? "—"}</Field>
         <Field label="Created">{formatDate(user.createdAt)}</Field>
         <Field label="Last sign-in">{formatDate(user.lastSignInAt)}</Field>
-        <Field label="Approved">{user.approvedAt ? `${formatDate(user.approvedAt)} by ${user.approvedBy === "configuration" ? "configuration" : user.approvedBy}` : "—"}</Field>
+        <Field label="Access">{accessNote(user)}</Field>
         <Field label="Scouting activity">{detail.scouting ? `${detail.scouting.submissions} match records${detail.scouting.lastSubmittedAt ? `, latest ${formatDate(detail.scouting.lastSubmittedAt)}` : ""}` : user.scoutName ? "No match records under this scout name yet" : "Set a scout name to link submissions"}</Field>
       </dl>
     </Panel>

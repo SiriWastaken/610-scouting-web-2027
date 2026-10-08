@@ -1,5 +1,4 @@
 import { connection } from "next/server";
-import { ChartCandlestick } from "lucide-react";
 import { requirePage } from "@/lib/auth/pages";
 import { AccessDenied, PageHeader } from "@/components/ui/kit";
 import { MetricBoard } from "@/components/dashboard/metric-board";
@@ -16,7 +15,7 @@ export default async function BoxPlotPage() {
     <MetricBoard
       teams={teams}
       initialStat="fuelscored"
-      header={<PageHeader icon={ChartCandlestick} tab="boxplot" title="Box Plot" description="Compare the spread of a scouting statistic across the event. Tap a column heading to rank the board." aside={<RealtimeConnection initialCursor={lastSeq} initialNames={names} />} />}
+      header={<PageHeader title="Box Plot" description="Compare the spread of a scouting statistic across the event. Tap a column heading to rank the board." aside={<RealtimeConnection initialCursor={lastSeq} initialNames={names} />} />}
     />
   );
 }

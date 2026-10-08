@@ -1,7 +1,7 @@
 ---
 title: Operations: the admin panel
 description: The admin panel: health, WebSocket and sync monitoring, event-day troubleshooting
-verified_at: 27726e0 (2026-10-02)
+verified_at: 885d225 (2026-10-03)
 sources:
   - components/admin/shell.tsx
   - components/admin/health.tsx
@@ -30,7 +30,7 @@ Nothing is inferred from the admin page having loaded.
 | Realtime | "Are WebSockets working right now?", a browser self-test, connection and error counters, the upstream feed, open connections, recent events | same |
 | Sync | Sync Gateway / Couchbase / account store checks, last successful sync, database sequence, latency, snapshot statistics, documents by type, what cannot be measured | same |
 | API | Availability and round trip from your browser, requests by status class, latency percentiles, busiest routes, service list | same |
-| Users | Accounts, approval, editing, roles, sessions ([details](authentication.md#account-management)) | `/api/admin/users…` |
+| Users | Accounts, deny and allow access, editing, roles, sessions ([details](authentication.md#account-management)) | `/api/admin/users…` |
 | Audit log | Security and admin events, filterable, paged ([details](authentication.md#audit-log)) | `GET /api/admin/audit` |
 | Diagnostics | Event-day checklist and on-demand checks | `POST /api/admin/diagnostics` |
 
@@ -125,7 +125,7 @@ restarts services, clears data, or writes scouting documents.
 | Couchbase **degraded** ("Offline") | Sync card | Sync Gateway lost its bucket; check Couchbase Server |
 | Many reconnects | Realtime → events (`disconnected` codes) | Flaky venue Wi-Fi, a proxy cutting idle connections, or the server restarting |
 | Refused upgrades: origin | Realtime | The dashboard is opened under a different host than it's served from (proxy `Host` header) |
-| Refused upgrades: sign-in | Realtime, Audit log | Expired sessions or unapproved accounts trying to load pages |
+| Refused upgrades: sign-in | Realtime, Audit log | Expired or ended sessions (including denied accounts) trying to load pages |
 | Refused upgrades: capacity | Realtime | More than 200 open tabs on one server; close idle screens |
 | No changes delivered while scouts submit | Diagnostics → events generated? | Tablets aren't syncing to this Sync Gateway database; check their connection |
 | Sign-ins failing | Overview → Authentication, Audit log (`auth.signin` failures) | Provider configuration; see [authentication.md](authentication.md#troubleshooting) |

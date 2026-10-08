@@ -1,7 +1,7 @@
 ---
 title: Authentication, roles, and accounts
 description: Sign-in setup, roles and permissions, sessions, audit log, security
-verified_at: 27726e0 (2026-10-02)
+verified_at: 885d225 (2026-10-03)
 sources:
   - lib/auth/roles.ts
   - lib/auth/config.ts
@@ -15,7 +15,9 @@ sources:
 
 # Authentication, roles, and accounts
 
-Everyone signs in with **Google** or **Apple** before seeing any scouting data.
+Everyone signs in with **Google** before seeing any scouting data. Anyone Google
+lets through the app's OAuth client is approved automatically; managers can
+**deny** access afterwards and allow it again (see [Who gets in](#who-gets-in)).
 Accounts have one of five roles, and the server decides what each role may do.
 This page covers how it works, how to set it up, and what to do when it breaks.
 Operations (the admin panel's health, realtime, and sync views) are in
@@ -23,8 +25,8 @@ Operations (the admin panel's health, realtime, and sync views) are in
 
 ## Contents
 
-1. [How it works](#how-it-works)
-2. [Setup](#setup): environment variables, Google, Apple, the account store, the first admin
+1. [How it works](#how-it-works) and [Who gets in](#who-gets-in)
+2. [Setup](#setup): environment variables, Google, the account store, the first admin
 3. [Roles and permissions](#roles-and-permissions)
 4. [Sessions](#sessions)
 5. [Account management](#account-management)
@@ -47,9 +49,16 @@ browser ── GET /api/auth/callback/google?code&state ─▶ dashboard
                                           └─ creates a session; 303 to the page the user wanted
 ```
 
-Apple is the same except that Apple sends the user back with a **form POST**
-(`response_mode=form_post`, required to receive name and email), the client
-secret is an ES256 JWT the server signs with your Apple key, and PKCE is not used.
+Google is the only sign-in method. (Sign in with Apple was removed; leftover
+`AUTH_APPLE_*` variables are ignored, and accounts that once used it keep their
+history and can sign in with Google through the same verified email.)
+
+### Who gets in
+
+- **Anyone Google lets through the OAuth client.** The Google Cloud OAuth consent screen decides who can finish signing in: *Internal* limits it to your Google Workspace, *External* lets any Google account in (while it is in *Testing*, only the listed test users).
+- **A first sign-in creates an active `MEMBER`.** There is no waiting or approval step, and no email allow-list in the app (`AUTH_AUTO_APPROVE` no longer exists).
+- **Managers deny access afterwards.** A scout lead, mentor, or the Owner can turn an account off from **Admin → Users** ("Deny access"; the status is `disabled`, shown as **Denied**). That ends every session at once. Trying to sign in again shows **Access turned off**. "Allow access" turns it back on.
+- Accounts saved before open access may still say `pending`; they are read as `active` and are corrected on their next sign-in.
 
 No authentication library is added: the flow is ~300 lines in `lib/auth/` on
 `node:crypto`, which keeps every check visible and tested.
@@ -58,7 +67,7 @@ No authentication library is added: the flow is ~300 lines in `lib/auth/` on
 |---|---|
 | Role model and every permission rule | `lib/auth/roles.ts` |
 | Settings from the environment | `lib/auth/config.ts` |
-| Google/Apple sign-in: tokens, ID-token verification, state/nonce/PKCE, return paths | `lib/auth/sign-in.ts` |
+| Google sign-in: tokens, ID-token verification, state/nonce/PKCE, return paths | `lib/auth/sign-in.ts` |
 | Accounts: sign-in resolution, the Owner, manager edits, Owner-only names | `lib/auth/accounts.ts` |
 | Sessions | `lib/auth/sessions.ts` |
 | Audit log | `lib/auth/audit.ts` |
@@ -87,43 +96,26 @@ real values.
 |---|---|---|
 | `AUTH_URL` | yes | The exact public origin of the dashboard, e.g. `https://scout.team610.org`. Redirect URIs and the CSRF origin check are built from it, never from the request's `Host` header. `https:` also turns on `Secure` / `__Host-` cookies. |
 | `AUTH_SECRET` | yes | ≥ 32 random characters (`openssl rand -base64 48`). Encrypts the short-lived OAuth state cookie. Rotating it only cancels sign-ins in progress. |
-| `AUTH_GOOGLE_CLIENT_ID`, `AUTH_GOOGLE_CLIENT_SECRET` | for Google | OAuth client of type *Web application*. |
-| `AUTH_APPLE_CLIENT_ID` | for Apple | The **Services ID** identifier (not the App ID). |
-| `AUTH_APPLE_TEAM_ID`, `AUTH_APPLE_KEY_ID`, `AUTH_APPLE_PRIVATE_KEY` | for Apple | Team ID, Key ID, and the contents of the downloaded `.p8` key. Literal `\n` line breaks are accepted. |
+| `AUTH_GOOGLE_CLIENT_ID`, `AUTH_GOOGLE_CLIENT_SECRET` | yes | OAuth client of type *Web application*. |
 | `AUTH_STORE_DATABASE`, `AUTH_STORE_USERNAME`, `AUTH_STORE_PASSWORD` | yes | A Sync Gateway database **separate from the scouting database** for accounts, sessions, and the audit log (see below). The server refuses to start sign-in if it is the same database. |
 | `AUTH_STORE_URL` | no | Sync Gateway public URL for that database. Defaults to `COUCHBASE_SYNC_GATEWAY_URL`. |
 | `AUTH_STORE_SCOPE`, `AUTH_STORE_COLLECTION` | no | Keep accounts in a named collection instead (e.g. `app` / `auth`), which may be in the same database as the scouting data. Or write the whole keyspace in `AUTH_STORE_DATABASE`, e.g. `scoutingapp2027.app.auth`. Default `_default`. |
-| `AUTH_STORE=local` | development only | Keep accounts, sessions, and the audit log in `.data/auth-store.json` (or `AUTH_STORE_LOCAL_PATH`) instead of Sync Gateway, with real Google/Apple sign-in. For working on the app before the account collection is reachable. Refused when `NODE_ENV=production`; delete the line once `npm run auth:check` passes against Sync Gateway. |
+| `AUTH_STORE=local` | development only | Keep accounts, sessions, and the audit log in `.data/auth-store.json` (or `AUTH_STORE_LOCAL_PATH`) instead of Sync Gateway, with real Google sign-in. For working on the app before the account collection is reachable. Refused when `NODE_ENV=production`; delete the line once `npm run auth:check` passes against Sync Gateway. |
 | `AUTH_OWNER_EMAILS` | recommended | Comma-separated emails that are always the active **Owner** (every permission; the only one who manages mentors and changes names). Can't be changed or disabled from the app. The earlier name `AUTH_ROOT_EMAILS` still works. |
-| `AUTH_AUTO_APPROVE` | no | Comma-separated emails or `@domains` that are active `MEMBER`s on first sign-in. Everyone else is `pending` until a scout lead, mentor, or the Owner approves them. |
 | `AUTH_SESSION_MAX_AGE_HOURS` | no | Absolute session lifetime. Default 720 (30 days). |
 | `AUTH_SESSION_IDLE_HOURS` | no | Sign out after this long without activity. Default 168 (7 days). |
-| `AUTH_OIDC_ENDPOINT_OVERRIDE` | **tests only** | Points Google/Apple endpoints at a local stand-in (`tests/helpers/fake-oidc.ts`). Never set in production. |
+| `AUTH_OIDC_ENDPOINT_OVERRIDE` | **tests only** | Points the Google endpoints at a local stand-in (`tests/helpers/fake-oidc.ts`). Never set in production. |
 
-At least one provider must be configured. If configuration is incomplete, the
+Google must be configured. If configuration is incomplete, the
 welcome screen says sign-in isn't configured, pages stay locked, and the APIs
 answer `503`.
 
 ### Google (Google Cloud Console)
 
-1. Create or pick a project → **APIs & Services → OAuth consent screen**. User type *External* (or *Internal* if everyone is in one Google Workspace). Add the scopes `openid`, `email`, `profile`. Publish the app (while in *Testing*, only listed test users can sign in).
+1. Create or pick a project → **APIs & Services → OAuth consent screen**. User type *External* (or *Internal* if everyone is in one Google Workspace). Add the scopes `openid`, `email`, `profile`. Publish the app (while in *Testing*, only listed test users can sign in). This screen is what decides who can sign in at all; the app approves everyone Google lets through.
 2. **Credentials → Create credentials → OAuth client ID → Web application**.
 3. **Authorized redirect URIs**: `<AUTH_URL>/api/auth/callback/google` for every environment, e.g. `https://scout.team610.org/api/auth/callback/google` and `http://localhost:3000/api/auth/callback/google`. (Authorized JavaScript origins are not needed.)
 4. Copy the client ID and secret into `AUTH_GOOGLE_CLIENT_ID` / `AUTH_GOOGLE_CLIENT_SECRET`.
-
-### Apple (Apple Developer account, paid membership required)
-
-1. **Certificates, IDs & Profiles → Identifiers → App IDs**: create (or reuse) an App ID with **Sign in with Apple** enabled.
-2. **Identifiers → Services IDs**: create one (e.g. `org.team610.scouting.web`). This is `AUTH_APPLE_CLIENT_ID`. Enable **Sign in with Apple → Configure**: primary App ID from step 1, **Domains** = your dashboard's host (e.g. `scout.team610.org`), **Return URLs** = `<AUTH_URL>/api/auth/callback/apple`.
-3. **Keys**: create a key with **Sign in with Apple** enabled, linked to the App ID. Download the `.p8` file (only possible once). Its Key ID is `AUTH_APPLE_KEY_ID`; the file contents are `AUTH_APPLE_PRIVATE_KEY`.
-4. Your Team ID (top right of the developer portal) is `AUTH_APPLE_TEAM_ID`.
-
-Apple does **not** accept `localhost` or plain `http` return URLs, so test Apple
-sign-in on an https deployment (a Vercel preview works once its domain is added
-to the Services ID). Apple sends the user's name only on their **first**
-authorization; if they chose *Hide My Email*, their email is an
-`@privaterelay.appleid.com` address, which counts as a separate account from
-their Google one.
 
 ### The account store (Sync Gateway)
 
@@ -171,7 +163,7 @@ app, and a role stored in the database never makes anyone an Owner.
 |---|---|---|
 | `MEMBER` | Read every scouting page and the live feed. Everyone starts here. | automatic |
 | `SCOUT` | Same as member (the role records who scouts; tablets write to Sync Gateway directly). | scout lead, mentor, Owner |
-| `SCOUT_LEAD` | + the user list; approve pending accounts; manage **members and scouts** (role, status, note, sign-out). | mentor, Owner |
+| `SCOUT_LEAD` | + the user list; deny or allow access; manage **members and scouts** (role, status, note, sign-out). | mentor, Owner |
 | `MENTOR` | + the operations panel, diagnostics, and audit log; manage everyone **below mentor**. | Owner |
 | `OWNER` | Everything, bypassing every check; the only role that manages mentors and **changes names**. | `AUTH_OWNER_EMAILS` only |
 
@@ -187,9 +179,8 @@ Permissions (`lib/auth/roles.ts`, the only place these are decided):
 | `ops:diagnose` | MENTOR | `/admin/diagnostics`, `POST /api/admin/diagnostics` |
 | `audit:read` | MENTOR | `/admin/audit`, `GET /api/admin/audit` |
 
-Every permission also requires the account to be **active** (`pending` and
-`disabled` accounts can only see their status and sign out), except for the
-Owner, who passes every check.
+Every permission also requires the account to be **active** (a denied account has
+no live session at all), except for the Owner, who passes every check.
 
 Rules for changing another account (`canManageUser`, `assignableRoles`):
 
@@ -198,7 +189,7 @@ Rules for changing another account (`canManageUser`, `assignableRoles`):
 - You may grant only roles strictly below yours; `OWNER` is never grantable.
 - **Only the Owner changes names**, anyone's. Mentors and scout leads can still keep a private note on accounts they manage.
 - Roles saved before the Owner/Mentor model (`ADMIN`, `ROOT`) read as `MENTOR`.
-- The admin UI additionally asks you to type the person's email before a change that grants or removes mentor access or disables an account.
+- The admin UI additionally asks you to type the person's email before a change that grants or removes mentor access or denies an account.
 
 ## Sessions
 
@@ -212,16 +203,15 @@ Rules for changing another account (`canManageUser`, `assignableRoles`):
 
 ## Account management
 
-**Admin → Users** lists everyone (pending first) with role, status, last sign-in,
-live session count, and scouting activity (match records carrying their scout
-name). Filter by role or status, or search by name, email, or scout name.
-Pending accounts have an **Approve** button right in the list.
+**Admin → Users** lists everyone with role, status (Active or Denied), last
+sign-in, live session count, and scouting activity (match records carrying their
+scout name). Filter by role or status, or search by name, email, or scout name.
 
 An account's page lets permitted managers:
 
 - edit a private **admin note**, and (Owner only) the **display name** and **scout name** (links their tablet submissions);
 - change the **role** (only to roles they may grant);
-- **approve**, **disable** (ends all their sessions immediately), or **re-enable**;
+- **deny access** (ends all their sessions immediately) or **allow access** again;
 - **sign them out everywhere**;
 - see their sign-in methods, sessions (device, last active, expiry), and recent audit history (mentors and the Owner).
 
@@ -258,13 +248,13 @@ alter documents; restrict that access if the log must be tamper-evident.
 ## Security notes
 
 - **Server-side authority**: identity, role, status, and permissions are loaded from the account store for every request. Client-supplied headers (`X-User-Role`…), extra cookies, request bodies, and the browser's `permissions` map are ignored (tested in `tests/security/authorization-matrix.test.ts`).
-- **OAuth**: state (CSRF and login-CSRF), nonce (token replay), PKCE (Google), single-use codes, ID token signature against the provider's published keys (RS256/ES256 only; `none`/HMAC rejected), issuer, audience (`azp` for multi-audience), expiry, not-before. Unverified emails are refused. New provider identities link to an existing account only through a provider-verified email.
+- **OAuth**: state (CSRF and login-CSRF), nonce (token replay), PKCE (Google), single-use codes, ID token signature against the provider's published keys (RS256 only; `none`, HMAC and ES256 are rejected), issuer, audience (`azp` for multi-audience), expiry, not-before. Unverified emails are refused. New provider identities link to an existing account only through a provider-verified email.
 - **Redirects**: after sign-in only same-site paths are allowed (`//host`, backslashes, API routes, and absolute URLs fall back to `/`). Redirect URIs come from `AUTH_URL`.
 - **CSRF**: `POST`/`PATCH`/`DELETE` require an `Origin` equal to `AUTH_URL`; session cookies are `SameSite=Lax`; bodies must be `application/json`.
 - **XSS**: React escapes all user-controlled text (names, notes, audit entries). Profile photos are accepted only from `https://*.googleusercontent.com`.
 - **Clickjacking and sniffing**: `Content-Security-Policy: frame-ancestors 'none'`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, strict referrer policy (`next.config.ts`).
 - **WebSocket**: same-origin **and** a valid session with `dashboard:read` before the upgrade; re-checked every minute; revoked sessions are closed with `4401`.
-- **Secrets**: client secrets, the Apple key, `AUTH_SECRET`, and store credentials exist only on the server. The E2E suite scans every page and JavaScript bundle for them.
+- **Secrets**: the Google client secret, `AUTH_SECRET`, and store credentials exist only on the server. The E2E suite scans every page and JavaScript bundle for them.
 - **Data minimisation**: the store keeps email, names, Google photo URL, provider list, timestamps, and hashed session ids. No provider access tokens are kept.
 
 ## Local development
@@ -273,7 +263,7 @@ Real Google sign-in works on `http://localhost:3000` once that redirect URI is
 added to the OAuth client. To work without any real credentials:
 
 ```bash
-# Terminal 1: fake scouting data (see README) and a fake account store + fake Google/Apple
+# Terminal 1: fake scouting data (see README) and a fake account store + fake Google
 FAKE_SG_PORT=4985 node --experimental-strip-types tests/helpers/run-fake-sync-gateway.ts
 node --experimental-strip-types tests/helpers/run-fake-auth.ts > .env.auth.local   # prints AUTH_* lines
 # Terminal 2: copy those AUTH_* lines into .env.local (with the COUCHBASE_* ones), then
@@ -281,8 +271,9 @@ npm run dev
 ```
 
 With the fake provider, **Continue with Google** signs in as the configured Owner
-(`owner@team610.test`) and **Continue with Apple** as a new, pending scout. Its
-accounts live in memory and disappear when the process stops.
+(`owner@team610.test`); edit the identity in `tests/helpers/run-fake-auth.ts` to
+try signing in as someone new. Its accounts live in memory and disappear when
+the process stops.
 
 ## Troubleshooting
 
@@ -291,22 +282,20 @@ Start with **`npm run auth:check`**. It reads the same environment as `npm run d
 - the configuration and the redirect URIs to register;
 - whether Sync Gateway is reachable, and whether the account database exists and accepts your credentials;
 - a create/update/read/list/delete round trip of one throwaway `diag_*` document, the same operations sign-in uses;
-- that the Apple key parses, and that each provider's signing keys can be reached.
+- that Google's signing keys can be reached.
 
 It prints what to fix, never secrets. When sign-in fails after the provider approved it, the server log (the `npm run dev` terminal, or Vercel's function logs) contains a line starting `Sign in with google failed after the provider approved it:` with the cause.
 
 | Symptom | Cause and fix |
 |---|---|
 | "Sign-in isn't configured", with "`AUTH_…` is still the placeholder from .env.example" (listed on the welcome screen in development, and by `npm run auth:check`) | A value was copied from `.env.example` unchanged. Replace it. `AUTH_STORE_URL` is optional: delete or comment out that line to use `COUCHBASE_SYNC_GATEWAY_URL`. |
-| Google/Apple approves you, then the welcome screen says **"Accounts are temporarily unavailable"** and you never reach Teams | The server could not read or write the account store right after sign-in. The server log line and `npm run auth:check` say which: the database in `AUTH_STORE_DATABASE` doesn't exist (create it, [above](#the-account-store-sync-gateway)); the user/password are wrong (401); the user may not write there (403: give it `admin_channels: ["*"]` and make sure the database's sync function doesn't reject the documents); or Sync Gateway is unreachable from the server. |
+| Google approves you, then the welcome screen says **"Accounts are temporarily unavailable"** and you never reach Teams | The server could not read or write the account store right after sign-in. The server log line and `npm run auth:check` say which: the database in `AUTH_STORE_DATABASE` doesn't exist (create it, [above](#the-account-store-sync-gateway)); the user/password are wrong (401); the user may not write there (403: give it `admin_channels: ["*"]` and make sure the database's sync function doesn't reject the documents); or Sync Gateway is unreachable from the server. |
 | Welcome screen: "Sign-in isn't configured" | A required variable is missing. `GET /api/auth/session` returns 503; the admin overview's Authentication card lists what's missing. |
 | Google: `redirect_uri_mismatch` | Add exactly `<AUTH_URL>/api/auth/callback/google` to the OAuth client. `AUTH_URL` must match the address in the browser (including `www`, port, and `https`). |
 | Google: "Access blocked: app not verified / not in test users" | Publish the consent screen or add the user as a test user. |
-| Apple: `invalid_client` | Services ID, Team ID, Key ID, or key contents don't match, or the key wasn't enabled for Sign in with Apple. |
-| Apple: return URL error at Apple | Return URL and domain must be registered on the **Services ID**; Apple rejects `http` and `localhost`. |
 | "That sign-in link expired or was opened in a different browser" (`state_mismatch`) | Cookies blocked, sign-in started in another browser/tab profile, or `AUTH_URL` differs from the address in use (the state cookie is set for one origin). |
 | "Accounts are temporarily unavailable" | The account store isn't reachable: check `AUTH_STORE_*` and Sync Gateway. |
-| Signed in but "Waiting for approval" | Expected for emails not in `AUTH_AUTO_APPROVE`: a scout lead, mentor, or the Owner approves them in Admin → Users. |
+| "Access turned off" | A scout lead, mentor, or the Owner denied that account in Admin → Users. They can allow it again from the same page. |
 | Can't open Admin, or you're not the Owner | Your sign-in email must be in `AUTH_OWNER_EMAILS` exactly (case doesn't matter). Fix it and restart the server. |
 | A mentor or scout lead can't change someone's name | Expected: only the Owner changes names. |
 | Role change not visible yet | Sessions are cached for up to 10 s per server process; reload after that. |

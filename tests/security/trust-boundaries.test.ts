@@ -61,13 +61,13 @@ test("vercel realtime route: refuses cross-origin and unconfigured upgrades befo
   } finally { process.env.COUCHBASE_PASSWORD = saved; }
 });
 
-test("vercel realtime route: refuses signed-out, inactive, and forged sessions, and says 503 when accounts are unreachable", async () => {
+test("vercel realtime route: refuses signed-out, denied, and forged sessions, and says 503 when accounts are unreachable", async () => {
   const upgrade = (cookie?: string) => vercelRealtimeRoute.GET(new Request("https://scout.example/api/realtime", { headers: { origin: "https://scout.example", ...(cookie ? { cookie } : {}) } }));
   assert.equal((await upgrade()).status, 401);
   assert.equal((await upgrade("610_session=forged.token")).status, 401);
   assert.equal((await upgrade("role=ADMIN; admin=true")).status, 401);
-  const pending = await realtime.auth.user("SCOUT", { status: "pending" });
-  assert.equal((await upgrade(pending.cookie)).status, 403);
+  const denied = await realtime.auth.user("SCOUT", { status: "disabled" });
+  assert.equal((await upgrade(denied.cookie)).status, 401, "a denied account has no live session");
   const member = await realtime.auth.user("MEMBER");
   realtime.auth.store.unavailable = true;
   try { assert.equal((await upgrade(member.cookie)).status, 503); } finally { realtime.auth.store.unavailable = false; }

@@ -1,6 +1,5 @@
 import { connection } from 'next/server';
 import { requirePage } from '@/lib/auth/pages';
-import { Bot } from 'lucide-react';
 import { AccessDenied, PageHeader } from '@/components/ui/kit';
 import { fetchTeamAggregatesSnapshot } from '@/services/couchbase';
 import { fetchTeamNickname } from '@/tba/blueAlliance';
@@ -26,8 +25,6 @@ export default async function TeamsPage() {
   return (
     <>
       <PageHeader
-        icon={Bot}
-        tab="teams"
         title="Teams"
         description="Pick a team to see its averages, every scouted match, the pit interview, and any cards."
         aside={<RealtimeConnection initialCursor={lastSeq} initialNames={names} />}

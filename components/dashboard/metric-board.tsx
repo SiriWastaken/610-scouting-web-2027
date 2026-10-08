@@ -90,7 +90,7 @@ export function MetricBoard({
     <div>
       {header}
 
-      <section className="overflow-hidden rounded-lg border border-line bg-surface shadow-sm">
+      <section className="overflow-hidden rounded-lg border border-line bg-surface">
         <div className="flex flex-col gap-3 border-b border-line px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm text-muted">
             <span className="font-semibold text-ink">{sorted.length} teams indexed</span>
@@ -124,7 +124,7 @@ export function MetricBoard({
             <table className="w-full min-w-[760px] border-collapse text-left text-sm">
               <thead className={theadClass}>
                 <tr>
-                  <th className="sticky left-0 z-10 bg-surface-2 px-4 py-2.5 text-left">Team</th>
+                  <th className="sticky left-0 z-10 bg-surface px-4 py-2.5 text-left">Team</th>
                   {rawStatLabels.map((stat) => {
                     const active = stat.key === sortKey;
                     return (
@@ -139,7 +139,7 @@ export function MetricBoard({
                               setAscending(true);
                             }
                           }}
-                          className="inline-flex max-w-[9rem] items-end justify-end gap-1 text-right uppercase hover:text-ink"
+                          className="inline-flex max-w-[9rem] items-end justify-end gap-1 text-right hover:text-ink"
                         >
                           <span>{stat.label} {stat.suffix ?? ""}</span>
                           {active && (ascending ? <ArrowUp className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> : <ArrowDown className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />)}

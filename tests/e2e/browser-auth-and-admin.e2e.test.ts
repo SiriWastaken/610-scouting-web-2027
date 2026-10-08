@@ -1,6 +1,6 @@
 // The signed-out → signed-in → admin journey in real Chromium against the
-// production server, with the fake Google/Apple provider standing in for the
-// real ones (the browser follows real redirects and Apple's form POST).
+// production server, with the fake Google provider standing in for the real
+// one (the browser follows real redirects).
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import type { Browser, Page } from "playwright";
@@ -26,7 +26,7 @@ before(async () => {
 });
 after(async () => { await browser?.close(); await app?.stop(); await auth?.stop(); await target?.stop(); });
 
-async function signInThroughUi(page: Page, provider: "google" | "apple") {
+async function signInThroughUi(page: Page, provider: "google") {
   await page.locator(`[data-signin="${provider}"]`).click();
   await page.waitForURL((url) => !url.pathname.startsWith("/api/"), { timeout: 20_000 });
 }
@@ -36,7 +36,8 @@ test("journey: welcome screen → Google sign-in → the page asked for → acco
   auth.oidc.setIdentity("google", { sub: `e2e-${n}`, email, emailVerified: true, name: "Mina Member" });
   const { page, errors } = await openPage(browser, app.base, "/teams/610");
   await page.waitForURL(/\/welcome\?next=%2Fteams%2F610/);
-  await waitForText(page, (text) => /continue with google/i.test(text) && /continue with apple/i.test(text) && /610 \/ SCOUTING/.test(text), "sign-in page");
+  await waitForText(page, (text) => /continue with google/i.test(text) && /610 Scouting/.test(text), "sign-in page");
+  assert.equal(/apple/i.test(await page.locator("body").innerText()), false, "Google is the only sign-in option");
   // Just the sign-in card: no description of the app.
   assert.equal(/scouting data, live|strategy|averages/i.test(await page.locator("body").innerText()), false);
   await signInThroughUi(page, "google");
@@ -58,12 +59,12 @@ test("journey: welcome screen → Google sign-in → the page asked for → acco
   await page.context().close();
 });
 
-test("journey: the Owner signs in with Apple, sees healthy systems, a passing WebSocket self-test, renames and promotes a user", async () => {
-  auth.oidc.setIdentity("apple", { sub: `owner-${++n}`, email: CONFIGURED_OWNER, emailVerified: true, name: "Olivia Owner" });
+test("journey: the Owner signs in with Google, sees healthy systems, a passing WebSocket self-test, renames and promotes a user", async () => {
+  auth.oidc.setIdentity("google", { sub: `owner-${++n}`, email: CONFIGURED_OWNER, emailVerified: true, name: "Olivia Owner" });
   const scout = await auth.user("SCOUT", { name: "Sam Scout" });
   const { page, errors } = await openPage(browser, app.base, "/admin");
   await page.waitForURL(/\/welcome/);
-  await signInThroughUi(page, "apple");
+  await signInThroughUi(page, "google");
   await page.waitForURL(/\/admin$/);
   assert.equal(await page.locator("[data-account-role]").getAttribute("data-account-role"), "OWNER");
   await waitFor(async () => (await page.locator('[data-check="Sync Gateway"] [data-status]').getAttribute("data-status")) === "ok", "Sync Gateway healthy", 20_000);
@@ -118,20 +119,50 @@ test("admin health reflects a real outage: stopping answers from Sync Gateway tu
   await page.context().close();
 });
 
-test("pending accounts see the approval screen, and a cancelled sign-in explains itself", async () => {
-  auth.oidc.setIdentity("google", { sub: `pending-${++n}`, email: `new-${n}@gmail.example`, emailVerified: true, name: "Newcomer" });
+test("anyone who signs in with Google gets in; a denied account sees Access turned off; a cancelled sign-in explains itself", async () => {
+  auth.oidc.setIdentity("google", { sub: `open-${++n}`, email: `new-${n}@gmail.example`, emailVerified: true, name: "Newcomer" });
   const { page } = await openPage(browser, app.base, "/welcome");
   await signInThroughUi(page, "google");
-  await waitForText(page, (text) => /waiting for approval/i.test(text) && text.includes("Newcomer"), "pending screen");
-  await page.goto(`${app.base}/teams`);
-  await page.waitForURL(/\/welcome$/);
+  await page.waitForURL(/\/teams/);
+  await waitForText(page, (text) => text.includes("Newcomer"), "signed in straight away");
   await page.context().close();
+
+  const denied = await auth.user("MEMBER", { name: "Dee Denied", status: "disabled" });
+  auth.oidc.setIdentity("google", { sub: `sub-${denied.email}`, email: denied.email, emailVerified: true, name: "Dee Denied" });
+  const blocked = await openPage(browser, app.base, "/welcome");
+  await signInThroughUi(blocked.page, "google");
+  await waitForText(blocked.page, (text) => /access turned off/i.test(text), "access turned off");
+  await blocked.page.goto(`${app.base}/teams`);
+  await blocked.page.waitForURL(/\/welcome/);
+  await blocked.page.context().close();
 
   auth.oidc.denyNext = true;
   const cancelled = await openPage(browser, app.base, "/welcome");
   await signInThroughUi(cancelled.page, "google");
   await waitForText(cancelled.page, (text) => /sign-in was cancelled/i.test(text), "cancel message");
   await cancelled.page.context().close();
+});
+
+test("Admin → Users: Deny access signs the person out and shows them Access turned off; Allow access lets them back in", async () => {
+  const member = await auth.user("MEMBER", { name: "Moe Member" });
+  const mentor = await auth.user("MENTOR");
+  const admin = await openPage(browser, app.base, `/admin/users/${member.userId}`, mentor);
+  await waitForText(admin.page, (text) => text.includes("Moe Member"), "user page");
+  await admin.page.getByRole("button", { name: "Deny access" }).click();
+  await admin.page.getByLabel("Type the account's email to confirm").fill(member.email);
+  await admin.page.getByRole("button", { name: "Confirm" }).click();
+  await waitFor(() => auth.store.docs.get(`user_${member.userId}`)!.body!.status === "disabled", "denied", 10_000);
+  await waitForText(admin.page, (text) => /signed out and cannot use the app/i.test(text), "denied note");
+  // Denying ended their session, so their browser is back at sign-in; trying again explains why they can't get in.
+  const locked = await openPage(browser, app.base, "/teams", member);
+  await locked.page.waitForURL(/\/welcome/);
+  auth.oidc.setIdentity("google", { sub: `sub-${member.email}`, email: member.email, emailVerified: true, name: "Moe Member" });
+  await signInThroughUi(locked.page, "google");
+  await waitForText(locked.page, (text) => /access turned off/i.test(text), "access turned off screen");
+  await locked.page.context().close();
+  await admin.page.getByRole("button", { name: "Allow access" }).click();
+  await waitFor(() => auth.store.docs.get(`user_${member.userId}`)!.body!.status === "active", "allowed again", 10_000);
+  await admin.page.context().close();
 });
 
 test("names are read-only for everyone but the Owner, on the account page and in Admin → Users", async () => {
@@ -186,7 +217,7 @@ test("every role gets exactly the pages its permissions allow (server-rendered, 
     for (const [index, path] of pages.entries()) {
       const response = await fetch(`${app.base}${path}`, { headers: { cookie: user.cookie } });
       const html = await response.text();
-      const denied = /403 \/ RESTRICTED/.test(html);
+      const denied = /Restricted · 403/.test(html);
       assert.equal(!denied, allowed[index], `${role} ${path}`);
     }
   }

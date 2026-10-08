@@ -14,7 +14,7 @@ export async function freePort(): Promise<number> {
   return port;
 }
 
-/** The dashboard server with sign-in configured against a fake account store and fake Google/Apple. */
+/** The dashboard server with sign-in configured against a fake account store and fake Google. */
 export async function startAppWithAuth(env: Record<string, string>): Promise<{ app: AppServer; auth: TestAuth }> {
   const port = await freePort();
   // AUTH_URL must be the exact origin the browser uses: redirect URIs and CSRF checks come from it.

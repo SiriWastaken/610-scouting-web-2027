@@ -1,7 +1,7 @@
 ---
 title: Development guide
 description: Setup, commands, conventions, and recipes for common changes
-verified_at: 27726e0 (2026-10-02)
+verified_at: 885d225 (2026-10-03)
 sources:
   - package.json
   - scripts/test-bench/run.mjs
@@ -45,7 +45,7 @@ hand-computed expectation to get green. New behaviour needs a test: copy `tests/
 ## Recipes
 
 **Add a dashboard page:** create `app/(app)/<name>/page.tsx` (copy `box-plot/page.tsx`: `connection()`, `requirePage`, snapshot,
-`PageHeader`); add a tab to `lib/ui/tabs.ts`, the CSS hue, and `navigation`; add a test; update [[pages]].
+`PageHeader`); add an entry to `navigation` (`components/layout/nav-links.tsx`); add a test; update [[pages]].
 
 **Add an API route:** `app/api/<name>/route.ts`, start with `guard(request, { permission, action })`; validate every input;
 add a case to `tests/security/authorization-matrix.test.ts`.

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Play, RotateCcw, Route, Square } from 'lucide-react';
+import { Play, RotateCcw, Square } from 'lucide-react';
 import type { MatchData } from '@/lib/data/team-documents';
 import { Section } from './primitives';
 
@@ -113,7 +113,7 @@ export function AutoPathVisualization({
   return (
     <Section
       title="Auto Path"
-      icon={Route}
+     
       aside={
         <button
           type="button"

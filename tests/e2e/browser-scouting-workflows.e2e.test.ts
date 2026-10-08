@@ -34,9 +34,9 @@ test("coverage page shows the hand-computed event health", async () => {
   // Pages can start from the server's 20 s snapshot cache and converge live, so wait for the expected state.
   const expectedTiles = [String(expectedCoverage.teams), String(expectedCoverage.observedMatches), `${expectedCoverage.completePercent}%`];
   let tiles: string[] = [];
-  await waitFor(async () => JSON.stringify(tiles = await page.locator(".font-mono.text-xl").allInnerTexts()) === JSON.stringify(expectedTiles), "coverage tiles", 15_000, () => JSON.stringify(tiles));
-  for (const team of expectedCoverage.ready) assert.match(await page.locator("tr", { hasText: String(team) }).first().innerText(), /READY/);
-  for (const team of expectedCoverage.check) assert.match(await page.locator("tr", { hasText: String(team) }).first().innerText(), /CHECK/);
+  await waitFor(async () => JSON.stringify(tiles = await page.locator("[data-stat-value]").allInnerTexts()) === JSON.stringify(expectedTiles), "coverage tiles", 15_000, () => JSON.stringify(tiles));
+  for (const team of expectedCoverage.ready) assert.match(await page.locator("tr", { hasText: String(team) }).first().innerText(), /Ready/);
+  for (const team of expectedCoverage.check) assert.match(await page.locator("tr", { hasText: String(team) }).first().innerText(), /Check/);
   assert.deepEqual(errors, []);
   await page.context().close();
 });

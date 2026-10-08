@@ -1,5 +1,5 @@
 // Authentication for tests: a separate fake Sync Gateway as the account store,
-// the fake Google/Apple provider, and helpers that sign people in through the
+// the fake Google provider, and helpers that sign people in through the
 // real code paths: either the full OAuth flow over HTTP (like a browser), or
 // the account and session functions directly when a test only needs "a
 // signed-in SCOUT". No test bypasses the server's session checks.
@@ -48,7 +48,7 @@ export async function startTestAuth(options: { baseUrl?: string } = {}): Promise
       AUTH_URL: baseUrl, AUTH_SECRET: TEST_AUTH_SECRET,
       AUTH_STORE_URL: store.origin, AUTH_STORE_DATABASE: AUTH_DATABASE, AUTH_STORE_SCOPE: AUTH_SCOPE, AUTH_STORE_COLLECTION: AUTH_COLLECTION,
       AUTH_STORE_USERNAME: FAKE_USERNAME, AUTH_STORE_PASSWORD: FAKE_PASSWORD,
-      AUTH_OWNER_EMAILS: CONFIGURED_OWNER, AUTH_AUTO_APPROVE: "@team610.test",
+      AUTH_OWNER_EMAILS: CONFIGURED_OWNER,
       // Every other setting is pinned to its default too: the app server (npm start) loads the
       // developer's .env.local, which must never leak into a test (e.g. AUTH_STORE=local).
       AUTH_STORE: "", AUTH_STORE_LOCAL_PATH: "", AUTH_ROOT_EMAILS: "", AUTH_SESSION_MAX_AGE_HOURS: "", AUTH_SESSION_IDLE_HOURS: "",
@@ -94,7 +94,7 @@ export interface SignInResult { status: number; location: string; cookie: string
 
 /**
  * The whole browser flow with manual redirects: app sign-in route → provider
- * authorize → app callback (GET for Google, form POST for Apple) → session
+ * authorize → app callback → session
  * cookie. `fetcher` is plain fetch for a running server, or the in-process
  * router below for route handler tests.
  */
@@ -105,19 +105,9 @@ export async function signIn(fetcher: Fetcher, base: string, provider: Provider,
   const authorizeUrl = start.headers.get("location");
   if (!authorizeUrl || start.status !== 303) return { status: start.status, location: authorizeUrl ?? "", cookie: null, setCookies: start.headers.getSetCookie() };
   const authorize = await fetch(authorizeUrl, { redirect: "manual" });
-  let callback: Response;
-  if (provider === "google") {
-    const back = new URL(authorize.headers.get("location")!);
-    options.tamper?.(back.searchParams);
-    callback = await fetcher(back.toString(), { redirect: "manual", headers: { cookie: cookieHeader(jar) } });
-  } else {
-    const html = await authorize.text();
-    const action = /action="([^"]+)"/.exec(html)![1];
-    const form = new URLSearchParams();
-    for (const match of html.matchAll(/name="([^"]+)" value="([^"]*)"/g)) form.set(match[1], match[2].replace(/&quot;/g, "\"").replace(/&amp;/g, "&"));
-    options.tamper?.(form);
-    callback = await fetcher(action, { method: "POST", redirect: "manual", body: form, headers: { cookie: cookieHeader(jar), "Content-Type": "application/x-www-form-urlencoded", origin: new URL(authorizeUrl).origin } });
-  }
+  const back = new URL(authorize.headers.get("location")!);
+  options.tamper?.(back.searchParams);
+  const callback = await fetcher(back.toString(), { redirect: "manual", headers: { cookie: cookieHeader(jar) } });
   const set = cookiesFrom(callback);
   for (const [name, value] of set) jar.set(name, value);
   const session = [...set].find(([name, value]) => name.endsWith("610_session") && value);
@@ -130,13 +120,12 @@ export function inProcessFetcher(base = "http://dashboard.test"): Fetcher {
     const parsed = new URL(url);
     if (parsed.origin !== base) throw new Error(`in-process fetcher only serves ${base}, not ${url}`);
     const request = new Request(url, init);
-    const method = (init.method ?? "GET").toUpperCase() as "GET" | "POST" | "PATCH" | "DELETE";
     const signin = /^\/api\/auth\/signin\/([^/]+)$/.exec(parsed.pathname);
     if (signin) return (await import("../../app/api/auth/signin/[provider]/route.ts")).GET(request, { params: Promise.resolve({ provider: signin[1] }) });
     const callback = /^\/api\/auth\/callback\/([^/]+)$/.exec(parsed.pathname);
     if (callback) {
       const route = await import("../../app/api/auth/callback/[provider]/route.ts");
-      return route[method === "POST" ? "POST" : "GET"](request, { params: Promise.resolve({ provider: callback[1] }) });
+      return route.GET(request, { params: Promise.resolve({ provider: callback[1] }) });
     }
     throw new Error(`No in-process route for ${parsed.pathname}`);
   };

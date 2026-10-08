@@ -1,11 +1,13 @@
-// Sign in with Google and Sign in with Apple through the real route handlers,
+// Sign in with Google through the real route handlers,
 // against the fake provider and a fake account store over real HTTP. Every
 // forged or broken response must end on the welcome screen with no session.
 import assert from "node:assert/strict";
 import { after, before, beforeEach, mock, test } from "node:test";
 import { GET as sessionRoute } from "../../../app/api/auth/session/route.ts";
 import { clearJwksCache } from "../../../lib/auth/sign-in.ts";
+import { userDocId, type UserDoc } from "../../../lib/auth/accounts.ts";
 import { AUDIT_PREFIX } from "../../../lib/auth/audit.ts";
+import { authRuntime } from "../../../lib/auth/requests.ts";
 import { asUser, CONFIGURED_OWNER, inProcessFetcher, signIn, startTestAuth, TEST_AUTH_SECRET, type TestAuth } from "../../helpers/auth.ts";
 import { GOOGLE_CLIENT_SECRET, type TokenFault } from "../../helpers/fake-oidc.ts";
 
@@ -49,17 +51,23 @@ test("google: a new team account signs in, lands where it was going, and gets an
   assert.equal(auth.oidc.tokenRequests.at(-1)!.body.get("client_secret"), GOOGLE_CLIENT_SECRET);
 });
 
-test("apple: form_post callback, name from the first authorization, ES256 client secret, no photo", async () => {
-  const email = `${unique("apple")}@privaterelay.appleid.com`;
-  auth.oidc.setIdentity("apple", { sub: unique("a"), email, emailVerified: true, name: "Ada Lovelace" });
-  const result = await signIn(fetcher, base, "apple");
+test("google: anyone who signs in is active straight away, whatever their email domain; there is no approval step", async () => {
+  const email = `${unique("visitor")}@gmail.example`;
+  auth.oidc.setIdentity("google", { sub: unique("g"), email, emailVerified: true, name: "Ada Lovelace" });
+  const result = await signIn(fetcher, base, "google");
   assert.equal(result.status, 303);
-  assert.equal(result.location, `${base}/welcome`, "not on the auto-approve list, so the account waits for approval");
+  assert.equal(result.location, `${base}/`, "straight to the app, not to a waiting screen");
   const me = await whoAmI(result.cookie);
-  assert.deepEqual({ status: me.body.user?.status, name: me.body.user?.displayName, provider: me.body.session?.provider, picture: me.body.user?.picture }, { status: "pending", name: "Ada Lovelace", provider: "apple", picture: null });
-  const authorize = auth.oidc.authorizeRequests.at(-1)!;
-  assert.equal(authorize.searchParams.get("response_mode"), "form_post");
-  assert.equal(authorize.searchParams.get("scope"), "name email");
+  assert.deepEqual({ role: me.body.user?.role, status: me.body.user?.status, name: me.body.user?.displayName }, { role: "MEMBER", status: "active", name: "Ada Lovelace" });
+  const stored = [...auth.store.docs.values()].map((doc) => doc.body).find((body) => body?.type === "auth_user" && body.email === email) as UserDoc | undefined;
+  assert.equal(stored?.status, "active");
+  assert.equal(stored?.approvedBy, "automatic");
+});
+
+test("apple is gone: its sign-in route is refused and sets no state cookie", async () => {
+  const start = await fetcher(`${base}/api/auth/signin/apple`, { redirect: "manual" });
+  assert.equal(errorCode(start.headers.get("location")!), "provider_unavailable");
+  assert.equal(start.headers.getSetCookie().length, 0);
 });
 
 test("the configured Owner email signs in as an active OWNER", async () => {
@@ -69,15 +77,19 @@ test("the configured Owner email signs in as an active OWNER", async () => {
   assert.deepEqual({ role: me.body.user?.role, status: me.body.user?.status }, { role: "OWNER", status: "active" });
 });
 
-test("the same verified email through Google and Apple is one account with both sign-in methods", async () => {
-  const email = `${unique("both")}@team610.test`;
-  auth.oidc.setIdentity("google", { sub: unique("g"), email, emailVerified: true, name: "Both" });
+test("an account saved before open access (pending, signed in with Apple) signs in with Google as active and keeps its history", async () => {
+  const email = `${unique("legacy")}@team610.test`;
+  auth.oidc.setIdentity("google", { sub: unique("g"), email, emailVerified: true, name: "Legacy" });
   const first = await whoAmI((await signIn(fetcher, base, "google")).cookie);
-  auth.oidc.setIdentity("apple", { sub: unique("a"), email, emailVerified: true });
-  const second = await whoAmI((await signIn(fetcher, base, "apple")).cookie);
-  assert.equal(second.body.user?.email, first.body.user?.email);
-  assert.deepEqual(second.body.user?.providers.sort(), ["apple", "google"]);
-  assert.equal(second.body.user?.displayName, "Both", "the name chosen first is kept");
+  const userId = (first.body.user as unknown as { id: string }).id;
+  const runtime = authRuntime();
+  if (!runtime.ok) throw new Error("auth is not configured");
+  const doc = await runtime.store.get<UserDoc>(userDocId(userId));
+  await runtime.store.update(userDocId(userId), doc!.rev, { ...doc!.body, status: "pending", providers: ["apple", "google"], lastSignInProvider: "apple" });
+  assert.equal((await whoAmI((await signIn(fetcher, base, "google")).cookie)).body.user?.status, "active", "pending reads as active, so nobody is locked out");
+  const after = await runtime.store.get<UserDoc>(userDocId(userId));
+  assert.equal(after!.body.status, "active");
+  assert.deepEqual([...after!.body.providers].sort(), ["apple", "google"]);
 });
 
 test("unverified or missing emails are refused without creating an account", async () => {
@@ -85,8 +97,8 @@ test("unverified or missing emails are refused without creating an account", asy
   const unverified = await signIn(fetcher, base, "google");
   assert.equal(errorCode(unverified.location), "email_unverified");
   assert.equal(unverified.cookie, null);
-  auth.oidc.setIdentity("apple", { sub: unique("a") });
-  const hidden = await signIn(fetcher, base, "apple");
+  auth.oidc.setIdentity("google", { sub: unique("g") });
+  const hidden = await signIn(fetcher, base, "google");
   assert.equal(errorCode(hidden.location), "no_email");
   assert.equal(hidden.cookie, null);
 });
@@ -96,7 +108,7 @@ test("forged, expired, or misdirected ID tokens are all rejected", async () => {
     ["bad-signature", "token_invalid"], ["wrong-audience", "token_invalid"], ["wrong-issuer", "token_invalid"], ["expired", "token_invalid"],
     ["wrong-nonce", "token_invalid"], ["alg-none", "token_invalid"], ["unknown-key", "token_invalid"], ["http-500", "exchange_failed"], ["invalid-grant", "expired"],
   ];
-  for (const provider of ["google", "apple"] as const) {
+  for (const provider of ["google"] as const) {
     for (const [fault, expected] of faults) {
       auth.oidc.setIdentity(provider, { sub: unique(fault), email: `${unique(fault)}@team610.test`, emailVerified: true });
       auth.oidc.fault(fault);
@@ -219,14 +231,12 @@ test("unknown providers and unconfigured sign-in fail safely", async () => {
   } finally { process.env.AUTH_SECRET = saved; }
 });
 
-test("https deployments: __Host- session cookie with Secure; Apple's state cookie is SameSite=None for its cross-site POST", async () => {
+test("https deployments: __Host- session cookie with Secure and SameSite=Lax state cookie", async () => {
   process.env.AUTH_URL = "https://scout.example.org";
   const { GET } = await import("../../../app/api/auth/signin/[provider]/route.ts");
   const googleStart = await GET(new Request("https://scout.example.org/api/auth/signin/google"), { params: Promise.resolve({ provider: "google" }) });
   assert.match(googleStart.headers.get("set-cookie")!, /^__Host-610_oauth=.*; Path=\/; Max-Age=600; HttpOnly; Secure; SameSite=Lax$/);
-  const appleStart = await GET(new Request("https://scout.example.org/api/auth/signin/apple"), { params: Promise.resolve({ provider: "apple" }) });
-  assert.match(appleStart.headers.get("set-cookie")!, /^__Host-610_oauth=.*; HttpOnly; Secure; SameSite=None$/);
-  assert.match(new URL(appleStart.headers.get("location")!).searchParams.get("redirect_uri")!, /^https:\/\/scout\.example\.org\/api\/auth\/callback\/apple$/, "redirect URIs come from AUTH_URL, never the Host header");
+  assert.match(new URL(googleStart.headers.get("location")!).searchParams.get("redirect_uri")!, /^https:\/\/scout\.example\.org\/api\/auth\/callback\/google$/, "redirect URIs come from AUTH_URL, never the Host header");
   auth.apply();
 });
 

@@ -76,7 +76,7 @@ test("sign out other devices keeps this one and ends the rest", async () => {
   const runtime = authRuntime();
   assert.ok(runtime.ok);
   const { createSession } = await import("../../../lib/auth/sessions.ts");
-  const other = await createSession(runtime.store, runtime.config, user.userId, "apple", "Safari on iOS");
+  const other = await createSession(runtime.store, runtime.config, user.userId, "google", "Safari on iOS");
   const otherCookie = `610_session=${other.token}`;
   assert.equal(await me(otherCookie), 200);
   const account = await (await accountRoute(asUser(user, `${base}/api/account`))).json() as { sessions: Array<{ current: boolean; provider: string }> };

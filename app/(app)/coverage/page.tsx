@@ -1,6 +1,5 @@
 import { connection } from "next/server";
 import { requirePage } from "@/lib/auth/pages";
-import { ClipboardCheck } from "lucide-react";
 import { AccessDenied, PageHeader } from "@/components/ui/kit";
 import { fetchTeamAggregatesSnapshot } from "@/services/couchbase";
 import { RealtimeConnection } from "@/components/dashboard/live-status";
@@ -13,7 +12,7 @@ export default async function CoveragePage() {
   const { teams, lastSeq, names } = await fetchTeamAggregatesSnapshot();
 
   return <div className="mx-auto max-w-[960px]">
-    <PageHeader icon={ClipboardCheck} tab="coverage" title="Coverage" description="How complete our scouting is for this event, so the scout lead knows who still needs eyes on them." aside={<RealtimeConnection initialCursor={lastSeq} initialNames={names} />} />
+    <PageHeader title="Coverage" description="How complete our scouting is for this event, so the scout lead knows who still needs eyes on them." aside={<RealtimeConnection initialCursor={lastSeq} initialNames={names} />} />
     <CoverageLive teams={teams} />
   </div>;
 }

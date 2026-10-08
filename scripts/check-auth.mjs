@@ -4,7 +4,6 @@
 //
 // It writes, reads back, and deletes one short-lived `diag_*` document in the
 // account store (sign-in needs to write there too). Scouting data is never touched.
-import { createPrivateKey } from "node:crypto";
 import nextEnv from "@next/env";
 
 nextEnv.loadEnvConfig(process.cwd(), process.env.NODE_ENV !== "production", { info: () => {}, error: console.error });
@@ -12,7 +11,6 @@ nextEnv.loadEnvConfig(process.cwd(), process.env.NODE_ENV !== "production", { in
 const { readAuthConfig, enabledProviders, storeKeyspace } = await import("../lib/auth/config.ts");
 const { AuthStore, StoreUnavailableError } = await import("../lib/auth/store.ts");
 const { LocalAuthStore } = await import("../lib/auth/store.ts");
-const { appleClientSecret } = await import("../lib/auth/sign-in.ts");
 
 let failures = 0;
 const ok = (message) => console.log(`  ✔ ${message}`);
@@ -39,16 +37,7 @@ if (url.protocol === "https:" && ["localhost", "127.0.0.1"].includes(url.hostnam
   bad("AUTH_URL is https on localhost, but `npm run dev` serves plain http", "use http://localhost:3000 locally; Secure cookies from an https AUTH_URL are not sent over http");
 }
 for (const provider of enabledProviders(result)) {
-  ok(`${provider === "google" ? "Google" : "Apple"} enabled; its redirect URI must be registered exactly as ${config.baseUrl}/api/auth/callback/${provider}`);
-}
-if (config.providers.apple?.apple) {
-  try {
-    createPrivateKey(config.providers.apple.apple.privateKey);
-    appleClientSecret(config.providers.apple.apple, config.providers.apple.clientId, config.providers.apple.issuer);
-    ok("Apple private key parses and signs a client secret");
-  } catch (error) {
-    bad(`AUTH_APPLE_PRIVATE_KEY cannot be used: ${error instanceof Error ? error.message : error}`, "paste the whole .p8 file, including the BEGIN/END lines (\\n line breaks are fine)");
-  }
+  ok(`Google enabled; its redirect URI must be registered exactly as ${config.baseUrl}/api/auth/callback/${provider}`);
 }
 if (config.ownerEmails.size === 0) note("AUTH_OWNER_EMAILS is empty: nobody will be able to open the admin panel");
 else ok(`Owner: ${[...config.ownerEmails].map((email) => email.replace(/^(.).*@/, "$1***@")).join(", ")}`);

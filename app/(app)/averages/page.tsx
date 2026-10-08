@@ -1,5 +1,4 @@
 import { connection } from "next/server";
-import { Sigma } from "lucide-react";
 import { requirePage } from "@/lib/auth/pages";
 import { AccessDenied, PageHeader } from "@/components/ui/kit";
 import { MetricBoard } from "@/components/dashboard/metric-board";
@@ -16,7 +15,7 @@ export default async function AveragesPage() {
     <MetricBoard
       teams={teams}
       initialStat="matchesPlayed"
-      header={<PageHeader icon={Sigma} tab="averages" title="Averages" description="Every team, every stat, averaged across the matches we have scouted. Tap a column heading to rank the board." aside={<RealtimeConnection initialCursor={lastSeq} initialNames={names} />} />}
+      header={<PageHeader title="Averages" description="Every team, every stat, averaged across the matches we have scouted. Tap a column heading to rank the board." aside={<RealtimeConnection initialCursor={lastSeq} initialNames={names} />} />}
     />
   );
 }

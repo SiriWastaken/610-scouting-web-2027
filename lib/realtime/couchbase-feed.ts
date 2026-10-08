@@ -15,6 +15,13 @@ export class FeedError extends Error {
 /** Keeps a reconnecting client's catch-up request bounded; the loop pages through larger backlogs. */
 const PAGE_SIZE = 500;
 
+/** `fetch failed` hides the useful part (ENOTFOUND, ECONNREFUSED, ...) in `cause`. */
+export function describeFetchError(error: unknown): string {
+  if (!(error instanceof Error)) return "Sync Gateway changes feed failed";
+  const cause = (error as { cause?: { code?: string; hostname?: string } }).cause;
+  return cause?.code ? `Sync Gateway unreachable (${cause.code}${cause.hostname ? ` ${cause.hostname}` : ""})` : error.message;
+}
+
 function encodeCursor(cursor: unknown): string {
   return typeof cursor === "string" ? cursor : JSON.stringify(cursor);
 }
@@ -75,7 +82,7 @@ export function startCouchbaseLongPoll(
     } catch (error) {
       if (stopped) return;
       recordUpstreamPoll(false, { error });
-      onError(error instanceof FeedError ? error : new FeedError(error instanceof Error ? error.message : "Sync Gateway changes feed failed"));
+      onError(error instanceof FeedError ? error : new FeedError(describeFetchError(error)));
     }
   })();
   return () => {

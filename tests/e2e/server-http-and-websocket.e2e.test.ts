@@ -41,7 +41,7 @@ test("pages: every dashboard route renders, unknown teams 404, and / redirects t
   for (const path of ["/teams", "/averages", "/box-plot", "/coverage", "/strategy", "/teams/610"]) {
     const response = await get(path);
     assert.equal(response.status, 200, path);
-    assert.match(await response.text(), /610 \/ SCOUTING/, `${path} renders the app shell`);
+    assert.match(await response.text(), /610 Scouting/, `${path} renders the app shell`);
   }
   assert.equal((await get("/teams/99999")).status, 404);
   assert.equal((await get("/teams/not-a-number")).status, 404);

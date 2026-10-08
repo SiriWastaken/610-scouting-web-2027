@@ -28,17 +28,17 @@ export async function requireActiveViewer(): Promise<{ viewer: Viewer }> {
   const auth = await getAuthentication();
   if (auth.status !== "signed-in") {
     const params = new URLSearchParams({ next: await currentPath() });
-    if (auth.status === "signed-out" && auth.reason === "expired") params.set("reason", "expired");
+    if (auth.status === "signed-out" && (auth.reason === "expired" || auth.reason === "disabled")) params.set("reason", auth.reason);
     if (auth.status === "unavailable") params.set("reason", "unavailable");
     redirect(`/welcome?${params}`);
   }
-  if (auth.viewer.principal.status !== "active") redirect("/welcome");
+  if (auth.viewer.principal.status !== "active") redirect("/welcome?reason=disabled");
   return { viewer: auth.viewer };
 }
 
 /**
  * The data-access check for pages (proxy.ts only makes an optimistic cookie
- * check). Signed-out visitors, pending accounts, and disabled accounts go to
+ * check). Signed-out visitors and denied (disabled) accounts go to
  * the welcome screen, remembering where they were headed. Signed-in users
  * without `permission` get `allowed: false` so the page can say so.
  */

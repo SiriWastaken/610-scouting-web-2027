@@ -165,7 +165,9 @@ export class RealtimeClient {
       if (this.socket !== next) return;
       clearTimeout(this.idleTimer);
       this.socket = null;
-      if (event.code !== 1000 && event.code !== SERVICE_RESTART) {
+      // A feed outage (1011) closes every retry the same way; warn once, not per attempt.
+      const repeatOutage = event.code === 1011 && this.retryAttempt > 0;
+      if (event.code !== 1000 && event.code !== SERVICE_RESTART && !repeatOutage) {
         console.warn("Realtime WebSocket closed", { code: event.code, reason: event.reason, wasClean: event.wasClean });
       }
       if (event.code === SESSION_ENDED) {

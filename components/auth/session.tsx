@@ -96,20 +96,19 @@ function SignOutIcon() {
 
 /** The signed-in account in the sidebar's bottom corner (full) or the mobile header (compact), with sign-out. */
 export function AccountChip({ compact = false }: { compact?: boolean }) {
-  const { session: { user, session }, signOut, signingOut } = useSession();
-  const provider = session.provider ?? user.lastSignInProvider;
+  const { session: { user }, signOut, signingOut } = useSession();
   if (compact) {
     return <div className="flex items-center gap-2" data-account-chip>
-      <Link href="/account" aria-label={`Account: ${user.displayName}`} className="rounded-full"><Avatar name={user.displayName} picture={user.picture} provider={provider} size={30} /></Link>
+      <Link href="/account" aria-label={`Account: ${user.displayName}`} className="rounded-full"><Avatar name={user.displayName} picture={user.picture} size={30} /></Link>
       <button type="button" onClick={() => void signOut()} disabled={signingOut} aria-label="Sign out" className="rounded-md p-2 text-muted hover:bg-surface hover:text-ink disabled:opacity-50"><SignOutIcon /></button>
     </div>;
   }
   return <div className="flex items-center gap-1 rounded-lg border border-line bg-surface-2 p-1.5" data-account-chip>
     <Link href="/account" className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md p-1 hover:bg-surface">
-      <Avatar name={user.displayName} picture={user.picture} provider={provider} size={34} />
+      <Avatar name={user.displayName} picture={user.picture} size={34} />
       <span className="min-w-0">
         <span className="block truncate text-sm text-ink" data-account-name>{user.displayName}</span>
-        <span className="block truncate text-xs font-semibold uppercase tracking-[0.08em] text-muted" data-account-role={user.role}>{ROLE_LABELS[user.role]}</span>
+        <span className="block truncate text-xs font-medium text-muted" data-account-role={user.role}>{ROLE_LABELS[user.role]}</span>
       </span>
     </Link>
     <button type="button" onClick={() => void signOut()} disabled={signingOut} aria-label="Sign out" title="Sign out" className="rounded-md p-2 text-muted hover:bg-surface hover:text-ink disabled:opacity-50">

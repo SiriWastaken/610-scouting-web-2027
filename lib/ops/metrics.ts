@@ -32,7 +32,7 @@ interface Registry {
   };
   upstream: { polls: number; pollErrors: number; lastPollOkAt?: number; lastPollErrorAt?: number; lastPollError?: string; uniqueChanges: number; lastUniqueSeq?: string };
   http: { measured: boolean; requests: number; byClass: Record<"2xx" | "3xx" | "4xx" | "5xx", number>; lastRequestAt?: number; latencies: number[]; routes: Map<string, { count: number; errors: number; totalMs: number }> };
-  auth: { signIns: number; signInFailures: number; pendingSignIns: number; disabledSignIns: number; signOuts: number; sessionRejections: number; lastSignInAt?: number; lastFailureAt?: number; lastFailure?: string };
+  auth: { signIns: number; signInFailures: number; disabledSignIns: number; signOuts: number; sessionRejections: number; lastSignInAt?: number; lastFailureAt?: number; lastFailure?: string };
   snapshot: { fetches: number; failures: number; lastOkAt?: number; lastErrorAt?: number; lastError?: string; durationMs?: number; documents?: number; byKind?: Record<string, number>; lastSeq?: string };
   store: { requests: number; failures: number; lastOkAt?: number; lastErrorAt?: number; lastError?: string; lastLatencyMs?: number };
   errors: ErrorEntry[];
@@ -47,7 +47,7 @@ function fresh(): Registry {
     realtime: { active: new Map(), opened: 0, closed: 0, reconnects: 0, rejected: { origin: 0, auth: 0, capacity: 0, unconfigured: 0 }, invalidSubscriptions: 0, subscriptionTimeouts: 0, sessionEnded: 0, feedErrors: 0, resyncs: 0, sendErrors: 0, framesSent: 0, changesSent: 0, durations: [], events: [], lastDisconnectByUser: new Map() },
     upstream: { polls: 0, pollErrors: 0, uniqueChanges: 0 },
     http: { measured: false, requests: 0, byClass: { "2xx": 0, "3xx": 0, "4xx": 0, "5xx": 0 }, latencies: [], routes: new Map() },
-    auth: { signIns: 0, signInFailures: 0, pendingSignIns: 0, disabledSignIns: 0, signOuts: 0, sessionRejections: 0 },
+    auth: { signIns: 0, signInFailures: 0, disabledSignIns: 0, signOuts: 0, sessionRejections: 0 },
     snapshot: { fetches: 0, failures: 0 },
     store: { requests: 0, failures: 0 },
     errors: [],
@@ -186,7 +186,7 @@ export function recordHttpRequest(method: string, path: string, status: number, 
 // ── Auth, snapshot, account store ────────────────────────────────────────────
 
 export const authMetrics = {
-  signIn(status: "active" | "pending") { const auth = registry().auth; auth.signIns += 1; auth.lastSignInAt = Date.now(); if (status === "pending") auth.pendingSignIns += 1; },
+  signIn() { const auth = registry().auth; auth.signIns += 1; auth.lastSignInAt = Date.now(); },
   signInFailed(reason: string) { const auth = registry().auth; auth.signInFailures += 1; auth.lastFailureAt = Date.now(); auth.lastFailure = scrub(reason); },
   disabledSignIn() { registry().auth.disabledSignIns += 1; },
   signOut() { registry().auth.signOuts += 1; },

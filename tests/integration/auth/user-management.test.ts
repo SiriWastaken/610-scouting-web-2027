@@ -1,6 +1,6 @@
 // Account management through the real admin routes: listing, names (Owner
 // only), role changes (valid, invalid, unauthorized), Owner protections,
-// approving, disabling, and revoking sessions. Every change is read back from the store.
+// denying and allowing access, and revoking sessions. Every change is read back from the store.
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import * as users from "../../../app/api/admin/users/route.ts";
@@ -8,6 +8,7 @@ import * as user from "../../../app/api/admin/users/[id]/route.ts";
 import * as userSessions from "../../../app/api/admin/users/[id]/sessions/route.ts";
 import * as session from "../../../app/api/auth/session/route.ts";
 import { AUDIT_PREFIX } from "../../../lib/auth/audit.ts";
+import { authRuntime } from "../../../lib/auth/requests.ts";
 import { useGatewayForApp } from "../../helpers/dataset.ts";
 import { startGatewayTarget, type GatewayTarget } from "../../helpers/gateway-target.ts";
 import { asUser, CONFIGURED_OWNER, startTestAuth, type TestAuth, type TestUser } from "../../helpers/auth.ts";
@@ -121,14 +122,36 @@ test("ownership never comes from the database: a stored OWNER, ROOT, or ADMIN ro
   }
 });
 
-test("approval: a lead approves a pending account, which can then read the dashboard", async () => {
+test("allow again: a denied account has no live session; when a lead allows it, signing in works and who allowed it is recorded", async () => {
   const lead = await auth.user("SCOUT_LEAD");
-  const pending = await auth.user("MEMBER", { status: "pending" });
+  const denied = await auth.user("MEMBER", { status: "disabled" });
   const dashboard = await import("../../../app/api/dashboard-documents/route.ts");
-  assert.equal((await dashboard.GET(asUser(pending, `${base}/api/dashboard-documents?kind=pit&team=610`))).status, 403);
-  assert.equal((await patch(lead, pending.userId, { status: "active" })).status, 200);
-  assert.equal(stored(pending.userId)!.approvedBy, lead.userId);
-  assert.equal((await dashboard.GET(asUser(pending, `${base}/api/dashboard-documents?kind=pit&team=610`))).status, 200);
+  assert.equal((await dashboard.GET(asUser(denied, `${base}/api/dashboard-documents?kind=pit&team=610`))).status, 401);
+  assert.equal((await patch(lead, denied.userId, { status: "active" })).status, 200);
+  assert.equal(stored(denied.userId)!.approvedBy, lead.userId);
+  const runtime = authRuntime();
+  assert.ok(runtime.ok);
+  const { createSession, sessionCookieName } = await import("../../../lib/auth/sessions.ts");
+  const fresh = await createSession(runtime.store, runtime.config, denied.userId, "google", "Chrome");
+  assert.equal((await dashboard.GET(asUser({ cookie: `${sessionCookieName(runtime.config)}=${fresh.token}` }, `${base}/api/dashboard-documents?kind=pit&team=610`))).status, 200);
+});
+
+test("an account saved as pending before open access reads as active everywhere and can be denied like any other", async () => {
+  const lead = await auth.user("SCOUT_LEAD");
+  const old = await auth.user("MEMBER");
+  auth.store.put(`user_${old.userId}`, { ...stored(old.userId)!, status: "pending" });
+  const dashboard = await import("../../../app/api/dashboard-documents/route.ts");
+  assert.equal((await dashboard.GET(asUser(old, `${base}/api/dashboard-documents?kind=pit&team=610`))).status, 200);
+  const listing = await (await users.GET(asUser(lead, `${base}/api/admin/users`))).json() as { users: Array<{ id: string; status: string }> };
+  assert.equal(listing.users.find((entry) => entry.id === old.userId)!.status, "active");
+  assert.equal((await patch(lead, old.userId, { status: "disabled" })).status, 200);
+  assert.equal(stored(old.userId)!.status, "disabled");
+});
+
+test("only active and disabled are accepted as a status", async () => {
+  const lead = await auth.user("SCOUT_LEAD");
+  const member = await auth.user("MEMBER");
+  for (const status of ["pending", "banned", ""]) assert.equal((await patch(lead, member.userId, { status })).status, 400, status);
 });
 
 test("disabling: signs the account out everywhere at once; re-enabling does not bring old sessions back", async () => {

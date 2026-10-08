@@ -47,7 +47,7 @@ export function Overview() {
       <FreshnessBar />
     </div>
 
-    <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-line bg-line shadow-sm sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
       {CARDS.map((card) => <CheckCard key={card.key} title={card.title} check={data?.checks[card.key]} href={card.href} />)}
     </div>
 
@@ -70,14 +70,14 @@ export function Overview() {
             ["Node.js", data.server.nodeVersion],
             ["Memory", `${data.server.memoryMb} MB`],
             ["Started", formatDate(data.server.startedAt)],
-          ].map(([label, value]) => <div key={label} className="bg-surface px-4 py-3"><dt className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{label}</dt><dd className="mt-1 truncate font-mono text-xs" title={String(value)}>{value}</dd></div>)}
+          ].map(([label, value]) => <div key={label} className="bg-surface px-4 py-3"><dt className="text-xs font-medium text-muted">{label}</dt><dd className="mt-1 truncate font-mono text-xs" title={String(value)}>{value}</dd></div>)}
         </dl> : <EmptyRow>No server information.</EmptyRow>}
         {data?.server.platform === "vercel" && <p className="border-t border-line px-4 py-3 text-xs text-muted">Counters are per server instance. On Vercel each request may reach a different instance.</p>}
       </Panel>
       <Panel title="Recent errors" action={<span className="font-mono text-xs text-muted">last 50, this process</span>}>
         {!m || m.errors.length === 0 ? <EmptyRow>No errors recorded since the server started {data ? formatDate(data.server.startedAt, { relative: true }) : ""}.</EmptyRow> :
           <ul className="max-h-80 overflow-y-auto">{m.errors.slice(0, 20).map((entry, index) => <li key={index} className="border-t border-line px-5 py-2.5 first:border-t-0">
-            <div className="flex justify-between gap-3 text-xs font-semibold uppercase tracking-[0.08em]"><span className="text-bad">{entry.source}</span><span className="text-muted">{formatDate(entry.at, { relative: true })}</span></div>
+            <div className="flex justify-between gap-3 text-xs font-semibold"><span className="text-bad">{entry.source}</span><span className="text-muted">{formatDate(entry.at, { relative: true })}</span></div>
             <div className="mt-1 break-words text-xs text-ink">{entry.message}{entry.path && <span className="text-muted"> · {entry.path}</span>}</div>
           </li>)}</ul>}
       </Panel>
@@ -99,7 +99,7 @@ export function SyncMonitor() {
   const lastSync = Math.max(upstream?.lastPollOkAt ?? 0, snapshot?.lastOkAt ?? 0) || null;
   return <div className="space-y-5">
     <div className="flex justify-end"><FreshnessBar /></div>
-    <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-line bg-line shadow-sm md:grid-cols-3">
+    <div className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-line bg-line md:grid-cols-3">
       <CheckCard title="Sync Gateway" check={data?.checks.syncGateway} />
       <CheckCard title="Couchbase (via Sync Gateway)" check={data?.checks.couchbase} />
       <CheckCard title="Account store" check={data?.checks.accountStore} />
@@ -115,7 +115,7 @@ export function SyncMonitor() {
     <div className="grid gap-5 lg:grid-cols-2">
       <Panel title="Server snapshot" action={<span className="font-mono text-xs text-muted">what pages render from</span>}>
         <dl className="grid grid-cols-2 gap-px bg-line">
-          {[["Last fetched", formatDate(snapshot?.lastOkAt, { relative: true })], ["Fetch time", snapshot?.durationMs != null ? `${snapshot.durationMs} ms` : "—"], ["Documents", snapshot?.documents ?? "—"], ["Feed sequence", snapshot?.lastSeq ?? "—"], ["Fetches", snapshot?.fetches ?? 0], ["Failed fetches", snapshot?.failures ?? 0]].map(([label, value]) => <div key={String(label)} className="bg-surface px-4 py-3"><dt className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{label}</dt><dd className="mt-1 font-mono text-sm">{value}</dd></div>)}
+          {[["Last fetched", formatDate(snapshot?.lastOkAt, { relative: true })], ["Fetch time", snapshot?.durationMs != null ? `${snapshot.durationMs} ms` : "—"], ["Documents", snapshot?.documents ?? "—"], ["Feed sequence", snapshot?.lastSeq ?? "—"], ["Fetches", snapshot?.fetches ?? 0], ["Failed fetches", snapshot?.failures ?? 0]].map(([label, value]) => <div key={String(label)} className="bg-surface px-4 py-3"><dt className="text-xs font-medium text-muted">{label}</dt><dd className="mt-1 font-mono text-sm">{value}</dd></div>)}
         </dl>
         {snapshot?.lastError && <p className="border-t border-line px-5 py-3 text-xs text-bad">Last failure {formatDate(snapshot.lastErrorAt, { relative: true })}: {snapshot.lastError}</p>}
       </Panel>
@@ -160,7 +160,7 @@ export function ApiMonitor() {
       <Panel title="Busiest routes">
         {!http || http.routes.length === 0 ? <EmptyRow>No requests yet.</EmptyRow> :
           <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-left text-xs">
-            <thead className="border-b border-line bg-surface-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted"><tr><th className="px-5 py-3">Route</th><th className="px-4 py-3 text-right">Requests</th><th className="px-4 py-3 text-right">5xx</th><th className="px-4 py-3 text-right">Avg ms</th></tr></thead>
+            <thead className="border-b border-line text-xs font-medium text-muted"><tr><th className="px-5 py-3">Route</th><th className="px-4 py-3 text-right">Requests</th><th className="px-4 py-3 text-right">5xx</th><th className="px-4 py-3 text-right">Avg ms</th></tr></thead>
             <tbody>{http.routes.map((route) => <tr key={route.route} className="border-t border-line"><td className="px-5 py-2.5 font-mono">{route.route}</td><td className="px-4 py-2.5 text-right font-mono tabular-nums">{route.count}</td><td className={`px-4 py-2.5 text-right font-mono tabular-nums ${route.errors ? "text-bad" : "text-muted"}`}>{route.errors}</td><td className="px-4 py-2.5 text-right font-mono tabular-nums">{route.avgMs}</td></tr>)}</tbody>
           </table></div>}
       </Panel>

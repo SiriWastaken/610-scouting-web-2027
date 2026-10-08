@@ -6,7 +6,7 @@
 //   OWNER       set by AUTH_OWNER_EMAILS only. Every permission; the only role that
 //               manages mentors and changes anyone's name. Never assignable.
 //   MENTOR      operations panel, audit log, manages scout leads, scouts, members.
-//   SCOUT_LEAD  approves accounts, manages scouts and members.
+//   SCOUT_LEAD  denies and allows access, manages scouts and members.
 //   SCOUT       reads the dashboard (marks who scouts).
 //   MEMBER      reads the dashboard. Everyone starts here.
 
@@ -16,8 +16,16 @@ export type Role = (typeof ROLES)[number];
 /** Roles the admin panel can hand out. OWNER comes from configuration only. */
 export const ASSIGNABLE_ROLES = ["MEMBER", "SCOUT", "SCOUT_LEAD", "MENTOR"] as const satisfies readonly Role[];
 
-export const ACCOUNT_STATUSES = ["active", "pending", "disabled"] as const;
+/**
+ * Anyone who signs in with Google starts `active`. A manager can turn an account
+ * `disabled` (shown as "Denied") and back. Accounts saved before open access
+ * may still say `pending`; they read as `active` (see {@link accountStatus}).
+ */
+export const ACCOUNT_STATUSES = ["active", "disabled"] as const;
 export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
+
+/** The status as enforced: only `disabled` blocks access. */
+export function accountStatus(value: unknown): AccountStatus { return value === "disabled" ? "disabled" : "active"; }
 
 const RANK: Record<Role, number> = { MEMBER: 0, SCOUT: 1, SCOUT_LEAD: 2, MENTOR: 3, OWNER: 4 };
 
@@ -25,7 +33,7 @@ export const ROLE_LABELS: Record<Role, string> = { MEMBER: "Member", SCOUT: "Sco
 export const ROLE_DESCRIPTIONS: Record<Role, string> = {
   MEMBER: "Reads the scouting dashboard.",
   SCOUT: "Scouts matches; reads the dashboard.",
-  SCOUT_LEAD: "Approves accounts and manages scouts and members.",
+  SCOUT_LEAD: "Denies and allows access; manages scouts and members.",
   MENTOR: "Operations panel and audit log; manages scout leads, scouts, and members.",
   OWNER: "Everything. Set in the server configuration; the only one who manages mentors and changes names.",
 };
@@ -53,7 +61,7 @@ export const PERMISSIONS = {
   "dashboard:read": "MEMBER",
   /** The user list and account details. */
   "users:read": "SCOUT_LEAD",
-  /** Approve, change roles, disable, revoke sessions (further limited by {@link canManageUser}). */
+  /** Deny or allow access, change roles, revoke sessions (further limited by {@link canManageUser}). */
   "users:manage": "SCOUT_LEAD",
   /** Change display and scout names, anyone's, including your own. */
   "users:rename": "OWNER",

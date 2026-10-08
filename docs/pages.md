@@ -1,7 +1,7 @@
 ---
 title: Pages and routes
 description: Every route, who may open it, and the files that build it
-verified_at: 27726e0 (2026-10-02)
+verified_at: 885d225 (2026-10-03)
 sources:
   - app/(app)
   - app/api
@@ -15,7 +15,7 @@ sources:
 
 Pages are thin: check access, fetch a snapshot, render a component. All of them call `requirePage` ([[authentication]]).
 
-## Dashboard (permission `dashboard:read`, any approved account)
+## Dashboard (permission `dashboard:read`, any active account)
 
 | URL | Page file | Main component |
 |---|---|---|
@@ -26,7 +26,7 @@ Pages are thin: check access, fetch a snapshot, render a component. All of them 
 | `/strategy` | `strategy/page.tsx` | `components/dashboard/strategy-tools.tsx` |
 | `/coverage` | `coverage/page.tsx` | `components/dashboard/coverage.tsx` |
 | `/account` | `account/page.tsx` | `components/auth/account-panel.tsx` |
-| `/welcome` | `app/welcome/page.tsx` | sign-in and "waiting for approval" |
+| `/welcome` | `app/welcome/page.tsx` | Google sign-in, and "Access turned off" for a denied account |
 
 ## The Teams page, piece by piece
 

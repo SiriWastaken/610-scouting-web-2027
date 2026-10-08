@@ -2,12 +2,12 @@
 
 Next.js web platform for Team 610 scouting analysis. The Teams, Averages, and Box Plot pages read aggregate data from Couchbase through the server-only repository at `services/couchbase.ts`.
 
-Everyone signs in with Google (or Apple) first. The server enforces five roles: **Owner** (set in configuration; everything, including names), **Mentor**, **Scout lead**, **Scout**, and **Member**. Mentors and the Owner get an operations panel for system health, realtime, sync, users, and the audit log.
+Everyone signs in with Google first, and anyone Google lets through is in straight away; managers can deny access afterwards. The server enforces five roles: **Owner** (set in configuration; everything, including names), **Mentor**, **Scout lead**, **Scout**, and **Member**. Mentors and the Owner get an operations panel for system health, realtime, sync, users, and the audit log.
 
 | Guide | What's in it |
 |---|---|
 | [docs/index.md](docs/index.md) | Start here: reading order and every page below |
-| [docs/authentication.md](docs/authentication.md) | Sign-in setup (Google, Apple, the account store), environment variables, roles and permissions, sessions, account management, audit log, security, local development, troubleshooting |
+| [docs/authentication.md](docs/authentication.md) | Sign-in setup (Google, the account store), environment variables, roles and permissions, sessions, account management, audit log, security, local development, troubleshooting |
 | [docs/operations.md](docs/operations.md) | The admin panel: health checks, WebSocket and sync monitoring, API metrics, diagnostics, limitations, event-day troubleshooting |
 | [docs/architecture.md](docs/architecture.md), [data-model.md](docs/data-model.md), [realtime.md](docs/realtime.md), [pages.md](docs/pages.md), [design-system.md](docs/design-system.md), [development.md](docs/development.md) | How the app is built and how to change it |
 | [tests/README.md](tests/README.md) | The test bench |
@@ -22,7 +22,7 @@ requires (one folder per URL); everything else is grouped by topic.
 | File | What it is |
 |---|---|
 | `app/layout.tsx`, `app/globals.css` | The HTML shell, fonts, and colours for every page |
-| `app/welcome/page.tsx` | The sign-in page (and "waiting for approval") |
+| `app/welcome/page.tsx` | The sign-in page (and "Access turned off" for a denied account) |
 | `app/(app)/layout.tsx` | Everything behind sign-in: the sidebar shell and the signed-in user |
 | `app/(app)/page.tsx` | `/` sends you to Teams |
 | `app/(app)/teams/page.tsx`, `teams/[teamNumber]/page.tsx` | Teams list and one team |
@@ -52,7 +52,7 @@ requires (one folder per URL); everything else is grouped by topic.
 | `dashboard/teams-view.tsx`, `dashboard/teams/*` | The Teams tab: state and layout, plus one file per panel (match log, auto path, pit report, cards) |
 | `dashboard/team-detail.tsx`, `metric-board.tsx`, `coverage.tsx`, `strategy-tools.tsx` | One team, the Averages/Box Plot board, Coverage, Strategy |
 | `dashboard/live-status.tsx` | The "Live updates on" bar that keeps a page connected |
-| `auth/identity.tsx` | Avatars, Google/Apple icons, role and status badges |
+| `auth/identity.tsx` | Avatars, the Google icon, role and status badges |
 | `auth/session.tsx` | The signed-in user in the browser, and the account chip with sign-out |
 | `auth/sign-in.tsx` | The sign-in buttons |
 | `auth/account-panel.tsx` | The Account page |
@@ -68,7 +68,7 @@ requires (one folder per URL); everything else is grouped by topic.
 |---|---|
 | `lib/auth/roles.ts` | The roles and every permission rule (the only place they're decided) |
 | `lib/auth/config.ts` | Sign-in settings from the environment, with checks |
-| `lib/auth/sign-in.ts` | Google/Apple sign-in: tokens, ID-token verification, state/nonce/PKCE |
+| `lib/auth/sign-in.ts` | Google sign-in: tokens, ID-token verification, state/nonce/PKCE |
 | `lib/auth/accounts.ts` | Accounts: finding or creating one at sign-in, the Owner, manager edits |
 | `lib/auth/sessions.ts` | Sessions: create, check, expire, revoke |
 | `lib/auth/audit.ts` | The audit log |
@@ -157,4 +157,4 @@ npm run validate                  # the full bench: adds contract, stress, build
 
 CI runs all of it on every pull request into `main`, plus the contract and browser suites against a real Couchbase Server + Sync Gateway in Docker.
 
-To try the app by hand without real credentials or data, see [Local development](docs/authentication.md#local-development) (a fake account store and fake Google/Apple sign-in). To try live updates, start the fake Sync Gateway with `FAKE_SG_PORT=4985 node --experimental-strip-types tests/helpers/run-fake-sync-gateway.ts`, point the `COUCHBASE_*` variables at it (`http://127.0.0.1:4985`, database `scouting`, user `dashboard-reader`, password `fake-sg-secret-7f3a91c2`), and write documents with `PUT http://127.0.0.1:4985/scouting/<id>` (updates need `?rev=<current revision>`).
+To try the app by hand without real credentials or data, see [Local development](docs/authentication.md#local-development) (a fake account store and fake Google sign-in). To try live updates, start the fake Sync Gateway with `FAKE_SG_PORT=4985 node --experimental-strip-types tests/helpers/run-fake-sync-gateway.ts`, point the `COUCHBASE_*` variables at it (`http://127.0.0.1:4985`, database `scouting`, user `dashboard-reader`, password `fake-sg-secret-7f3a91c2`), and write documents with `PUT http://127.0.0.1:4985/scouting/<id>` (updates need `?rev=<current revision>`).

@@ -1,15 +1,13 @@
 "use client";
 
-// The sign-in screen's buttons: one per configured provider, with a loading
-// state, and sign-out for accounts waiting for approval.
+// The sign-in screen's button (Google), with a loading state.
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { AppleIcon, GoogleIcon } from "@/components/auth/identity";
+import { GoogleIcon } from "@/components/auth/identity";
 import type { ProviderId } from "@/lib/auth/config";
 
 // ── Welcome actions ──
 
-const LABEL: Record<ProviderId, string> = { google: "Continue with Google", apple: "Continue with Apple" };
+const LABEL: Record<ProviderId, string> = { google: "Continue with Google" };
 
 export function SignInButtons({ providers, next }: { providers: ProviderId[]; next: string }) {
   const [busy, setBusy] = useState<ProviderId | null>(null);
@@ -17,24 +15,14 @@ export function SignInButtons({ providers, next }: { providers: ProviderId[]; ne
   return <div className="space-y-3">
     {providers.map((provider) => {
       const href = `/api/auth/signin/${provider}${next && next !== "/" ? `?next=${encodeURIComponent(next)}` : ""}`;
-      const primary = provider === "google";
       return <a key={provider} href={href} data-signin={provider}
         aria-disabled={busy !== null}
         onClick={(event) => { if (busy) { event.preventDefault(); return; } setBusy(provider); }}
-        className={`flex h-12 w-full items-center justify-center gap-3 rounded-md border text-sm font-semibold transition-colors ${busy && busy !== provider ? "pointer-events-none opacity-40" : ""} ${primary ? "border-accent bg-accent text-accent-foreground hover:bg-accent-hover" : "border-line-strong bg-surface text-ink hover:bg-surface-2"}`}>
+        className={`flex h-12 w-full items-center justify-center gap-3 rounded-md border border-line-strong bg-surface text-sm font-semibold text-ink transition-colors hover:bg-surface-2 ${busy && busy !== provider ? "pointer-events-none opacity-40" : ""}`}>
         {busy === provider
-          ? <><span className={`h-4 w-4 animate-spin rounded-full border-2 border-t-transparent ${primary ? "border-accent-foreground" : "border-ink"}`} />Redirecting to {provider === "google" ? "Google" : "Apple"}…</>
-          : <>{provider === "google" ? <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white"><GoogleIcon className="h-4 w-4" /></span> : <AppleIcon className="h-5 w-5" />}{LABEL[provider]}</>}
+          ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-ink border-t-transparent" />Redirecting to Google…</>
+          : <><GoogleIcon className="h-[18px] w-[18px]" />{LABEL[provider]}</>}
       </a>;
     })}
   </div>;
-}
-
-export function WelcomeSignOut() {
-  const [busy, setBusy] = useState(false);
-  const router = useRouter();
-  return <button type="button" disabled={busy} onClick={async () => {
-    setBusy(true);
-    try { await fetch("/api/auth/signout", { method: "POST" }); } finally { router.replace("/welcome?signedOut=1"); router.refresh(); setBusy(false); }
-  }} className="h-10 rounded-md border border-line-strong px-4 text-sm font-medium hover:bg-surface-2 disabled:opacity-50">{busy ? "Signing out…" : "Sign out"}</button>;
 }

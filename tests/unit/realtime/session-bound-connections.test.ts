@@ -22,10 +22,9 @@ const signedIn = (role: Viewer["principal"]["role"], status: Viewer["principal"]
 
 beforeEach(() => resetMetrics());
 
-test("upgrade decision: signed out 401, store down 503, inactive 403, any active role accepted", () => {
+test("upgrade decision: signed out 401, store down 503, denied 403, any active role accepted", () => {
   assert.deepEqual(upgradeDecision({ status: "signed-out", reason: "expired" }), { ok: false, status: 401, reason: "auth" });
   assert.deepEqual(upgradeDecision({ status: "unavailable", reason: "down" }), { ok: false, status: 503, reason: "unconfigured" });
-  assert.deepEqual(upgradeDecision(signedIn("MENTOR", "pending")), { ok: false, status: 403, reason: "auth" });
   assert.deepEqual(upgradeDecision(signedIn("SCOUT", "disabled")), { ok: false, status: 403, reason: "auth" });
   for (const role of ["MEMBER", "SCOUT", "SCOUT_LEAD", "MENTOR", "OWNER"] as const) assert.equal(upgradeDecision(signedIn(role)).ok, true, role);
 });

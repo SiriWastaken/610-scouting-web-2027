@@ -66,7 +66,7 @@ tests/
     auth/                   role/permission matrix, sign-in helpers (config, sealed state, return paths, cookies)
   integration/              real sockets, fake Sync Gateway
     api/                    GET /api/dashboard-documents
-    auth/                   Google/Apple sign-in, ID tokens, sessions, user management, audit log
+    auth/                   Google sign-in, ID tokens, sessions, user management, audit log
     ops/                    admin health against failing services, WebSocket monitoring
     data/                   scouting statistics end to end, open-page vs fresh-page convergence
     realtime/               live sync between clients over WebSockets
@@ -98,7 +98,7 @@ Each folder has a short README with its rules.
 | Realtime harness (`helpers/realtime-harness.ts`) | The production WebSocket upgrade handler + bridge + long-poll on a plain HTTP server, plus browser-style `RealtimeClient`s over real sockets. Can drop connections, go unreachable, or restart. | Integration/security/contract/stress files |
 | App server (`helpers/app-server.ts`) | `scripts/server.mjs` (what `npm start` runs) as a child process. Fails if the build is missing. Supports restart. | E2E files |
 | Chromium (`helpers/browser.ts`) | Headless Playwright Chromium; each context is an independent device. | Browser E2E files |
-| Fake account store + fake Google/Apple (`helpers/auth.ts`, `helpers/fake-oidc.ts`) | A second fake Sync Gateway holding accounts, sessions, and the audit log, and an OpenID Connect provider over real HTTP that behaves like Google (PKCE, redirect) and Apple (form POST, ES256 client secret), with forged-token faults. `auth.user(role)` makes a real session through the app's account code; `signIn()` runs the full browser flow. | Each test file that needs sign-in |
+| Fake account store + fake Google (`helpers/auth.ts`, `helpers/fake-oidc.ts`) | A second fake Sync Gateway holding accounts, sessions, and the audit log, and an OpenID Connect provider over real HTTP that behaves like Google (PKCE, redirect), with forged-token faults. `auth.user(role)` makes a real session through the app's account code; `signIn()` runs the full browser flow. | Each test file that needs sign-in |
 | Real Couchbase (`scripts/test-infra/couchbase-up.sh`) | Docker: Couchbase Server Community + Sync Gateway, bucket and user provisioned, `TEST_SG_*` exported. | CI `real-couchbase` job, or you |
 
 Real Couchbase locally (needs Docker):
@@ -154,9 +154,9 @@ Copy `tests/testTemplate.test.ts` into the right folder, then add the file to `s
 
 ## Security model (what "authorization" means here)
 
-Everyone signs in (Google or Apple); roles and permissions are decided on the server by `lib/auth/roles.ts` (see [docs/authentication.md](../docs/authentication.md)). Scouting tablets write to Sync Gateway directly with their own credentials, not through this app. The boundaries, and where they are tested:
+Everyone signs in with Google; roles and permissions are decided on the server by `lib/auth/roles.ts` (see [docs/authentication.md](../docs/authentication.md)). Scouting tablets write to Sync Gateway directly with their own credentials, not through this app. The boundaries, and where they are tested:
 
-1. **Authentication and authorization** on every protected page, API route, and the WebSocket: `security/authorization-matrix.test.ts` calls every protected route as anonymous, malformed, expired, pending, disabled, and each of the five roles, with hand-written expected statuses; it also covers forged role headers/cookies/bodies, self-elevation, IDOR, CSRF, and checks that every admin route calls the guard. `e2e/browser-auth-and-admin.e2e.test.ts` checks the rendered pages per role.
+1. **Authentication and authorization** on every protected page, API route, and the WebSocket: `security/authorization-matrix.test.ts` calls every protected route as anonymous, malformed, expired, denied (disabled), and each of the five roles, with hand-written expected statuses; it also covers forged role headers/cookies/bodies, self-elevation, IDOR, CSRF, and checks that every admin route calls the guard. `e2e/browser-auth-and-admin.e2e.test.ts` checks the rendered pages per role.
 2. **Sign-in**: forged, expired, misdirected, and replayed tokens and codes, state/login-CSRF, open redirects, session fixation (`integration/auth/sign-in-flow.test.ts`, `id-token-verification.test.ts`).
 3. **Sessions**: expiry, revocation, hashed storage, store outages answered with 503 (`integration/auth/sessions.test.ts`); open sockets closed on revocation (`integration/ops/websocket-monitoring.test.ts`).
 4. The realtime WebSocket accepts only same-origin upgrades with a valid session (403/401 otherwise).
@@ -185,5 +185,5 @@ Any new protected route must call `guard()` with a permission and be added to th
 - Fault-injection tests (outages, hangs, garbage) need the fake gateway. The contract suite keeps the fake honest against real Sync Gateway in CI.
 - Each open dashboard tab holds its own long-poll to Sync Gateway (capped at 200 per server). The stress suite covers 120.
 - If a REST request fails, the Teams page shows an empty state rather than an error. Realtime status is the only visible failure indicator.
-- The account store and the Google/Apple provider are always fakes in tests. `tests/contract/account-store.contract.test.ts` keeps the account store's use of Sync Gateway honest against real Sync Gateway in CI; the real providers can only be checked by hand (docs/authentication.md).
+- The account store and the Google provider are always fakes in tests. `tests/contract/account-store.contract.test.ts` keeps the account store's use of Sync Gateway honest against real Sync Gateway in CI; the real providers can only be checked by hand (docs/authentication.md).
 - Admin metrics are per process; tests reset them with `resetMetrics()`.

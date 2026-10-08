@@ -1,6 +1,5 @@
 'use client';
 
-import { Flag } from 'lucide-react';
 import { labelClass } from '@/components/ui/kit';
 import type { MatchData } from '@/lib/data/team-documents';
 import { AllianceTag, Section } from './primitives';
@@ -11,7 +10,7 @@ export function MatchDetails({ match }: { match: MatchData }) {
   return (
     <Section
       title={`Match ${match.start?.match ?? 'N/A'}`}
-      icon={Flag}
+     
       aside={<AllianceTag alliance={match.start?.alliance} />}
     >
       <dl className="grid grid-cols-2 gap-px bg-line">
@@ -25,11 +24,11 @@ export function MatchDetails({ match }: { match: MatchData }) {
         </div>
         <div className="bg-surface px-4 py-3 sm:px-5">
           <dt className={`${labelClass} !text-teleop`}>Fuel scored</dt>
-          <dd className="mt-0.5 font-display text-3xl font-semibold leading-none text-ink">{match.teleop?.fuelscored ?? 0}</dd>
+          <dd className="mt-0.5 text-[28px] font-semibold leading-8 tracking-[-0.01em] text-ink">{match.teleop?.fuelscored ?? 0}</dd>
         </div>
         <div className="bg-surface px-4 py-3 sm:px-5">
           <dt className={`${labelClass} !text-endgame`}>Climb</dt>
-          <dd className="mt-0.5 font-display text-3xl font-semibold leading-none text-ink">{climb}</dd>
+          <dd className="mt-0.5 text-[28px] font-semibold leading-8 tracking-[-0.01em] text-ink">{climb}</dd>
         </div>
       </dl>
 

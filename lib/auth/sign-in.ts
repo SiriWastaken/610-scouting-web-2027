@@ -1,10 +1,10 @@
-// Sign in with Google and Sign in with Apple (OpenID Connect), end to end:
+// Sign in with Google (OpenID Connect), end to end:
 //   - crypto: random tokens, hashing, and the encrypted state cookie (AES-256-GCM)
-//   - jwt: verifying provider ID tokens against published keys; Apple's client secret
+//   - jwt: verifying Google's ID tokens against its published keys
 //   - oidc: starting a sign-in, and checking the callback (state, nonce, PKCE, code exchange)
 // The browser only ever carries the provider's one-time code and the encrypted
 // state cookie; everything else happens server to server.
-import { createCipheriv, createDecipheriv, createHash, createPrivateKey, createPublicKey, randomBytes, sign, timingSafeEqual, verify, type JsonWebKey, type KeyObject } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, createPublicKey, randomBytes, timingSafeEqual, verify, type JsonWebKey, type KeyObject } from "node:crypto";
 import type { VerifiedIdentity } from "./accounts.ts";
 import type { AuthConfig, ProviderConfig, ProviderId } from "./config.ts";
 
@@ -50,16 +50,14 @@ export const pkceChallenge = (verifier: string) => base64url(createHash("sha256"
 // ── jwt ────────────────────────────────────────
 
 // The small part of JOSE the sign-in flow needs, on node:crypto: verifying a
-// provider's ID token against its published keys (RS256 for Google, RS256/ES256
-// for Apple), and signing Apple's ES256 client secret.
+// provider's ID token against its published keys (RS256, which is what Google uses).
 
 export interface JwtClaims { iss?: unknown; aud?: unknown; sub?: unknown; exp?: unknown; iat?: unknown; nbf?: unknown; nonce?: unknown; [claim: string]: unknown }
 
 export class TokenError extends Error {}
 
-const ALGORITHMS: Record<string, { hash: string; kty: string; dsaEncoding?: "ieee-p1363" }> = {
+const ALGORITHMS: Record<string, { hash: string; kty: string }> = {
   RS256: { hash: "sha256", kty: "RSA" },
-  ES256: { hash: "sha256", kty: "EC", dsaEncoding: "ieee-p1363" },
 };
 
 interface CachedKeys { keys: Map<string, { key: KeyObject; kty: string }>; fetchedAt: number }
@@ -101,7 +99,7 @@ export async function verifyIdToken(token: string, options: VerifyOptions): Prom
   let entry = (await loadKeys(options.jwksUri, false)).keys.get(header.kid);
   if (!entry) entry = (await loadKeys(options.jwksUri, true)).keys.get(header.kid); // keys rotate
   if (!entry || entry.kty !== algorithm.kty) throw new TokenError("Unknown signing key");
-  const valid = verify(algorithm.hash, Buffer.from(`${parts[0]}.${parts[1]}`), { key: entry.key, dsaEncoding: algorithm.dsaEncoding }, Buffer.from(parts[2], "base64url"));
+  const valid = verify(algorithm.hash, Buffer.from(`${parts[0]}.${parts[1]}`), { key: entry.key }, Buffer.from(parts[2], "base64url"));
   if (!valid) throw new TokenError("Invalid token signature");
 
   const claims = decodeSegment<JwtClaims>(parts[1]);
@@ -119,22 +117,12 @@ export async function verifyIdToken(token: string, options: VerifyOptions): Prom
   return claims;
 }
 
-/** Apple's client secret: an ES256 JWT signed with the team's Sign in with Apple key, valid for five minutes. */
-export function appleClientSecret(apple: { teamId: string; keyId: string; privateKey: string }, clientId: string, audience: string, now = Date.now()): string {
-  const iat = Math.floor(now / 1000);
-  const header = base64url(Buffer.from(JSON.stringify({ alg: "ES256", kid: apple.keyId })));
-  const payload = base64url(Buffer.from(JSON.stringify({ iss: apple.teamId, iat, exp: iat + 300, aud: audience, sub: clientId })));
-  const signature = sign("sha256", Buffer.from(`${header}.${payload}`), { key: createPrivateKey(apple.privateKey), dsaEncoding: "ieee-p1363" });
-  return `${header}.${payload}.${base64url(signature)}`;
-}
-
 /** Test/diagnostic hook: forget cached provider keys. */
 export function clearJwksCache() { jwksCache.clear(); }
 
 // ── oidc ────────────────────────────────────────
 
-// Sign in with Google and Sign in with Apple (OpenID Connect authorization code
-// flow). The browser only ever carries the provider's one-time code and an
+// Sign in with Google (OpenID Connect authorization code flow). The browser only ever carries the provider's one-time code and an
 // encrypted state cookie; the code is exchanged server-to-server and the ID
 // token's signature, issuer, audience, expiry, and nonce are all verified.
 
@@ -166,7 +154,7 @@ export function safeReturnTo(value: unknown): string {
 
 export const redirectUri = (config: AuthConfig, provider: ProviderId) => `${config.baseUrl}/api/auth/callback/${provider}`;
 
-export interface CookieSpec { name: string; value: string; options: { httpOnly: true; secure: boolean; sameSite: "lax" | "none"; path: "/"; maxAge: number } }
+export interface CookieSpec { name: string; value: string; options: { httpOnly: true; secure: boolean; sameSite: "lax"; path: "/"; maxAge: number } }
 
 function requireProvider(config: AuthConfig, provider: ProviderId): ProviderConfig {
   const settings = config.providers[provider];
@@ -183,33 +171,26 @@ export function beginSignIn(config: AuthConfig, provider: ProviderId, returnTo: 
   url.searchParams.set("response_type", "code");
   url.searchParams.set("state", state.state);
   url.searchParams.set("nonce", state.nonce);
-  if (provider === "google") {
-    state.verifier = randomToken(48);
-    url.searchParams.set("scope", "openid email profile");
-    url.searchParams.set("code_challenge", pkceChallenge(state.verifier));
-    url.searchParams.set("code_challenge_method", "S256");
-    url.searchParams.set("prompt", "select_account");
-  } else {
-    // Apple only returns email and name with form_post, a cross-site POST back to us.
-    url.searchParams.set("scope", "name email");
-    url.searchParams.set("response_mode", "form_post");
-  }
+  state.verifier = randomToken(48);
+  url.searchParams.set("scope", "openid email profile");
+  url.searchParams.set("code_challenge", pkceChallenge(state.verifier));
+  url.searchParams.set("code_challenge_method", "S256");
+  url.searchParams.set("prompt", "select_account");
   return {
     url: url.toString(),
     cookie: {
       name: stateCookieName(config),
       value: seal(state, config.secret, STATE_PURPOSE),
-      // SameSite=None is required for Apple's cross-site POST, and browsers only accept it with Secure.
-      options: { httpOnly: true, secure: config.secureCookies, sameSite: provider === "apple" && config.secureCookies ? "none" : "lax", path: "/", maxAge: STATE_MAX_AGE_MS / 1000 },
+      options: { httpOnly: true, secure: config.secureCookies, sameSite: "lax", path: "/", maxAge: STATE_MAX_AGE_MS / 1000 },
     },
   };
 }
 
-export interface CallbackParams { code?: string | null; state?: string | null; error?: string | null; user?: string | null }
+export interface CallbackParams { code?: string | null; state?: string | null; error?: string | null }
 
 async function exchangeCode(config: AuthConfig, settings: ProviderConfig, code: string, verifier?: string): Promise<string> {
   const body = new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: redirectUri(config, settings.id), client_id: settings.clientId });
-  body.set("client_secret", settings.apple ? appleClientSecret(settings.apple, settings.clientId, settings.issuer) : settings.clientSecret ?? "");
+  body.set("client_secret", settings.clientSecret);
   if (verifier) body.set("code_verifier", verifier);
   let response: Response;
   try {
@@ -221,16 +202,6 @@ async function exchangeCode(config: AuthConfig, settings: ProviderConfig, code: 
     throw new SignInError(payload.error === "invalid_grant" ? "expired" : "exchange_failed", `${settings.id} rejected the sign-in (HTTP ${response.status}${typeof payload.error === "string" ? `, ${payload.error.slice(0, 40)}` : ""})`);
   }
   return payload.id_token;
-}
-
-/** Apple sends the user's name once, on first authorization, as unsigned JSON next to the code. */
-function appleName(user: string | null | undefined): string | undefined {
-  if (!user || user.length > 2000) return undefined;
-  try {
-    const parsed = JSON.parse(user) as { name?: { firstName?: unknown; lastName?: unknown } };
-    const parts = [parsed.name?.firstName, parsed.name?.lastName].filter((part): part is string => typeof part === "string" && part.trim().length > 0);
-    return parts.length ? parts.join(" ") : undefined;
-  } catch { return undefined; }
 }
 
 /**
@@ -261,7 +232,7 @@ export async function completeSignIn(config: AuthConfig, provider: ProviderId, p
       provider, subject: claims.sub as string,
       email: typeof claims.email === "string" && claims.email.length <= 254 ? claims.email.toLowerCase() : undefined,
       emailVerified: verified,
-      name: provider === "apple" ? appleName(params.user) : typeof claims.name === "string" ? claims.name : undefined,
+      name: typeof claims.name === "string" ? claims.name : undefined,
       picture: typeof claims.picture === "string" ? claims.picture : undefined,
     },
   };

@@ -3,18 +3,16 @@
 // here may reach the browser: it holds client secrets and store credentials.
 // Every variable is documented in docs/authentication.md.
 
-export type ProviderId = "google" | "apple";
-export const PROVIDERS: readonly ProviderId[] = ["google", "apple"];
-export function isProviderId(value: unknown): value is ProviderId { return value === "google" || value === "apple"; }
+export type ProviderId = "google";
+export const PROVIDERS: readonly ProviderId[] = ["google"];
+export function isProviderId(value: unknown): value is ProviderId { return value === "google"; }
 
 export interface ProviderConfig {
   id: ProviderId;
   clientId: string;
-  /** Google: the client secret. Apple: generated per request from the key below. */
-  clientSecret?: string;
-  apple?: { teamId: string; keyId: string; privateKey: string };
+  clientSecret: string;
   issuer: string;
-  /** Some issuers (Google) also use a bare-host form. */
+  /** Google also uses a bare-host form of its issuer. */
   alternateIssuers: string[];
   authorizationEndpoint: string;
   tokenEndpoint: string;
@@ -48,8 +46,6 @@ export interface AuthConfig {
   providers: Partial<Record<ProviderId, ProviderConfig>>;
   /** AUTH_OWNER_EMAILS: always OWNER, active, and unchangeable from the app. */
   ownerEmails: Set<string>;
-  /** Exact emails, or domains written as `@example.org`, that become active members on first sign-in. Everyone else waits for approval. */
-  autoApprove: string[];
   sessionMaxAgeMs: number;
   sessionIdleMs: number;
   store: AuthStoreConfig;
@@ -72,9 +68,7 @@ function providerEndpoints(id: ProviderId, override: string | undefined) {
     const base = `${override.replace(/\/$/, "")}/${id}`;
     return { issuer: base, alternateIssuers: [], authorizationEndpoint: `${base}/authorize`, tokenEndpoint: `${base}/token`, jwksUri: `${base}/jwks` };
   }
-  return id === "google"
-    ? { issuer: "https://accounts.google.com", alternateIssuers: ["accounts.google.com"], authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth", tokenEndpoint: "https://oauth2.googleapis.com/token", jwksUri: "https://www.googleapis.com/oauth2/v3/certs" }
-    : { issuer: "https://appleid.apple.com", alternateIssuers: [], authorizationEndpoint: "https://appleid.apple.com/auth/authorize", tokenEndpoint: "https://appleid.apple.com/auth/token", jwksUri: "https://appleid.apple.com/auth/keys" };
+  return { issuer: "https://accounts.google.com", alternateIssuers: ["accounts.google.com"], authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth", tokenEndpoint: "https://oauth2.googleapis.com/token", jwksUri: "https://www.googleapis.com/oauth2/v3/certs" };
 }
 
 /**
@@ -118,15 +112,7 @@ export function readAuthConfig(env: Record<string, string | undefined> = process
   if (env.AUTH_GOOGLE_CLIENT_ID && env.AUTH_GOOGLE_CLIENT_SECRET) {
     providers.google = { id: "google", clientId: env.AUTH_GOOGLE_CLIENT_ID, clientSecret: env.AUTH_GOOGLE_CLIENT_SECRET, ...providerEndpoints("google", override) };
   }
-  if (env.AUTH_APPLE_CLIENT_ID && env.AUTH_APPLE_TEAM_ID && env.AUTH_APPLE_KEY_ID && env.AUTH_APPLE_PRIVATE_KEY) {
-    providers.apple = {
-      id: "apple", clientId: env.AUTH_APPLE_CLIENT_ID,
-      // Hosting dashboards often store multi-line keys with literal "\n".
-      apple: { teamId: env.AUTH_APPLE_TEAM_ID, keyId: env.AUTH_APPLE_KEY_ID, privateKey: env.AUTH_APPLE_PRIVATE_KEY.replace(/\\n/g, "\n") },
-      ...providerEndpoints("apple", override),
-    };
-  }
-  if (!providers.google && !providers.apple) problems.push("No sign-in provider is configured: set AUTH_GOOGLE_CLIENT_ID + AUTH_GOOGLE_CLIENT_SECRET and/or the four AUTH_APPLE_* variables");
+  if (!providers.google) problems.push("Google sign-in is not configured: set AUTH_GOOGLE_CLIENT_ID and AUTH_GOOGLE_CLIENT_SECRET");
 
   // AUTH_STORE=local keeps accounts in a file on this machine, for development before the real store is reachable.
   const local = (env.AUTH_STORE ?? "").trim().toLowerCase() === "local";
@@ -177,18 +163,11 @@ export function readAuthConfig(env: Record<string, string | undefined> = process
       secureCookies: baseUrl.startsWith("https:"),
       // AUTH_ROOT_EMAILS is the earlier name of the same setting.
       ownerEmails: new Set(list(env.AUTH_OWNER_EMAILS ?? env.AUTH_ROOT_EMAILS)),
-      autoApprove: list(env.AUTH_AUTO_APPROVE),
       sessionMaxAgeMs: hours(env.AUTH_SESSION_MAX_AGE_HOURS, 24 * 30),
       sessionIdleMs: hours(env.AUTH_SESSION_IDLE_HOURS, 24 * 7),
       endpointOverride: override,
     },
   };
-}
-
-export function isAutoApproved(config: AuthConfig, email: string): boolean {
-  const normalized = email.toLowerCase();
-  const domain = normalized.slice(normalized.lastIndexOf("@"));
-  return config.autoApprove.some((entry) => entry === normalized || (entry.startsWith("@") && entry === domain));
 }
 
 /** Which providers the sign-in screen should offer. Safe to send to the browser. */

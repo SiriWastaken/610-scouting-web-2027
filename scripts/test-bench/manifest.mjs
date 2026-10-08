@@ -150,7 +150,7 @@ export const coverage = {
     "app/api/admin/users/[id]/sessions/route.ts": { lines: 97, branches: 78, functions: 95 },
     "app/api/admin/audit/route.ts": { lines: 97, branches: 87, functions: 95 },
     "app/api/account/route.ts": { lines: 97, branches: 76, functions: 95 },
-    // The callback's lower branch/function floors: the POST form-parse fallback and store-outage branches.
+    // The callback's lower branch floor: the store-outage branches.
     "app/api/auth/callback/[provider]/route.ts": { lines: 95, branches: 62, functions: 68 },
     // Health: what the admin panel claims about the system. Branches include rare latency thresholds.
     "services/health.ts": { lines: 97, branches: 65, functions: 95 },

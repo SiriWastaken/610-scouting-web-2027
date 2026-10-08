@@ -65,8 +65,8 @@ test("refusals are counted by reason and never become connections", async () => 
   assert.equal(await upgrade({ origin: "https://evil.example", cookie: realtime.member.cookie }), 403);
   assert.equal(await upgrade({ origin: realtime.origin }), 401);
   assert.equal(await upgrade({ origin: realtime.origin, cookie: "610_session=forged.value" }), 401);
-  const pending = await realtime.auth.user("MENTOR", { status: "pending" });
-  assert.equal(await upgrade({ origin: realtime.origin, cookie: pending.cookie }), 403);
+  const denied = await realtime.auth.user("MENTOR", { status: "disabled" });
+  assert.equal(await upgrade({ origin: realtime.origin, cookie: denied.cookie }), 401, "turning access off ends the session, so a denied account is simply signed out");
   const snapshot = metricsSnapshot();
   assert.deepEqual(snapshot.realtime.rejected, { origin: 1, auth: 3, capacity: 0, unconfigured: 0 });
   assert.equal(snapshot.realtime.opened, 0);

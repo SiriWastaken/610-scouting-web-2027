@@ -6,32 +6,28 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { ArrowLeft, CircleCheck, CircleDashed, CircleHelp, CircleMinus, CircleX, Inbox, Lock, TriangleAlert, type LucideIcon } from "lucide-react";
 import type { CheckStatus } from "@/services/health";
-import { tabVars, type TabName } from "@/lib/ui/tabs";
 
 // ── Page layout and panels ──
 
-/** Page title block: the page's nav icon (tinted with its tab's hue when `tab` is given), the title, one line of context, and an optional right-hand slot (live status, actions). */
-export function PageHeader({ icon: Icon, title, description, aside, tab }: { icon?: LucideIcon; title: ReactNode; description?: ReactNode; aside?: ReactNode; tab?: TabName }) {
-  return <header className="mb-6 flex flex-col gap-4 border-b border-line pb-5 sm:flex-row sm:items-end sm:justify-between">
-    <div className="flex min-w-0 items-start gap-3">
-      {Icon && <span style={tab ? tabVars(tab) : undefined} className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${tab ? "bg-(--tab-bg) text-(--tab)" : "bg-surface-2 text-ink-2"}`}><Icon className="h-5 w-5" aria-hidden="true" strokeWidth={2} /></span>}
-      <div className="min-w-0">
-        <h1 className="font-display text-3xl font-semibold leading-none tracking-tight text-ink">{title}</h1>
-        {description && <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">{description}</p>}
-      </div>
+/** Page title block: the title, one line of context, and an optional right-hand slot (live status, actions). */
+export function PageHeader({ title, description, aside }: { title: ReactNode; description?: ReactNode; aside?: ReactNode }) {
+  return <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="min-w-0">
+      <h1 className="text-[28px] font-semibold leading-9 tracking-[-0.01em] text-ink">{title}</h1>
+      {description && <p className="mt-2 max-w-2xl text-sm leading-[22px] text-muted">{description}</p>}
     </div>
     {aside && <div className="shrink-0">{aside}</div>}
   </header>;
 }
 
-/** Small uppercase label used above values and as table-group names. */
-export const labelClass = "text-xs font-semibold uppercase tracking-[0.08em] text-muted";
+/** Small label used above values and as field names. Sentence case, never uppercase. */
+export const labelClass = "text-xs font-medium text-muted";
 
 /** The bordered section used across the app: a header row with a title (and optional action) over a body. */
-export function Panel({ title, action, children, className = "", icon: Icon }: { title: string; action?: ReactNode; children: ReactNode; className?: string; icon?: LucideIcon }) {
-  return <section className={`overflow-hidden rounded-lg border border-line bg-surface shadow-sm ${className}`}>
+export function Panel({ title, action, children, className = "" }: { title: string; action?: ReactNode; children: ReactNode; className?: string }) {
+  return <section className={`overflow-hidden rounded-lg border border-line bg-surface ${className}`}>
     <div className="flex min-h-12 items-center justify-between gap-3 border-b border-line px-5 py-3">
-      <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">{Icon && <Icon className="h-4 w-4 text-muted" aria-hidden="true" />}{title}</h2>
+      <h2 className="text-sm font-semibold text-ink">{title}</h2>
       {action}
     </div>
     {children}
@@ -55,7 +51,7 @@ export const selectClass = `${inputClass} cursor-pointer appearance-none bg-[len
 
 /** Shared table styling so every data table in the app reads the same. */
 export const tableClass = "w-full border-collapse text-left text-sm";
-export const theadClass = "border-b border-line bg-surface-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted";
+export const theadClass = "border-b border-line text-xs font-medium text-muted";
 export const rowClass = "border-t border-line first:border-t-0 transition-colors hover:bg-surface-2/70";
 
 export function formatDate(value: string | number | null | undefined, { relative = false }: { relative?: boolean } = {}) {
@@ -95,7 +91,7 @@ const STYLE: Record<CheckStatus, { icon: LucideIcon; label: string; className: s
 export function StatusPill({ status, label }: { status: CheckStatus; label?: string }) {
   const style = STYLE[status];
   const Icon = style.icon;
-  return <span className={`inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-xs font-semibold ${style.className}`} data-status={status}>
+  return <span className={`inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 text-xs font-semibold ${style.className}`} data-status={status}>
     <Icon className="h-3.5 w-3.5" aria-hidden="true" strokeWidth={2.25} />{label ?? style.label}
   </span>;
 }
@@ -104,7 +100,7 @@ export function statusText(status: CheckStatus) { return STYLE[status].label; }
 
 /** A small neutral note beside a value (icon + words, no hue): "Low sample", "Outlier". Never colour alone. */
 export function NoteChip({ icon: Icon, children, title }: { icon: LucideIcon; children: ReactNode; title?: string }) {
-  return <span title={title} className="inline-flex items-center gap-1 whitespace-nowrap rounded border border-line-strong bg-surface-2 px-1.5 py-0.5 text-xs font-medium leading-4 text-ink-2">
+  return <span title={title} className="inline-flex items-center gap-1 whitespace-nowrap rounded-sm border border-line-strong bg-surface-2 px-1.5 py-0.5 text-xs font-medium leading-4 text-ink-2">
     <Icon className="h-3 w-3 shrink-0" aria-hidden="true" strokeWidth={2.25} />{children}
   </span>;
 }
@@ -114,13 +110,13 @@ export function StatTile({ label, value, hint, tone = "normal" }: { label: strin
   const color = tone === "bad" ? "text-bad" : tone === "warn" ? "text-warn" : tone === "good" ? "text-good" : "text-ink";
   return <div className="bg-surface px-4 py-4">
     <div className={labelClass}>{label}</div>
-    <div className={`mt-1.5 font-mono text-xl font-medium ${color}`} data-stat-value>{value}</div>
+    <div className={`mt-1.5 text-[22px] font-semibold leading-7 ${color}`} data-stat-value>{value}</div>
     {hint && <div className="mt-1 text-xs text-muted">{hint}</div>}
   </div>;
 }
 
 export function TileGrid({ children, columns = "sm:grid-cols-4" }: { children: ReactNode; columns?: string }) {
-  return <div className={`grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line shadow-sm ${columns}`}>{children}</div>;
+  return <div className={`grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line ${columns}`}>{children}</div>;
 }
 
 export function EmptyRow({ children }: { children: ReactNode }) {
@@ -142,8 +138,8 @@ export function EmptyState({ icon: Icon = Inbox, title, children }: { icon?: Luc
 export function AccessDenied({ title = "You don't have access to this page", message = "Your role doesn't include this area. If you need it, ask a mentor or your scout lead to change your role." }: { title?: string; message?: string }) {
   return <div className="mx-auto max-w-lg py-16 text-center">
     <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-warn-soft text-warn"><Lock className="h-5 w-5" aria-hidden="true" /></span>
-    <div className="mb-2 font-mono text-xs font-semibold tracking-[0.12em] text-warn">403 / RESTRICTED</div>
-    <h1 className="font-display text-3xl font-semibold tracking-tight">{title}</h1>
+    <div className="mb-2 text-xs font-medium text-warn">Restricted · 403</div>
+    <h1 className="text-[28px] font-semibold leading-9 tracking-[-0.01em]">{title}</h1>
     <p className="mt-3 text-sm leading-6 text-muted">{message}</p>
     <Link href="/teams" className={`mt-6 ${buttonClass}`}><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back to the dashboard</Link>
   </div>;

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { cleanText, parsePatch, safePicture } from "../../../lib/auth/accounts.ts";
-import { isAutoApproved, readAuthConfig, storeKeyspace } from "../../../lib/auth/config.ts";
+import { readAuthConfig, storeKeyspace } from "../../../lib/auth/config.ts";
 import { pkceChallenge, seal, unseal } from "../../../lib/auth/sign-in.ts";
 import { safeReturnTo } from "../../../lib/auth/sign-in.ts";
 import { isTrustedOrigin } from "../../../lib/auth/requests.ts";
@@ -16,7 +16,7 @@ const baseEnv = {
   AUTH_URL: "https://scout.example.org/some/path", AUTH_SECRET: "x".repeat(40),
   AUTH_GOOGLE_CLIENT_ID: "id", AUTH_GOOGLE_CLIENT_SECRET: "secret",
   AUTH_STORE_URL: "https://sg.example.org:4984/", AUTH_STORE_DATABASE: "auth", AUTH_STORE_USERNAME: "u", AUTH_STORE_PASSWORD: "p",
-  AUTH_OWNER_EMAILS: " Owner@Example.org , second@example.org", AUTH_AUTO_APPROVE: "@team610.org, guest@gmail.com",
+  AUTH_OWNER_EMAILS: " Owner@Example.org , second@example.org",
 };
 
 test("config: a complete environment is parsed; origins, emails, and hours are normalised", () => {
@@ -29,15 +29,11 @@ test("config: a complete environment is parsed; origins, emails, and hours are n
   const legacy = readAuthConfig({ ...baseEnv, AUTH_OWNER_EMAILS: undefined, AUTH_ROOT_EMAILS: "Legacy@Example.org" });
   assert.ok(legacy.ok);
   assert.deepEqual([...legacy.config.ownerEmails], ["legacy@example.org"]);
-  assert.deepEqual(Object.keys(result.config.providers), ["google"], "Apple needs all four of its variables");
+  assert.deepEqual(Object.keys(result.config.providers), ["google"], "Google is the only sign-in provider");
   assert.equal(result.config.store.url, "https://sg.example.org:4984");
   assert.equal(result.config.sessionMaxAgeMs, 30 * 24 * 3_600_000);
   assert.equal(result.config.sessionIdleMs, 7 * 24 * 3_600_000);
   assert.equal(result.config.providers.google?.issuer, "https://accounts.google.com");
-  assert.equal(isAutoApproved(result.config, "Lead@Team610.org"), true);
-  assert.equal(isAutoApproved(result.config, "guest@gmail.com"), true);
-  assert.equal(isAutoApproved(result.config, "other@gmail.com"), false);
-  assert.equal(isAutoApproved(result.config, "x@evilteam610.org"), false, "domain match is exact, not a suffix");
 });
 
 test("config: missing or unsafe settings are reported, never guessed", () => {
@@ -96,7 +92,7 @@ test("config: values left unchanged from .env.example are named before anyone is
     .filter((line) => /^[A-Z_]+=/.test(line)).map((line) => [line.slice(0, line.indexOf("=")), line.slice(line.indexOf("=") + 1)]));
   const copied = readAuthConfig({ ...template, AUTH_STORE_URL: "https://your-sync-gateway-host:4984" });
   assert.ok(!copied.ok);
-  for (const name of ["AUTH_SECRET", "AUTH_GOOGLE_CLIENT_ID", "AUTH_GOOGLE_CLIENT_SECRET", "AUTH_APPLE_PRIVATE_KEY", "AUTH_STORE_PASSWORD", "AUTH_OWNER_EMAILS", "AUTH_STORE_URL"]) {
+  for (const name of ["AUTH_SECRET", "AUTH_GOOGLE_CLIENT_ID", "AUTH_GOOGLE_CLIENT_SECRET", "AUTH_STORE_PASSWORD", "AUTH_OWNER_EMAILS", "AUTH_STORE_URL"]) {
     assert.ok(!copied.ok && copied.problems.includes(`${name} is still the placeholder from .env.example`), name);
   }
   assert.equal("AUTH_STORE_URL" in template, false, "the optional store URL is commented out in the template");
@@ -105,12 +101,17 @@ test("config: values left unchanged from .env.example are named before anyone is
   assert.ok(readAuthConfig(baseEnv).ok, "real-looking values are not flagged");
 });
 
-test("config: provider endpoints can be redirected for tests, and Apple is enabled with its four variables", () => {
-  const result = readAuthConfig({ ...baseEnv, AUTH_OIDC_ENDPOINT_OVERRIDE: "http://127.0.0.1:9/", AUTH_APPLE_CLIENT_ID: "svc", AUTH_APPLE_TEAM_ID: "T", AUTH_APPLE_KEY_ID: "K", AUTH_APPLE_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----" });
+test("config: provider endpoints can be redirected for tests, and Apple settings are ignored", () => {
+  const result = readAuthConfig({ ...baseEnv, AUTH_OIDC_ENDPOINT_OVERRIDE: "http://127.0.0.1:9/", AUTH_APPLE_CLIENT_ID: "svc", AUTH_APPLE_TEAM_ID: "T", AUTH_APPLE_KEY_ID: "K", AUTH_APPLE_PRIVATE_KEY: "abc" });
   assert.ok(result.ok);
-  assert.equal(result.config.providers.apple?.tokenEndpoint, "http://127.0.0.1:9/apple/token");
   assert.equal(result.config.providers.google?.issuer, "http://127.0.0.1:9/google");
-  assert.equal(result.config.providers.apple?.apple?.privateKey, "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----", "escaped newlines are restored");
+  assert.equal(result.config.providers.google?.tokenEndpoint, "http://127.0.0.1:9/google/token");
+  assert.deepEqual(Object.keys(result.config.providers), ["google"], "leftover AUTH_APPLE_* variables do nothing");
+});
+
+test("config: Google sign-in is required", () => {
+  const result = readAuthConfig({ ...baseEnv, AUTH_GOOGLE_CLIENT_ID: undefined, AUTH_GOOGLE_CLIENT_SECRET: undefined });
+  assert.ok(!result.ok && result.problems.some((problem) => problem.includes("Google sign-in is not configured")));
 });
 
 test("sealed state: round-trips, and any tampering, other key, or other purpose is rejected", () => {

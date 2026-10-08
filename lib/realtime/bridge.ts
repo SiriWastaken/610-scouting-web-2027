@@ -37,6 +37,14 @@ export const SESSION_ENDED = 4401;
 
 const OPEN = 1;
 let activeConnections = 0;
+let lastFeedErrorLog = { message: "", at: 0 };
+/** An upstream outage fails every connection on every retry; log it once per interval, not once per socket. */
+function logFeedError(message: string) {
+  const now = Date.now();
+  if (message === lastFeedErrorLog.message && now - lastFeedErrorLog.at < 30_000) return;
+  lastFeedErrorLog = { message, at: now };
+  console.error("Realtime changes feed failed:", message);
+}
 export function getActiveRealtimeConnections() { return activeConnections; }
 
 /** Browsers always send Origin on WebSocket upgrades; only accept our own host. */
@@ -115,7 +123,7 @@ export function attachRealtimeBridge(client: BridgeSocket, startFeed: FeedStarte
         (frame) => send(frame),
         () => send({ type: "ready" }),
         (error) => {
-          console.error("Realtime changes feed failed:", error.message);
+          logFeedError(error.message);
           realtimeMetrics.feedError(connectionId, error, error.resync === true);
           send({ type: "error", retryable: true, resync: error.resync === true });
           if (client.readyState === OPEN) client.close(1011, "Changes feed disconnected");

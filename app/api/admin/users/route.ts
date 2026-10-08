@@ -34,7 +34,7 @@ export async function GET(request: Request) {
       const manageable = canManageUser(actor, principalFor(auth.config, id, user));
       const scouting = user.scoutName ? activity.get(user.scoutName.trim().toLowerCase()) : undefined;
       return { ...publicUser(auth.config, id, user, "admin"), activeSessions: live.get(id) ?? 0, scouting: scouting ?? null, manageable, assignableRoles: manageable ? roles : [] };
-    }).sort((a, b) => (a.status === "pending" ? -1 : 0) - (b.status === "pending" ? -1 : 0) || a.displayName.localeCompare(b.displayName)),
+    }).sort((a, b) => a.displayName.localeCompare(b.displayName)),
     viewer: { id: checked.viewer.userId, role: actor.role },
   });
 }

@@ -6,7 +6,7 @@ import { authRuntime } from "@/lib/auth/requests";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Starts Sign in with Google/Apple: sets the encrypted state cookie and sends the browser to the provider. */
+/** Starts Sign in with Google: sets the encrypted state cookie and sends the browser to the provider. */
 export async function GET(request: Request, { params }: { params: Promise<{ provider: string }> }) {
   const { provider } = await params;
   const auth = authRuntime();

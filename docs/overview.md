@@ -1,7 +1,7 @@
 ---
 title: Overview
 description: What the dashboard is for and what it shows
-verified_at: 27726e0 (2026-10-02)
+verified_at: 885d225 (2026-10-03)
 sources:
   - README.md
   - components/layout/nav-links.tsx
@@ -28,9 +28,9 @@ app never writes scouting data.
 
 ## Who can do what
 
-Everyone signs in with Google or Apple. An account has one of five roles (Owner, Mentor, Scout lead,
-Scout, Member) and the server enforces them. Any approved account can read the dashboard; only
-Mentors and above see operations; scout leads manage users. See [[authentication]].
+Everyone signs in with Google, and anyone Google lets through is in straight away. An account has one of five roles
+(Owner, Mentor, Scout lead, Scout, Member) and the server enforces them. Any active account can read the dashboard; only
+Mentors and above see operations; scout leads manage users and can deny or allow an account's access. See [[authentication]].
 
 ## Live by default
 

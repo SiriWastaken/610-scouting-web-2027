@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Activity, ArrowLeftRight, Calculator, CircleAlert, Target, type LucideIcon } from "lucide-react";
+import { Activity, ArrowLeftRight, CircleAlert, Target } from "lucide-react";
 import { buttonClass, EmptyState, NoteChip, rowClass, selectClass } from "@/components/ui/kit";
 import type { TeamAggregate } from "@/types/scouting";
 import { useAggregateRealtime } from "@/lib/realtime/hooks";
@@ -14,7 +14,7 @@ import {
 const OWN_TEAM = 610;
 const ROBOTS_PER_ALLIANCE = 3;
 /** Micro-labels are at least 12px (text-xs) everywhere on this page. */
-const microLabel = "text-xs font-semibold uppercase tracking-[0.06em] text-muted";
+const microLabel = "text-xs font-medium text-muted";
 const OUTLIER_HINT = `Likely outlier: more than ${OUTLIER_SD} standard deviations from the field mean, or over ${OUTLIER_MEDIAN_MULTIPLE}× the field median.`;
 const LOW_SAMPLE_HINT = `Fewer than ${LOW_SAMPLE_THRESHOLD} scouted matches, so this average is easily skewed.`;
 
@@ -65,8 +65,8 @@ export function StrategyTools({ teams: initialTeams }: { teams: TeamAggregate[] 
   const hasOwnTeam = Boolean(find(OWN_TEAM));
 
   return <div className="space-y-5">
-    <section className="overflow-hidden rounded-lg border border-line bg-surface shadow-sm">
-      <SectionHead icon={ArrowLeftRight} title="Head to head" description="Two teams' averages side by side. The leader in each row is bold and shaded; the margin sits under it." />
+    <section className="overflow-hidden rounded-lg border border-line bg-surface">
+      <SectionHead title="Head to head" description="Two teams' averages side by side. The leader in each row is bold and shaded; the margin sits under it." />
       <div className="space-y-3 p-5">
         <div className="grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
           <TeamSelect label="Team A" value={first.team} teams={teams} onChange={setTeamA} />
@@ -124,7 +124,7 @@ function ValueCell({ side, value, text, leader, margin, outlier, big }: { side: 
   return <td className={`px-2 py-2.5 align-middle sm:px-3 ${tone}`} data-state={state}>
     <div className={`flex flex-col ${align}`}>
       <div className={`flex items-center gap-2 ${side === "a" ? "flex-row-reverse" : ""}`}>
-        <span className={`tabular-nums ${big ? "font-display text-2xl leading-8" : "font-mono text-base leading-6"}`} title={value === null ? "No scouted data" : undefined}>{text}</span>
+        <span className={`tabular-nums ${big ? "text-[22px] font-semibold leading-7" : "text-base font-medium leading-6"}`} title={value === null ? "No scouted data" : undefined}>{text}</span>
         {outlier && <NoteChip icon={Activity} title={OUTLIER_HINT}>Outlier</NoteChip>}
       </div>
       <span className="min-h-4 text-xs font-medium leading-4 tabular-nums">{state === "lead" ? <><span className="sr-only">Leads by </span>{margin}</> : state === "tie" ? <><span aria-hidden="true">=</span><span className="sr-only">Tied</span></> : null}</span>
@@ -157,8 +157,8 @@ function Prediction({ teams, red, blue, onRed, onBlue, totals }: PredictionProps
   const { leader, margin } = compareValues(redScore.robots ? redScore.total : null, blueScore.robots ? blueScore.total : null);
   const summary = leader === null ? "Pick robots for both alliances to compare them." : leader === "tie" ? "The alliances are even." : `${leader === "a" ? "Red" : "Blue"} alliance leads by ${margin.toFixed(1)} points.`;
 
-  return <section className="overflow-hidden rounded-lg border border-line bg-surface shadow-sm">
-    <SectionHead icon={Calculator} title="Match prediction" description="A transparent baseline: add up each alliance's average points in every phase, then compare the two totals." />
+  return <section className="overflow-hidden rounded-lg border border-line bg-surface">
+    <SectionHead title="Match prediction" description="A transparent baseline: add up each alliance's average points in every phase, then compare the two totals." />
     <p className="border-b border-line px-5 py-3 text-sm font-medium text-ink" data-alliance-margin aria-live="polite">{summary}</p>
     <div className="grid gap-px bg-line lg:grid-cols-2">
       <Alliance name="Red" slug="red" robots={redRobots} slots={red} onSlots={onRed} teams={teams} score={redScore} biggest={biggest} totals={totals} />
@@ -198,7 +198,7 @@ function Alliance({ name, slug, robots, slots, onSlots, teams, score, biggest, t
         <div className={`mt-2 ${microLabel}`}>Estimated alliance score</div>
       </div>
       <div className="text-right">
-        <div className="font-display text-5xl font-bold leading-none tabular-nums text-ink" data-alliance-score={slug}>{score.robots ? score.total.toFixed(1) : NO_DATA}</div>
+        <div className="text-[44px] font-semibold leading-none tracking-[-0.02em] tabular-nums text-ink" data-alliance-score={slug}>{score.robots ? score.total.toFixed(1) : NO_DATA}</div>
       </div>
     </div>
     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted">
@@ -237,8 +237,8 @@ function RobotSlot({ label, value, team, teams, biggest, totals, onChange }: { l
   </li>;
 }
 
-function SectionHead({ icon: Icon, title, description }: { icon: LucideIcon; title: string; description: string }) {
-  return <div className="border-b border-line px-5 py-3.5"><h2 className="flex items-center gap-2 text-sm font-semibold text-ink"><Icon className="h-4 w-4 text-muted" aria-hidden="true" />{title}</h2><p className="mt-1 text-sm text-muted">{description}</p></div>;
+function SectionHead({ title, description }: { title: string; description: string }) {
+  return <div className="border-b border-line px-5 py-3.5"><h2 className="text-sm font-semibold text-ink">{title}</h2><p className="mt-1 text-sm text-muted">{description}</p></div>;
 }
 
 function TeamSelect({ label, value, teams, onChange }: { label: string; value: number; teams: TeamAggregate[]; onChange: (value: number) => void }) {

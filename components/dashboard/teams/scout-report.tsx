@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Check, FileQuestion, MessageSquareText, X } from 'lucide-react';
+import { Check, FileQuestion, X } from 'lucide-react';
 import { EmptyState, labelClass } from '@/components/ui/kit';
 import type { PitData } from '@/lib/data/team-documents';
 import { Section } from './primitives';
@@ -48,7 +48,7 @@ function ReportSection({ title, source, children }: { title: string; source?: 'A
       <div className="mb-3 flex items-center gap-2">
         <h3 className="text-sm font-semibold text-ink">{title}</h3>
         {source && (
-          <span className={`rounded px-1.5 py-0.5 text-xs font-bold uppercase tracking-[0.08em] ${source === 'Observed' ? 'bg-teleop-soft text-teleop' : 'bg-surface-2 text-muted'}`}>
+          <span className={`rounded-sm px-1.5 py-0.5 text-xs font-semibold ${source === 'Observed' ? 'bg-teleop-soft text-teleop' : 'bg-surface-2 text-muted'}`}>
             {source}
           </span>
         )}
@@ -102,7 +102,7 @@ function RatingBlock({
           {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
             <span
               key={n}
-              className={`flex h-7 flex-1 items-center justify-center rounded text-xs font-bold ${
+              className={`flex h-7 flex-1 items-center justify-center rounded-sm text-xs font-bold ${
                 value && n <= value ? (n === value ? 'bg-accent text-accent-foreground' : 'bg-accent-muted text-accent-text') : 'bg-surface-2 text-muted'
               }`}
             >
@@ -119,7 +119,7 @@ function RatingBlock({
 export function ExpertScoutReport({ pitData, teamNumber }: { pitData?: PitData; teamNumber: number }) {
   if (!pitData) {
     return (
-      <Section title="Expert Scout Report" icon={MessageSquareText}>
+      <Section title="Expert Scout Report">
         <EmptyState icon={FileQuestion} title={`No pit interview for ${teamNumber} yet`}>
           Swing by their pit! The report appears here as soon as the interview is synced.
         </EmptyState>
@@ -132,7 +132,7 @@ export function ExpertScoutReport({ pitData, teamNumber }: { pitData?: PitData; 
   return (
     <Section
       title="Expert Scout Report"
-      icon={MessageSquareText}
+     
       aside={pitData.scoutName ? <span className="text-xs text-muted">Interviewed by {pitData.scoutName}</span> : undefined}
     >
       <div className={photoUri ? 'grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]' : ''}>

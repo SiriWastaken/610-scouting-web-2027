@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { EmptyRow } from "@/components/ui/kit";
-import { buttonClass, formatDate, inputClass, Panel } from "@/components/ui/kit";
+import { buttonClass, selectClass, formatDate, inputClass, Panel } from "@/components/ui/kit";
 import type { AuditEntry } from "@/lib/auth/audit";
 
 const ACTIONS = [["", "All actions"], ["auth", "Sign-in / sign-out"], ["users", "Account changes"], ["account", "Own-profile changes"], ["ops", "Operations"], ["dashboard", "Dashboard access"], ["audit", "Audit access"]] as const;
@@ -37,17 +37,17 @@ export function AuditLog() {
   return <Panel title="Audit log" action={<span className="font-mono text-xs text-muted">append-only · newest first</span>}>
     <div className="flex flex-col gap-3 border-b border-line px-5 py-3 sm:flex-row">
       <label className="flex-1"><span className="sr-only">Search</span><input className={inputClass} placeholder="Search email, account, reason" value={filters.q} onChange={(event) => setFilters({ ...filters, q: event.target.value })} /></label>
-      <select aria-label="Action" className={`${inputClass} sm:w-48`} value={filters.action} onChange={(event) => setFilters({ ...filters, action: event.target.value })}>{ACTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-      <select aria-label="Result" className={`${inputClass} sm:w-36`} value={filters.result} onChange={(event) => setFilters({ ...filters, result: event.target.value })}><option value="">Any result</option><option value="success">Success</option><option value="denied">Denied</option><option value="failure">Failure</option></select>
+      <select aria-label="Action" className={`${selectClass} sm:w-48`} value={filters.action} onChange={(event) => setFilters({ ...filters, action: event.target.value })}>{ACTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+      <select aria-label="Result" className={`${selectClass} sm:w-36`} value={filters.result} onChange={(event) => setFilters({ ...filters, result: event.target.value })}><option value="">Any result</option><option value="success">Success</option><option value="denied">Denied</option><option value="failure">Failure</option></select>
     </div>
     {error && <p role="alert" className="border-b border-line px-5 py-3 text-sm text-bad">{error}</p>}
     {entries === null ? <EmptyRow>Loading…</EmptyRow> : entries.length === 0 ? <EmptyRow>No entries match.</EmptyRow> : <>
       <div className="overflow-x-auto"><table className="w-full min-w-[860px] text-left text-xs">
-        <thead className="border-b border-line bg-surface-2 text-xs font-semibold uppercase tracking-[0.06em] text-muted"><tr><th className="px-5 py-3">When</th><th className="px-4 py-3">Action</th><th className="px-4 py-3">Result</th><th className="px-4 py-3">Actor</th><th className="px-4 py-3">Target</th><th className="px-4 py-3">Details</th></tr></thead>
+        <thead className="border-b border-line text-xs font-medium text-muted"><tr><th className="px-5 py-3">When</th><th className="px-4 py-3">Action</th><th className="px-4 py-3">Result</th><th className="px-4 py-3">Actor</th><th className="px-4 py-3">Target</th><th className="px-4 py-3">Details</th></tr></thead>
         <tbody>{entries.map((entry) => <tr key={entry.id} className="border-t border-line align-top" data-audit-action={entry.action}>
           <td className="whitespace-nowrap px-5 py-2.5 text-muted" title={entry.at}>{formatDate(entry.at)}</td>
           <td className="px-4 py-2.5 font-mono">{entry.action}</td>
-          <td className={`px-4 py-2.5 font-mono uppercase ${entry.result === "success" ? "text-accent-text" : entry.result === "denied" ? "text-warn" : "text-bad"}`}><span aria-hidden="true">{entry.result === "success" ? "● " : entry.result === "denied" ? "⊘ " : "✕ "}</span>{entry.result}</td>
+          <td className={`px-4 py-2.5 font-mono capitalize ${entry.result === "success" ? "text-accent-text" : entry.result === "denied" ? "text-warn" : "text-bad"}`}><span aria-hidden="true">{entry.result === "success" ? "● " : entry.result === "denied" ? "⊘ " : "✕ "}</span>{entry.result}</td>
           <td className="px-4 py-2.5">{entry.actor ? <>{entry.actor.email ?? entry.actor.id}{entry.actor.role && <span className="block font-mono text-xs text-muted">{entry.actor.role}</span>}</> : <span className="text-muted">anonymous</span>}</td>
           <td className="px-4 py-2.5">{entry.target ? entry.target.label ?? entry.target.id ?? entry.target.type : "—"}</td>
           <td className="px-4 py-2.5 text-muted">{entry.reason && <span className="block text-ink">{entry.reason}</span>}{entry.meta && Object.entries(entry.meta).map(([key, value]) => <span key={key} className="mr-3 inline-block font-mono">{key}={String(value)}</span>)}</td>

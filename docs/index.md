@@ -29,7 +29,7 @@ follow the route that matches what you are doing.
 | [[data-model]] | What documents does Couchbase hold, and how do they become the rows the UI shows? |
 | [[realtime]] | How do pages stay live, and what stops a stale or duplicate update from winning? |
 | [[pages]] | Every route: what it shows, who may open it, which files build it |
-| [[design-system]] | Colours, tabs, shared building blocks, and the rules for using them |
+| [[design-system]] | The look, colour tokens, shared building blocks, and the rules for using them |
 | [[authentication]] | Sign-in setup, roles and permissions, sessions, audit log, security |
 | [[operations]] | The admin panel: health, WebSocket and sync monitoring, event-day troubleshooting |
 | [[development]] | Setup, commands, conventions, how to add a page or an API route |

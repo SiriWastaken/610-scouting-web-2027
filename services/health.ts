@@ -84,7 +84,7 @@ function authCheck(store: Check): Check {
   const details = { providers, testEndpoints: Boolean(override), signIns: auth.signIns, signInFailures: auth.signInFailures, lastSignInAt: auth.lastSignInAt ?? null, lastFailureAt: auth.lastFailureAt ?? null, lastFailure: auth.lastFailure ?? null };
   if (store.status === "down") return { status: "down", summary: "Sessions cannot be checked: the account store is down", checkedAt: now, details };
   const failingLately = auth.lastFailureAt !== undefined && (auth.lastSignInAt === undefined || auth.lastFailureAt > auth.lastSignInAt) && now - auth.lastFailureAt < 15 * 60_000;
-  return { status: failingLately ? "degraded" : "ok", summary: failingLately ? `Most recent sign-in failed: ${auth.lastFailure}` : `${providers.map((id) => (id === "google" ? "Google" : "Apple")).join(" and ")} sign-in enabled${override}`, checkedAt: now, details };
+  return { status: failingLately ? "degraded" : "ok", summary: failingLately ? `Most recent sign-in failed: ${auth.lastFailure}` : `Google sign-in enabled${override}`, checkedAt: now, details };
 }
 
 async function runChecks() {

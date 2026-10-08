@@ -2,7 +2,7 @@
 // rules for who may manage whom. Expected tables are written out by hand.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ADMIN_SECTIONS, assignableRoles, can, canAssignRole, canManageUser, canOpenAdmin, PERMISSIONS, ROLES, roleRank, storedRole, type Permission, type Principal, type Role } from "../../../lib/auth/roles.ts";
+import { ACCOUNT_STATUSES, ADMIN_SECTIONS, accountStatus, assignableRoles, can, canAssignRole, canManageUser, canOpenAdmin, PERMISSIONS, ROLES, roleRank, storedRole, type Permission, type Principal, type Role } from "../../../lib/auth/roles.ts";
 
 const who = (role: Role, status: Principal["status"] = "active", id = `u-${role}`): Principal => ({ id, role, status });
 
@@ -27,11 +27,11 @@ test("permissions: hand-written matrix for every active role", () => {
   }
 });
 
-test("permissions: pending and disabled accounts can do nothing; the Owner bypasses every check", () => {
-  for (const status of ["pending", "disabled"] as const) {
+test("permissions: denied (disabled) accounts can do nothing; the Owner bypasses every check", () => {
+  for (const status of ["disabled"] as const) {
     for (const role of ROLES.filter((value) => value !== "OWNER")) for (const permission of Object.keys(PERMISSIONS) as Permission[]) assert.equal(can(who(role, status), permission), false, `${status} ${role} ${permission}`);
   }
-  for (const permission of Object.keys(PERMISSIONS) as Permission[]) assert.equal(can(who("OWNER", "pending"), permission), true, `Owner ${permission}`);
+  for (const permission of Object.keys(PERMISSIONS) as Permission[]) assert.equal(can(who("OWNER", "disabled"), permission), true, `Owner ${permission}`);
   assert.equal(can(null, "dashboard:read"), false);
   assert.equal(can(undefined, "dashboard:read"), false);
 });
@@ -60,7 +60,7 @@ test("role grants: below your own role, and OWNER is never grantable", () => {
   assert.equal(canAssignRole(who("MENTOR"), who("SCOUT", "active", "t"), "MENTOR"), false, "a mentor cannot make another mentor");
   assert.equal(canAssignRole(who("OWNER"), who("SCOUT", "active", "t"), "MENTOR"), true, "only the Owner makes mentors");
   assert.equal(canAssignRole(who("OWNER"), who("SCOUT", "active", "t"), "OWNER"), false, "ownership is configuration, not a grant");
-  assert.equal(canAssignRole(who("SCOUT_LEAD"), who("MEMBER", "pending", "t"), "SCOUT"), true, "leads promote pending members to scouts");
+  assert.equal(canAssignRole(who("SCOUT_LEAD"), who("MEMBER", "disabled", "t"), "SCOUT"), true, "leads can change the role of a denied member");
   assert.equal(canAssignRole(who("MENTOR", "active", "a"), who("MENTOR", "active", "a"), "OWNER"), false, "no self-elevation");
 });
 
@@ -82,5 +82,14 @@ test("admin area: who sees which sections", () => {
   assert.deepEqual(visible("OWNER"), visible("MENTOR"));
   assert.equal(canOpenAdmin(who("SCOUT")), false);
   assert.equal(canOpenAdmin(who("SCOUT_LEAD")), true);
-  assert.equal(canOpenAdmin(who("MENTOR", "pending")), false);
+  assert.equal(canOpenAdmin(who("MENTOR", "disabled")), false);
+});
+
+test("status: only active and disabled exist; an account saved as pending reads as active", () => {
+  assert.deepEqual([...ACCOUNT_STATUSES], ["active", "disabled"]);
+  assert.equal(accountStatus("active"), "active");
+  assert.equal(accountStatus("disabled"), "disabled");
+  assert.equal(accountStatus("pending"), "active", "accounts saved before open access are not locked out");
+  assert.equal(accountStatus(undefined), "active");
+  assert.equal(accountStatus("anything else"), "active");
 });

@@ -55,9 +55,9 @@ export function AccountPanel() {
   return <div className="space-y-5">
     <Panel title="Profile">
       <div className="flex flex-col gap-5 px-5 py-5 sm:flex-row sm:items-center">
-        <Avatar name={user.displayName} picture={user.picture} provider={provider} size={64} />
+        <Avatar name={user.displayName} picture={user.picture} size={64} />
         <div className="min-w-0 flex-1">
-          <div className="truncate font-display text-2xl font-semibold tracking-tight" data-profile-name>{user.displayName}</div>
+          <div className="truncate text-[22px] font-semibold leading-7 tracking-[-0.005em]" data-profile-name>{user.displayName}</div>
           <div className="truncate text-sm text-muted">{user.email}</div>
           <div className="mt-2 flex flex-wrap items-center gap-3"><span data-profile-role={user.role}><RoleBadge role={user.role} /></span><AccountStatusBadge status={user.status} /></div>
         </div>
@@ -106,7 +106,7 @@ export function AccountPanel() {
     }}>{revoking ? "Signing out…" : "Sign out other devices"}</button>}>
       {sessionsError ? <p className="px-5 py-4 text-sm text-bad">{sessionsError}</p> : sessions === null ? <p className="px-5 py-4 text-sm text-muted">Loading…</p> :
         <ul>{sessions.map((entry, index) => <li key={index} className="flex flex-wrap items-center justify-between gap-2 border-t border-line px-5 py-3 text-sm first:border-t-0">
-          <span className="inline-flex items-center gap-2"><ProviderIcon provider={entry.provider} className="h-3.5 w-3.5" />{entry.device ?? "Unknown device"}{entry.current && <span className="text-xs font-semibold uppercase tracking-[0.08em] text-accent-text">This device</span>}</span>
+          <span className="inline-flex items-center gap-2"><ProviderIcon provider={entry.provider} className="h-3.5 w-3.5" />{entry.device ?? "Unknown device"}{entry.current && <span className="text-xs font-semibold text-accent-text">This device</span>}</span>
           <span className="text-xs text-muted">active {formatDate(entry.lastSeenAt, { relative: true })} · started {formatDate(entry.createdAt)}</span>
         </li>)}</ul>}
     </Panel>

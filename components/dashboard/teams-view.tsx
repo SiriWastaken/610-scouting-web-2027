@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Bot, RectangleVertical } from 'lucide-react';
+import { Bot } from 'lucide-react';
 import { EmptyState } from '@/components/ui/kit';
 import type { TeamAggregate } from '@/types/scouting';
 import { useAggregateRealtime, useRealtimeDocuments, useRealtimeResync } from '@/lib/realtime/hooks';
@@ -117,7 +117,7 @@ export default function TeamsClientView({ initialTeams, teamNames = {} }: TeamsC
 
           <ExpertScoutReport pitData={pitData} teamNumber={selectedTeam.team} />
 
-          <Section title="Card Reports" icon={RectangleVertical}>
+          <Section title="Card Reports">
             <CardReportsTable teamNumber={selectedTeam.team} />
           </Section>
         </>

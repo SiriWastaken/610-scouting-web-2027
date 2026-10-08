@@ -153,6 +153,17 @@ export async function pruneExpiredSessions(store: AccountStore, config: AuthConf
   }
 }
 
+/**
+ * Right after a successful sign-in: ends the browser's previous session and
+ * clears this account's expired ones. Best effort, because neither failing may
+ * block the sign-in (the old session expires on its own and pruning repeats at
+ * the next sign-in).
+ */
+export async function endPreviousSession(store: AccountStore, config: AuthConfig, userId: string, previousToken: string | undefined | null) {
+  try { await revokeSession(store, previousToken); } catch { /* expires on its own */ }
+  try { await pruneExpiredSessions(store, config, userId); } catch { /* pruned next time */ }
+}
+
 /** Reads one cookie from a raw Cookie header (used where no framework cookie API exists, e.g. WebSocket upgrades). */
 export function readCookie(header: string | string[] | null | undefined, name: string): string | undefined {
   const raw = Array.isArray(header) ? header.join("; ") : header;

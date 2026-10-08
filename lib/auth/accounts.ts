@@ -2,9 +2,9 @@
 // sign-in, and every change made to an account afterwards. Authorization for
 // changes is decided here with lib/auth/roles.ts, never by the caller.
 import { randomBytes } from "node:crypto";
-import { isAutoApproved, type AuthConfig, type ProviderId } from "./config.ts";
+import type { AuthConfig, ProviderId } from "./config.ts";
 import { sha256Hex } from "./sign-in.ts";
-import { ASSIGNABLE_ROLES, can, canAssignRole, canManageUser, isAccountStatus, isAssignableRole, storedRole, type AccountStatus, type Principal, type Role } from "./roles.ts";
+import { ASSIGNABLE_ROLES, accountStatus, can, canAssignRole, canManageUser, isAccountStatus, isAssignableRole, storedRole, type AccountStatus, type Principal, type Role } from "./roles.ts";
 import { ConflictError, type AccountStore, type StoredDoc } from "./store.ts";
 
 export interface UserDoc {
@@ -15,20 +15,23 @@ export interface UserDoc {
   displayName: string;
   /** The name the provider reported, kept for reference. */
   providerName?: string;
-  /** Profile photo URL from Google (https, Google-hosted only). Apple provides none. */
+  /** Profile photo URL from Google (https, Google-hosted only). */
   picture?: string;
   /** Never OWNER: ownership comes from AUTH_OWNER_EMAILS. Older values (ADMIN, ROOT) read as MENTOR. */
   role: Exclude<Role, "OWNER">;
-  status: AccountStatus;
+  /** `pending` only appears on accounts saved before open access; it reads as `active`. */
+  status: AccountStatus | "pending";
   /** The name this person uses on scouting tablets, linking them to their submissions. Only the Owner may change it. */
   scoutName?: string;
   /** Visible to account managers only. */
   adminNote?: string;
-  providers: ProviderId[];
+  /** Strings, not ProviderId: accounts that once signed in with a provider that has since been removed keep their history. */
+  providers: string[];
   createdAt: string;
   updatedAt: string;
   lastSignInAt?: string;
-  lastSignInProvider?: ProviderId;
+  lastSignInProvider?: string;
+  /** Who allowed access: `automatic` (first Google sign-in), `configuration` (Owner), or a manager's account id. */
   approvedBy?: string;
   approvedAt?: string;
 }
@@ -55,7 +58,7 @@ export function isOwnerEmail(config: AuthConfig, email: string) { return config.
 /** Role and status as enforced: Owner emails are always an active OWNER, whatever the stored document says. */
 export function principalFor(config: AuthConfig, userId: string, user: UserDoc): Principal {
   if (isOwnerEmail(config, user.email)) return { id: userId, role: "OWNER", status: "active" };
-  return { id: userId, role: storedRole(user.role), status: user.status };
+  return { id: userId, role: storedRole(user.role), status: accountStatus(user.status) };
 }
 
 /** Only https Google profile photos are kept; anything else would let a provider profile point the app at arbitrary URLs. */
@@ -110,14 +113,13 @@ export async function resolveSignIn(store: AccountStore, config: AuthConfig, ide
       const candidate = newUserId();
       try {
         await store.create<EmailIndexDoc>(emailDocId(email), { type: "auth_email", userId: candidate });
-        // Everyone starts as a MEMBER; the Owner's power comes from configuration, not this document.
-        const approved = isOwnerEmail(config, email) || isAutoApproved(config, email);
+        // Everyone starts as an active MEMBER; the Owner's power comes from configuration, not this document.
         await store.create<UserDoc>(userDocId(candidate), {
           type: "auth_user", email, emailVerified: true, displayName: defaultName(identity), providerName: cleanText(identity.name, 80),
           picture: identity.provider === "google" ? safePicture(identity.picture) : undefined,
-          role: "MEMBER", status: approved ? "active" : "pending",
+          role: "MEMBER", status: "active",
           providers: [], createdAt: now, updatedAt: now,
-          ...(approved ? { approvedBy: "configuration", approvedAt: now } : {}),
+          approvedBy: isOwnerEmail(config, email) ? "configuration" : "automatic", approvedAt: now,
         });
         userId = candidate; created = true;
       } catch (error) {
@@ -145,6 +147,7 @@ export async function resolveSignIn(store: AccountStore, config: AuthConfig, ide
       lastSignInAt: now, lastSignInProvider: identity.provider, updatedAt: now,
     };
     if (isOwnerEmail(config, user.email) && next.status !== "active") { next.status = "active"; next.approvedBy = "configuration"; next.approvedAt = now; }
+    else if (next.status === "pending") { next.status = "active"; next.approvedBy = "automatic"; next.approvedAt = now; } // saved before open access
     if (principalFor(config, finalUserId, next).status === "disabled") return next; // leave a disabled account untouched
     await store.update(userDocId(finalUserId), current.rev, next);
     return next;
@@ -185,7 +188,7 @@ export function parsePatch(body: unknown, kind: "admin" | "profile"): { ok: true
     patch[field] = cleanText(input[field], max) ?? null;
   }
   if ("role" in input) { if (!isAssignableRole(input.role)) return { ok: false, error: `role must be one of ${ASSIGNABLE_ROLES.join(", ")} (OWNER is set in the server configuration)` }; patch.role = input.role; }
-  if ("status" in input) { if (!isAccountStatus(input.status)) return { ok: false, error: "status must be active, pending, or disabled" }; patch.status = input.status; }
+  if ("status" in input) { if (!isAccountStatus(input.status)) return { ok: false, error: "status must be active or disabled" }; patch.status = input.status; }
   if ("expectedRev" in input) { if (typeof input.expectedRev !== "string" || input.expectedRev.length > 200) return { ok: false, error: "expectedRev must be a revision string" }; patch.expectedRev = input.expectedRev; }
   if (Object.keys(patch).filter((key) => key !== "expectedRev").length === 0) return { ok: false, error: "Nothing to change" };
   return { ok: true, patch };
@@ -216,7 +219,7 @@ export async function adminUpdateUser(store: AccountStore, config: AuthConfig, a
   if (patch.adminNote !== undefined) { if (patch.adminNote === null) delete next.adminNote; else next.adminNote = patch.adminNote; }
   if (patch.role !== undefined) next.role = patch.role;
   if (patch.status !== undefined) {
-    if (patch.status === "active" && current.body.status !== "active") { next.approvedBy = actor.id; next.approvedAt = now; }
+    if (patch.status === "active" && accountStatus(current.body.status) !== "active") { next.approvedBy = actor.id; next.approvedAt = now; }
     next.status = patch.status;
   }
   try {

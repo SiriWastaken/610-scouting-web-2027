@@ -25,7 +25,7 @@ import { asUser, startTestAuth, type TestAuth, type TestUser } from "../helpers/
 let target: GatewayTarget;
 let auth: TestAuth;
 const base = "http://dashboard.test";
-type Caller = "anonymous" | "malformed" | "expired" | "disabled" | "pending" | "MEMBER" | "SCOUT" | "SCOUT_LEAD" | "MENTOR" | "OWNER";
+type Caller = "anonymous" | "malformed" | "expired" | "disabled" | "MEMBER" | "SCOUT" | "SCOUT_LEAD" | "MENTOR" | "OWNER";
 const callers: Partial<Record<Caller, { cookie: string } | null>> = {};
 let subject: TestUser; // a MEMBER everyone with users:manage may act on
 
@@ -36,7 +36,6 @@ before(async () => {
   callers.anonymous = null;
   callers.malformed = { cookie: "610_session=not-a-session" };
   for (const role of ["MEMBER", "SCOUT", "SCOUT_LEAD", "MENTOR", "OWNER"] as const) callers[role] = await auth.user(role);
-  callers.pending = await auth.user("MENTOR", { status: "pending" });
   callers.disabled = await auth.user("MENTOR", { status: "disabled" }); // an Owner cannot be disabled
   const expired = await auth.user("MENTOR");
   const sessionId = [...auth.store.docs.keys()].find((id) => id.startsWith(`${SESSION_PREFIX}${expired.userId}_`))!;
@@ -67,19 +66,19 @@ const routes: Record<string, Call> = {
 // Hand-written: 401 = not signed in, 403 = signed in but not allowed.
 const NO = { anonymous: 401, malformed: 401, expired: 401, disabled: 401 } as const;
 const expected: Record<string, Record<Caller, number>> = {
-  "GET /api/dashboard-documents": { ...NO, pending: 403, MEMBER: 200, SCOUT: 200, SCOUT_LEAD: 200, MENTOR: 200, OWNER: 200 },
-  "GET /api/auth/session": { ...NO, pending: 200, MEMBER: 200, SCOUT: 200, SCOUT_LEAD: 200, MENTOR: 200, OWNER: 200 },
-  "GET /api/account": { ...NO, pending: 200, MEMBER: 200, SCOUT: 200, SCOUT_LEAD: 200, MENTOR: 200, OWNER: 200 },
+  "GET /api/dashboard-documents": { ...NO, MEMBER: 200, SCOUT: 200, SCOUT_LEAD: 200, MENTOR: 200, OWNER: 200 },
+  "GET /api/auth/session": { ...NO, MEMBER: 200, SCOUT: 200, SCOUT_LEAD: 200, MENTOR: 200, OWNER: 200 },
+  "GET /api/account": { ...NO, MEMBER: 200, SCOUT: 200, SCOUT_LEAD: 200, MENTOR: 200, OWNER: 200 },
   // Names (the only thing this route edits) belong to the Owner.
-  "PATCH /api/account": { ...NO, pending: 403, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 403, MENTOR: 403, OWNER: 200 },
-  "DELETE /api/account/sessions": { ...NO, pending: 200, MEMBER: 200, SCOUT: 200, SCOUT_LEAD: 200, MENTOR: 200, OWNER: 200 },
-  "GET /api/admin/overview": { ...NO, pending: 403, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 403, MENTOR: 200, OWNER: 200 },
-  "POST /api/admin/diagnostics": { ...NO, pending: 403, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 403, MENTOR: 200, OWNER: 200 },
-  "GET /api/admin/users": { ...NO, pending: 403, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 200, MENTOR: 200, OWNER: 200 },
-  "GET /api/admin/users/:id": { ...NO, pending: 403, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 200, MENTOR: 200, OWNER: 200 },
-  "PATCH /api/admin/users/:id": { ...NO, pending: 403, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 200, MENTOR: 200, OWNER: 200 },
-  "DELETE /api/admin/users/:id/sessions": { ...NO, pending: 403, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 200, MENTOR: 200, OWNER: 200 },
-  "GET /api/admin/audit": { ...NO, pending: 403, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 403, MENTOR: 200, OWNER: 200 },
+  "PATCH /api/account": { ...NO, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 403, MENTOR: 403, OWNER: 200 },
+  "DELETE /api/account/sessions": { ...NO, MEMBER: 200, SCOUT: 200, SCOUT_LEAD: 200, MENTOR: 200, OWNER: 200 },
+  "GET /api/admin/overview": { ...NO, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 403, MENTOR: 200, OWNER: 200 },
+  "POST /api/admin/diagnostics": { ...NO, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 403, MENTOR: 200, OWNER: 200 },
+  "GET /api/admin/users": { ...NO, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 200, MENTOR: 200, OWNER: 200 },
+  "GET /api/admin/users/:id": { ...NO, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 200, MENTOR: 200, OWNER: 200 },
+  "PATCH /api/admin/users/:id": { ...NO, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 200, MENTOR: 200, OWNER: 200 },
+  "DELETE /api/admin/users/:id/sessions": { ...NO, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 200, MENTOR: 200, OWNER: 200 },
+  "GET /api/admin/audit": { ...NO, MEMBER: 403, SCOUT: 403, SCOUT_LEAD: 403, MENTOR: 200, OWNER: 200 },
 };
 
 test("matrix: every protected route answers every caller exactly as the role model says", async () => {

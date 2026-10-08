@@ -4,7 +4,7 @@ import { isProviderId } from "@/lib/auth/config";
 import { clearCookie, redirectTo, serializeCookie } from "@/lib/auth/requests";
 import { completeSignIn, SignInError, stateCookieName, type CallbackParams } from "@/lib/auth/sign-in";
 import { authRuntime } from "@/lib/auth/requests";
-import { createSession, pruneExpiredSessions, readCookie, revokeSession, sessionCookieName } from "@/lib/auth/sessions";
+import { createSession, endPreviousSession, readCookie, sessionCookieName } from "@/lib/auth/sessions";
 import { StoreUnavailableError } from "@/lib/auth/store";
 import { authMetrics, recordError, scrub } from "@/lib/ops/metrics";
 
@@ -12,9 +12,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Where Google (GET) and Apple (form_post, a cross-site POST) send the browser
- * back. The provider code is exchanged here, the ID token is verified, and a
- * new session replaces any existing one (no session fixation).
+ * Where Google sends the browser back. The code is exchanged here, the ID
+ * token is verified, and a new session replaces any existing one (no session
+ * fixation).
  */
 async function handle(request: Request, provider: string, params: CallbackParams): Promise<Response> {
   const auth = authRuntime();
@@ -39,18 +39,16 @@ async function handle(request: Request, provider: string, params: CallbackParams
     }
     // Rotate: whatever session this browser had before ends now.
     const sessionName = sessionCookieName(config);
-    await revokeSession(store, readCookie(cookieHeader, sessionName)).catch(() => false);
-    await pruneExpiredSessions(store, config, outcome.userId).catch(() => {});
+    await endPreviousSession(store, config, outcome.userId, readCookie(cookieHeader, sessionName));
     const session = await createSession(store, config, outcome.userId, provider, request.headers.get("user-agent"));
-    authMetrics.signIn(outcome.user.status === "active" ? "active" : "pending");
+    authMetrics.signIn();
     await recordAudit(store, {
       action: outcome.created ? "auth.signup" : "auth.signin", result: "success",
       actor: { id: outcome.userId, email: outcome.user.email, role: outcome.user.role },
       meta: { provider, status: outcome.user.status, linkedNewProvider: outcome.linked },
     });
     const sessionCookie = serializeCookie(sessionName, session.token, { httpOnly: true, secure: config.secureCookies, sameSite: "lax", path: "/", expires: session.expiresAt });
-    const destination = outcome.user.status === "active" ? returnTo : "/welcome";
-    return redirectTo(`${config.baseUrl}${destination}`, [sessionCookie, clearState]);
+    return redirectTo(`${config.baseUrl}${returnTo}`, [sessionCookie, clearState]);
   } catch (error) {
     if (error instanceof SignInError) {
       if (error.code === "exchange_failed" || error.code === "token_invalid") console.error(`Sign in with ${provider} failed: ${error.message}`);
@@ -68,9 +66,3 @@ export async function GET(request: Request, { params }: { params: Promise<{ prov
   return handle(request, (await params).provider, { code: query.get("code"), state: query.get("state"), error: query.get("error") });
 }
 
-export async function POST(request: Request, { params }: { params: Promise<{ provider: string }> }) {
-  let form: FormData | null = null;
-  try { form = await request.formData(); } catch { form = null; }
-  const field = (name: string) => { const value = form?.get(name); return typeof value === "string" ? value : null; };
-  return handle(request, (await params).provider, { code: field("code"), state: field("state"), error: field("error"), user: field("user") });
-}

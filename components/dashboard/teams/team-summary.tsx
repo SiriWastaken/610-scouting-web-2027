@@ -16,10 +16,10 @@ export function TeamStatSummary({ team, nickname }: { team: TeamAggregate; nickn
     { label: 'Break Rate', value: `${team.breakRate}%`, tone: team.breakRate >= 25 ? 'text-bad' : undefined },
   ];
   return (
-    <section className="overflow-hidden rounded-lg border border-line bg-surface shadow-sm">
+    <section className="overflow-hidden rounded-lg border border-line bg-surface">
       <div className="flex flex-wrap items-end justify-between gap-4 border-b border-line px-4 py-4 sm:px-5">
         <div className="flex min-w-0 items-baseline gap-3">
-          <span className="font-display text-5xl font-bold leading-none text-accent-text">{team.team}</span>
+          <span className="text-[44px] font-semibold leading-[48px] tracking-[-0.02em] text-accent-text">{team.team}</span>
           <div className="min-w-0">
             <p className="truncate text-lg font-semibold text-ink">{nickname || team.name}</p>
             {nickname && nickname !== team.name && <p className="truncate text-xs text-muted">{team.name}</p>}
@@ -28,11 +28,11 @@ export function TeamStatSummary({ team, nickname }: { team: TeamAggregate; nickn
         <div className="flex gap-6">
           <div>
             <p className={labelClass}>Rank</p>
-            <p className="font-display text-3xl font-semibold leading-none text-ink">{team.rank ? `#${team.rank}` : '-'}</p>
+            <p className="text-[28px] font-semibold leading-8 tracking-[-0.01em] text-ink">{team.rank ? `#${team.rank}` : '-'}</p>
           </div>
           <div>
             <p className={labelClass}>Matches</p>
-            <p className="font-display text-3xl font-semibold leading-none text-ink">{team.matches}</p>
+            <p className="text-[28px] font-semibold leading-8 tracking-[-0.01em] text-ink">{team.matches}</p>
           </div>
         </div>
       </div>
@@ -40,7 +40,7 @@ export function TeamStatSummary({ team, nickname }: { team: TeamAggregate; nickn
         {stats.map((s) => (
           <div key={s.label} className="bg-surface px-4 py-3 sm:px-5">
             <dt className={labelClass}>{s.label}</dt>
-            <dd className={`mt-1 font-mono text-xl font-semibold ${s.tone ?? 'text-ink'}`}>{s.value}</dd>
+            <dd className={`mt-1 text-[22px] font-semibold leading-7 ${s.tone ?? 'text-ink'}`}>{s.value}</dd>
           </div>
         ))}
       </dl>

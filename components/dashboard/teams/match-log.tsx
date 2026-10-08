@@ -1,6 +1,6 @@
 'use client';
 
-import { Ban, Check, ClipboardList, ListOrdered, X } from 'lucide-react';
+import { Ban, Check, ClipboardList, X } from 'lucide-react';
 import { EmptyState } from '@/components/ui/kit';
 import type { MatchData } from '@/lib/data/team-documents';
 import { Section } from './primitives';
@@ -14,7 +14,7 @@ function RenderStatus({ success = 0, failure = 0 }: { success?: number; failure?
 export function MatchDataTable({ matches }: { matches: MatchData[] }) {
   if (!matches || matches.length === 0) {
     return (
-      <Section title="Match Performance Log" icon={ListOrdered}>
+      <Section title="Match Performance Log">
         <EmptyState icon={ClipboardList} title="No match data recorded yet.">
           Once a scout submits a match for this team it shows up here, live.
         </EmptyState>
@@ -22,19 +22,19 @@ export function MatchDataTable({ matches }: { matches: MatchData[] }) {
     );
   }
 
-  const thCls = 'px-2.5 py-2 text-center text-xs font-semibold uppercase tracking-[0.06em] text-muted whitespace-nowrap';
-  const groupCls = 'px-2.5 pt-2.5 pb-1.5 text-center text-xs font-bold uppercase tracking-[0.08em] whitespace-nowrap border-t-[3px]';
+  const thCls = 'px-2.5 py-2 text-center text-xs font-medium text-muted whitespace-nowrap';
+  const groupCls = 'px-2.5 pt-2.5 pb-1.5 text-center text-xs font-semibold whitespace-nowrap border-t-[3px]';
   const tdCls = 'px-2.5 py-2.5 text-center whitespace-nowrap font-mono';
 
   return (
     <Section
       title="Match Performance Log"
-      icon={ListOrdered}
-      aside={<span className="font-mono text-xs font-medium text-muted">{matches.length} Matches</span>}
+     
+      aside={<span className="text-xs font-medium text-muted">{matches.length} Matches</span>}
     >
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-sm">
-          <thead className="bg-surface-2">
+          <thead>
             <tr>
               <th className={`${thCls} border-t-[3px] border-transparent text-left`} rowSpan={2}>
                 Match
@@ -115,7 +115,7 @@ export function MatchDataTable({ matches }: { matches: MatchData[] }) {
                   </td>
                   <td className={tdCls}>
                     {tele.playedDefense ? (
-                      <span className="rounded bg-accent-muted px-1.5 py-0.5 text-xs font-bold text-accent-text">DEF</span>
+                      <span className="rounded-sm bg-accent-muted px-1.5 py-0.5 text-xs font-bold text-accent-text">DEF</span>
                     ) : (
                       <span className="text-muted">-</span>
                     )}

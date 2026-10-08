@@ -4,6 +4,7 @@ import { getCouchbaseChangesConfig as makeChangesConfig, readCouchbaseConfig } f
 import type { TeamAggregate } from "@/types/scouting";
 import { getDocumentTeam, getDocumentTeamName, normalizeAggregateDocument } from "@/lib/data/aggregates";
 import { recordSnapshot } from "@/lib/ops/metrics";
+import { describeFetchError } from "@/lib/realtime/couchbase-feed";
 
 interface CouchbaseDocument {
   _id?: string;
@@ -51,7 +52,7 @@ async function getCachedSnapshot(config: CouchbaseConfig): Promise<DocumentSnaps
     recordSnapshot({ ok: true, durationMs: Date.now() - started, documents: value.documents.length, byKind: countByKind(value.documents), lastSeq: value.lastSeq });
     return value;
   } catch (error) {
-    recordSnapshot({ ok: false, error });
+    recordSnapshot({ ok: false, error: new Error(describeFetchError(error)) });
     throw error;
   } finally {
     snapshotInFlight = undefined;
@@ -226,7 +227,8 @@ export async function fetchTeamAggregatesSnapshot(): Promise<{ teams: TeamAggreg
       .sort((left, right) => (left.rank || Number.MAX_SAFE_INTEGER) - (right.rank || Number.MAX_SAFE_INTEGER) || left.team - right.team);
     return { teams, lastSeq, names: Object.fromEntries(names) };
   } catch (error) {
-    console.error("Unable to fetch team aggregates from Couchbase.", error);
+    const cause = (error as { cause?: { code?: string } } | undefined)?.cause?.code;
+    console.warn("Unable to fetch team aggregates from Couchbase:", cause ?? (error instanceof Error ? error.message : error));
     return { teams: [], lastSeq: 0, names: {} };
   }
 }
