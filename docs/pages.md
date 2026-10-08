@@ -6,6 +6,7 @@ sources:
   - app/(app)
   - app/api
   - components/dashboard
+  - components/dashboard/live-page.tsx
   - components/dashboard/teams
   - components/admin
   - lib/auth/roles.ts
