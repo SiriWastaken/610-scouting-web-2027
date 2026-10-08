@@ -1,3 +1,5 @@
+// /teams — pick a team and browse its averages, matches, pit interview and cards. Nicknames come from The Blue
+// Alliance when configured.
 import { LivePage } from '@/components/dashboard/live-page';
 import TeamsClientView from '@/components/dashboard/teams-view';
 import { fetchTeamNickname } from '@/services/blue-alliance';

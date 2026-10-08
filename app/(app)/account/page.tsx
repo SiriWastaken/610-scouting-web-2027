@@ -1,3 +1,4 @@
+// /account — the signed-in user's own profile, access and devices. Any active account may open it.
 import type { Metadata } from "next";
 import { AccountPanel } from "@/components/auth/account-panel";
 import { requirePage } from "@/lib/auth/pages";

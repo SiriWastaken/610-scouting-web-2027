@@ -1,3 +1,4 @@
+// GET /api/auth/signin/<provider> — starts sign-in: sets the sealed state cookie and redirects to Google.
 import { isProviderId } from "@/lib/auth/config";
 import { redirectTo, serializeCookie } from "@/lib/auth/requests";
 import { beginSignIn, SignInError } from "@/lib/auth/sign-in";

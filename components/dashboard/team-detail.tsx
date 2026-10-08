@@ -1,3 +1,4 @@
+// The /teams/<number> body: header, rank and the performance signals for one team.
 "use client";
 
 import Link from "next/link";
@@ -8,6 +9,7 @@ import { DEFENSE_RATING_SCALE, DRIVER_SKILL_SCALE } from "@/lib/data/team-stats"
 import { useAggregateRealtime } from "@/lib/realtime/hooks";
 import type { TeamAggregate } from "@/types/scouting";
 
+/** One team's profile, kept current by the realtime feed. */
 export function TeamDetailLive({ team: initialTeam, live }: { team: TeamAggregate; live?: ReactNode }) {
   const initialTeams = useMemo(() => [initialTeam], [initialTeam]);
   const teams = useAggregateRealtime(initialTeams);

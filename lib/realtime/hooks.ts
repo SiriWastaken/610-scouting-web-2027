@@ -1,8 +1,11 @@
+// React hooks over the realtime store: live team rows, live documents, resync handling, and per-team document
+// loading.
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { mergeAggregates } from "@/lib/data/aggregates";
 import { NO_DOCS, queryDashboardDocuments, unwrapDoc } from "@/lib/data/team-documents";
+import { ScoutingEvent } from "@/lib/domain/scouting-event";
 import { realtime } from "@/lib/realtime/client";
 import type { TeamAggregate } from "@/types/scouting";
 
@@ -22,6 +25,12 @@ export function useAggregateRealtime(initialTeams: TeamAggregate[]): TeamAggrega
   const version = useRealtimeVersion();
   // eslint-disable-next-line react-hooks/exhaustive-deps -- `version` signals store changes
   return useMemo(() => mergeAggregates(initialTeams, realtime.store, realtime.getSnapshotNames()), [initialTeams, version]);
+}
+
+/** The event as objects (`ScoutingEvent` → `Team`s), rebuilt whenever the live aggregates change. */
+export function useScoutingEvent(initialTeams: TeamAggregate[]): ScoutingEvent {
+  const rows = useAggregateRealtime(initialTeams);
+  return useMemo(() => ScoutingEvent.fromAggregates(rows), [rows]);
 }
 
 /**

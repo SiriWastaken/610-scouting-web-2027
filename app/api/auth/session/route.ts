@@ -1,3 +1,5 @@
+// GET /api/auth/session — the browser's view of who is signed in (used to notice expiry and refresh
+// permissions).
 import { enabledProviders, readAuthConfig } from "@/lib/auth/config";
 import { json } from "@/lib/auth/requests";
 import { authRuntime, authenticateCookieHeader, clientViewer } from "@/lib/auth/requests";

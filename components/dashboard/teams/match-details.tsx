@@ -1,8 +1,9 @@
+// The panel for one scouted match: scout, position, fuel scored, climb and notes.
 'use client';
 
 import type { ReactNode } from 'react';
 import { labelClass } from '@/components/ui/kit';
-import type { MatchData } from '@/lib/data/team-documents';
+import type { Match } from '@/lib/domain/match';
 import { AllianceTag, Section } from './primitives';
 
 function Fact({ label, labelTone = '', big = false, children }: { label: string; labelTone?: string; big?: boolean; children: ReactNode }) {
@@ -14,9 +15,9 @@ function Fact({ label, labelTone = '', big = false, children }: { label: string;
   );
 }
 
-export function MatchDetails({ match }: { match: MatchData }) {
+/** One match's facts: scout, position, fuel, climb and notes. */
+export function MatchDetails({ match }: { match: Match }) {
   const { start, teleop } = match;
-  const climb = teleop?.L3hang ? 'L3' : teleop?.L2hang ? 'L2' : teleop?.L1hang ? 'L1' : '-';
 
   return (
     <Section title={`Match ${start?.match ?? 'N/A'}`} aside={<AllianceTag alliance={start?.alliance} />}>
@@ -24,7 +25,7 @@ export function MatchDetails({ match }: { match: MatchData }) {
         <Fact label="Scout"><span className="block truncate">{start?.scoutName || 'Unknown'}</span></Fact>
         <Fact label="Position">{start?.position?.toUpperCase() || 'Unknown'}</Fact>
         <Fact label="Fuel scored" labelTone="!text-teleop" big>{teleop?.fuelscored ?? 0}</Fact>
-        <Fact label="Climb" labelTone="!text-endgame" big>{climb}</Fact>
+        <Fact label="Climb" labelTone="!text-endgame" big>{match.climbLevel}</Fact>
       </dl>
 
       <div className="border-t border-line px-4 py-3 sm:px-5">

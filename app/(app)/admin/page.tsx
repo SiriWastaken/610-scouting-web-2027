@@ -1,3 +1,5 @@
+// /admin — the overview of system health. Scout leads (who manage people but do not see operations) are sent
+// to Users instead.
 import { AccessDenied } from "@/components/ui/kit";
 import { Overview } from "@/components/admin/health";
 import { requirePage } from "@/lib/auth/pages";

@@ -1,3 +1,5 @@
+// Frame for every /admin page: the heading, the section tabs, and the shared health-data poll. Shows 'access
+// denied' to accounts that can open no admin section.
 import type { Metadata } from "next";
 import { AccessDenied, PageHeader } from "@/components/ui/kit";
 import { AdminTabs } from "@/components/admin/shell";

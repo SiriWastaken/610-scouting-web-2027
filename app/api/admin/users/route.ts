@@ -1,3 +1,4 @@
+// GET /api/admin/users — every account with what a manager needs to act on it. Needs `users:read`.
 import { principalFor, publicUser, USER_PREFIX, type UserDoc } from "@/lib/auth/accounts";
 import { guard, json, jsonError } from "@/lib/auth/requests";
 import { canManageUser, assignableRoles } from "@/lib/auth/roles";

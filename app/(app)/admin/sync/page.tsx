@@ -1,3 +1,4 @@
+// /admin/sync — Sync Gateway and Couchbase synchronisation health. Needs `ops:read`.
 import { AccessDenied } from "@/components/ui/kit";
 import { SyncMonitor } from "@/components/admin/health";
 import { requirePage } from "@/lib/auth/pages";

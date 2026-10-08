@@ -1,3 +1,5 @@
+// The Averages and Box Plot table: every team, every statistic, sortable. The columns come from
+// `averagesColumns` in app.config.ts.
 "use client";
 
 import { useMemo, useState } from "react";
@@ -48,6 +50,7 @@ interface MetricBoardProps {
   initialStat: StatKey;
 }
 
+/** The sortable statistics table. */
 export function MetricBoard({ teams, initialStat }: MetricBoardProps) {
   const liveTeams = useAggregateRealtime(teams);
   const { sortKey, setSortKey, ascending, flip, sortBy } = useSort(initialStat);

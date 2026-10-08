@@ -1,3 +1,4 @@
+// The card reports table for one team. Loads and updates live on its own.
 'use client';
 
 import { useMemo } from 'react';
@@ -9,6 +10,7 @@ import { docTeam, toCardReport, type CardReport } from '@/lib/data/team-document
 const thCls = 'px-4 py-2.5 text-left';
 const tdCls = 'px-4 py-3 text-sm text-ink';
 
+/** Card reports for one team, loaded over REST and kept current by the feed. */
 export function CardReportsTable({ teamNumber }: { teamNumber: string | number }) {
   const teamKey = String(teamNumber);
   const { docs, loading } = useTeamDocuments('reports', Number(teamNumber) || undefined, new RegExp(`^report_(?:card_)?${teamKey}_`));

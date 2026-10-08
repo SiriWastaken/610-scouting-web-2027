@@ -1,3 +1,4 @@
+// GET /api/admin/overview — everything the operations panel shows, in one response. Needs `ops:read`.
 import { guard, json } from "@/lib/auth/requests";
 import { metricsSnapshot } from "@/lib/ops/metrics";
 import { getHealth, overallStatus, serverInfo } from "@/services/health";

@@ -1,3 +1,5 @@
+// GET /api/dashboard-documents?kind=matches|pit|reports&team=<n> — one team's documents, reduced to the
+// privacy allow-list. Needs `dashboard:read`.
 import { guard } from "@/lib/auth/requests";
 import { scoutingStore } from "@/services/scouting-store";
 

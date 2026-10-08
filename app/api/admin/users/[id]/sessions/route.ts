@@ -1,3 +1,4 @@
+// DELETE /api/admin/users/<id>/sessions — sign an account out everywhere. Needs `users:manage`.
 import { getUser, principalFor } from "@/lib/auth/accounts";
 import { recordAudit } from "@/lib/auth/audit";
 import { guard, json, jsonError } from "@/lib/auth/requests";

@@ -1,11 +1,16 @@
+// The Teams page body. Holds the selected team and match, loads that team's documents, and shows them as Event
+// → Team → Match objects.
 'use client';
 
 import { useMemo, useState } from 'react';
 import { Bot } from 'lucide-react';
 import { EmptyState } from '@/components/ui/kit';
 import type { TeamAggregate } from '@/types/scouting';
-import { useAggregateRealtime, useTeamDocuments } from '@/lib/realtime/hooks';
-import { MATCH_DOC_ID_PREFIX, docTeam, toMatchData, type MatchData, type PitData } from '@/lib/data/team-documents';
+import { useScoutingEvent, useTeamDocuments } from '@/lib/realtime/hooks';
+import { MATCH_DOC_ID_PREFIX, docTeam, toMatchData } from '@/lib/data/team-documents';
+import { Match } from '@/lib/domain/match';
+import { PitInterview } from '@/lib/domain/pit-interview';
+import type { Team } from '@/lib/domain/team';
 import { Section } from './teams/primitives';
 import { MatchSelector, TeamSelector } from './teams/selectors';
 import { TeamStatSummary } from './teams/team-summary';
@@ -21,21 +26,24 @@ interface TeamsClientViewProps {
   teamNames?: Record<number, string>;
 }
 
+/** The Teams page body: team and match pickers over the selected team's panels. */
 export default function TeamsClientView({ initialTeams, teamNames = {} }: TeamsClientViewProps) {
-  const liveTeams = useAggregateRealtime(initialTeams);
+  const event = useScoutingEvent(initialTeams);
   const [selectedTeamId, setSelectedTeamId] = useState<number | null>(initialTeams[0]?.team ?? null);
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
-  const selectedTeam = liveTeams.find((team) => team.team === selectedTeamId) ?? liveTeams[0] ?? null;
-  const { matches, pitData, loading } = useTeamDetail(selectedTeam?.team);
+  const summary = event.teamOrFirst(selectedTeamId);
+  const { matches, pit, loading } = useTeamDetail(summary?.number);
+  // The selected team with its loaded matches and pit interview: Event → Team → Match.
+  const team = summary?.withDetail({ matches, pit }) ?? null;
   const selectedMatch = matches.find((match) => match._id === selectedMatchId) ?? matches[0] ?? null;
 
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <TeamSelector teams={liveTeams} selectedTeam={selectedTeam} teamNames={teamNames} onSelectTeam={(team) => { setSelectedTeamId(team.team); setSelectedMatchId(null); }} />
+        <TeamSelector teams={event.teams} selectedTeam={team} teamNames={teamNames} onSelectTeam={(picked) => { setSelectedTeamId(picked.number); setSelectedMatchId(null); }} />
         <MatchSelector matches={matches} selectedMatch={selectedMatch} onSelectMatch={(match) => setSelectedMatchId(match._id ?? null)} />
       </div>
-      {selectedTeam ? <TeamPanels team={selectedTeam} nickname={teamNames[selectedTeam.team]} matches={matches} selectedMatch={selectedMatch} pitData={pitData} loading={loading} /> : (
+      {team ? <TeamPanels team={team} nickname={teamNames[team.number]} selectedMatch={selectedMatch} loading={loading} /> : (
         <div className="rounded-lg border border-dashed border-line-strong bg-surface">
           <EmptyState icon={Bot} title="No teams available yet.">
             Teams appear once the first match of the event is scouted and synced.
@@ -46,12 +54,12 @@ export default function TeamsClientView({ initialTeams, teamNames = {} }: TeamsC
   );
 }
 
-interface TeamPanelsProps { team: TeamAggregate; nickname?: string; matches: MatchData[]; selectedMatch: MatchData | null; pitData?: PitData; loading: boolean }
+interface TeamPanelsProps { team: Team; nickname?: string; selectedMatch: Match | null; loading: boolean }
 
-function TeamPanels({ team, nickname, matches, selectedMatch, pitData, loading }: TeamPanelsProps) {
+function TeamPanels({ team, nickname, selectedMatch, loading }: TeamPanelsProps) {
   return (
     <>
-      <TeamStatSummary team={team} nickname={nickname} />
+      <TeamStatSummary team={team.aggregate} nickname={nickname} />
 
       {loading && <p className="text-sm text-muted" role="status">Loading match data…</p>}
 
@@ -62,12 +70,12 @@ function TeamPanels({ team, nickname, matches, selectedMatch, pitData, loading }
         </div>
       )}
 
-      <MatchDataTable matches={matches} />
+      <MatchDataTable matches={team.matches} />
 
-      <ExpertScoutReport pitData={pitData} teamNumber={team.team} />
+      <ExpertScoutReport pit={team.pit} teamNumber={team.number} />
 
       <Section title="Card Reports">
-        <CardReportsTable teamNumber={team.team} />
+        <CardReportsTable teamNumber={team.number} />
       </Section>
     </>
   );
@@ -80,10 +88,10 @@ function useTeamDetail(team: number | undefined) {
   const matches = useMemo(
     () => match.docs
       .filter((doc) => docTeam(doc) === String(team))
-      .map(toMatchData)
-      .sort((a, b) => (a.start?.match ?? 0) - (b.start?.match ?? 0)),
+      .map((doc) => new Match(toMatchData(doc)))
+      .sort((a, b) => (a.number ?? 0) - (b.number ?? 0)),
     [match.docs, team]
   );
   const teamPit = pit.docs.find((doc) => docTeam(doc) === String(team));
-  return { matches, pitData: (teamPit?.data ?? teamPit) as PitData | undefined, loading: match.loading || pit.loading };
+  return { matches, pit: teamPit ? PitInterview.fromDocument(teamPit) : null, loading: match.loading || pit.loading };
 }

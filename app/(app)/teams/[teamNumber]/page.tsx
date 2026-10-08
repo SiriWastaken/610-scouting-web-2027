@@ -1,3 +1,4 @@
+// /teams/<number> — one team's profile. Unknown team numbers give a 404.
 import { notFound } from "next/navigation";
 import { AccessDenied } from "@/components/ui/kit";
 import { loadLiveSnapshot } from "@/components/dashboard/live-page";

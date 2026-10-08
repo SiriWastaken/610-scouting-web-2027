@@ -1,10 +1,12 @@
+// The Team and Match dropdowns at the top of the Teams page.
 'use client';
 
 import { useMemo } from 'react';
 import { labelClass, selectClass } from '@/components/ui/kit';
-import type { TeamAggregate } from '@/types/scouting';
-import type { MatchData } from '@/lib/data/team-documents';
+import type { Match } from '@/lib/domain/match';
+import type { Team } from '@/lib/domain/team';
 
+/** A native <select> with the app's look, taking its options as data. */
 export function NativeSelect({
   id,
   value,
@@ -33,39 +35,44 @@ export function NativeSelect({
 }
 
 interface TeamSelectorProps {
-  teams: TeamAggregate[];
-  selectedTeam: TeamAggregate | null;
+  teams: readonly Team[];
+  selectedTeam: Team | null;
   teamNames: Record<number, string>;
-  onSelectTeam: (team: TeamAggregate) => void;
+  onSelectTeam: (team: Team) => void;
 }
 
+/** Dropdown to choose which team the page shows. */
 export function TeamSelector({ teams, selectedTeam, teamNames, onSelectTeam }: TeamSelectorProps) {
   const items = useMemo(
     () => teams.map((t) => ({
-      label: teamNames[t.team] || t.name ? `${t.team} - ${teamNames[t.team] || t.name}` : `Team ${t.team}`,
-      value: t.team.toString(),
+      label: teamNames[t.number] || t.name ? `${t.number} - ${teamNames[t.number] || t.name}` : `Team ${t.number}`,
+      value: t.number.toString(),
     })),
     [teams, teamNames]
   );
   const select = (value: string) => {
-    const team = teams.find((t) => t.team.toString() === value);
+    const team = teams.find((t) => t.number.toString() === value);
     if (team) onSelectTeam(team);
   };
 
   return (
     <div>
       <label htmlFor="team-select" className={`mb-1.5 block ${labelClass}`}>Team</label>
-      <NativeSelect id="team-select" value={selectedTeam ? selectedTeam.team.toString() : null} onChange={select} options={items} placeholder="Select a team" />
+      <NativeSelect id="team-select" value={selectedTeam ? selectedTeam.number.toString() : null} onChange={select} options={items} placeholder="Select a team" />
     </div>
   );
 }
 
 interface MatchSelectorProps {
-  matches: MatchData[];
-  selectedMatch: MatchData | null;
-  onSelectMatch: (match: MatchData) => void;
+  matches: readonly Match[];
+  selectedMatch: Match | null;
+  onSelectMatch: (match: Match) => void;
 }
 
+/**
+ * Dropdown to choose which of the team's matches the detail panels show. Renders nothing when there 
+ * are no matches.
+ */
 export function MatchSelector({ matches, selectedMatch, onSelectMatch }: MatchSelectorProps) {
   if (!matches || matches.length === 0) return null;
 

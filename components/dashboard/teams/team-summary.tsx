@@ -1,8 +1,10 @@
+// The team header on the Teams page: number, name, rank, matches and the eight aggregate statistics.
 'use client';
 
 import { labelClass } from '@/components/ui/kit';
 import type { TeamAggregate } from '@/types/scouting';
 
+/** Team header and the eight aggregate statistics. */
 export function TeamStatSummary({ team, nickname }: { team: TeamAggregate; nickname?: string }) {
   return (
     <section className="overflow-hidden rounded-lg border border-line bg-surface">

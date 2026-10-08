@@ -1,8 +1,9 @@
+// The table of every scouted match for a team.
 'use client';
 
 import { Ban, Check, ClipboardList, X } from 'lucide-react';
 import { EmptyState } from '@/components/ui/kit';
-import type { MatchData } from '@/lib/data/team-documents';
+import type { Match } from '@/lib/domain/match';
 import { Section } from './primitives';
 
 const thCls = 'px-2.5 py-2 text-center text-xs font-medium text-muted whitespace-nowrap';
@@ -16,7 +17,8 @@ function RenderStatus({ success = 0, failure = 0 }: { success?: number; failure?
   return <span className="text-muted">-</span>;
 }
 
-export function MatchDataTable({ matches }: { matches: MatchData[] }) {
+/** The match performance log for a team. */
+export function MatchDataTable({ matches }: { matches: readonly Match[] }) {
   if (!matches || matches.length === 0) {
     return (
       <Section title="Match Performance Log">
@@ -56,11 +58,11 @@ function MatchLogHead() {
   );
 }
 
-function MatchRow({ match }: { match: MatchData }) {
+function MatchRow({ match }: { match: Match }) {
   const start = match.start || {};
   const auto = match.auto || {};
   const tele = match.teleop || {};
-  const isBlue = start.alliance?.toLowerCase() === 'blue';
+  const isBlue = match.allianceColor === 'blue';
 
   return (
     <tr className="border-t border-line transition-colors first:border-t-0 hover:bg-surface-2/70">
@@ -77,7 +79,7 @@ function MatchRow({ match }: { match: MatchData }) {
       <td className={`${tdCls} text-muted`}>{tele.fuelpassed ?? 0}</td>
       <td className={`${tdCls} text-muted`}>{tele.teleopFuelFed ?? 0}</td>
       <td className={`${tdCls} text-muted`}>{tele.fuelPlowed ?? 0}</td>
-      <ClimbCells tele={tele} />
+      <ClimbCells match={match} />
       <td className={tdCls}>
         {tele.playedDefense ? <span className="rounded-sm bg-accent-muted px-1.5 py-0.5 text-xs font-bold text-accent-text">DEF</span> : <span className="text-muted">-</span>}
       </td>
@@ -88,14 +90,14 @@ function MatchRow({ match }: { match: MatchData }) {
 }
 
 /** L1 to L3 outcomes, then "None" (shown only when no climb was attempted). */
-function ClimbCells({ tele }: { tele: NonNullable<MatchData['teleop']> }) {
-  const attemptedClimb = [tele.L1hang, tele.missedL1, tele.L2hang, tele.missedL2, tele.L3hang, tele.missedL3].some((count) => (count ?? 0) > 0);
+function ClimbCells({ match }: { match: Match }) {
+  const { teleop: tele } = match;
   return (
     <>
       <td className={tdCls}><RenderStatus success={tele.L1hang} failure={tele.missedL1} /></td>
       <td className={tdCls}><RenderStatus success={tele.L2hang} failure={tele.missedL2} /></td>
       <td className={tdCls}><RenderStatus success={tele.L3hang} failure={tele.missedL3} /></td>
-      <td className={tdCls}>{attemptedClimb ? <span className="text-muted">-</span> : <Ban className="mx-auto h-4 w-4 text-muted" aria-label="No climb attempted" />}</td>
+      <td className={tdCls}>{match.attemptedClimb ? <span className="text-muted">-</span> : <Ban className="mx-auto h-4 w-4 text-muted" aria-label="No climb attempted" />}</td>
     </>
   );
 }

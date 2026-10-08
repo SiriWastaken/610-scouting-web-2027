@@ -15,6 +15,7 @@ export const suites = {
       "tests/unit/config/app-config.test.ts": 3,
       "tests/unit/config/couchbase-config.test.ts": 3,
       "tests/unit/data/aggregate-normalization.test.ts": 19,
+      "tests/unit/domain/domain-model.test.ts": 12,
       "tests/unit/data/match-data-sanitizer.test.ts": 4,
       "tests/unit/data/team-stats.test.ts": 15,
       "tests/unit/data/sync-invariants.property.test.ts": 7,

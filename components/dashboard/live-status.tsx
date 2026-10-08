@@ -1,3 +1,5 @@
+// The 'Live updates on' badge. Also owns the browser's realtime connection: connects from the server's cursor,
+// reconnects on resync or when the network returns.
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -44,6 +46,7 @@ function useRealtimeConnection(initialCursor: unknown, initialNames?: Record<str
   return status;
 }
 
+/** Connects the browser's realtime client and shows its status as a badge. */
 export function RealtimeConnection({ initialCursor, initialNames }: { initialCursor: unknown; initialNames?: Record<string, string> }) {
   const status = useRealtimeConnection(initialCursor, initialNames);
   const tone = status === "connected" ? "bg-good" : status === "reconnecting" ? "bg-warn" : "bg-muted";

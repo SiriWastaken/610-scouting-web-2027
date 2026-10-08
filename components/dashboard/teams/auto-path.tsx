@@ -1,8 +1,9 @@
+// The auto path panel: the drawn path over the field image, with a replay of the robot driving it.
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import { Play, RotateCcw, Square } from 'lucide-react';
-import type { MatchData } from '@/lib/data/team-documents';
+import type { Match } from '@/lib/domain/match';
 import { Section } from './primitives';
 
 // Path colour runs from the start of auto (teleop cyan) to the end (endgame violet): phase tokens, never the brand accent.
@@ -13,7 +14,7 @@ const DEFAULT_SPEED_FT_PER_S = 10;
 
 interface Point { x: number; y: number }
 interface Segment { p1: Point; p2: Point; length: number; angle: number; startDist: number }
-type Marker = NonNullable<NonNullable<MatchData['auto']>['markers']>[number];
+type Marker = NonNullable<NonNullable<Match['auto']>['markers']>[number];
 
 const markerColor = (type: Marker['type']) => (type === 'pickup' ? 'var(--teleop)' : 'var(--endgame)');
 const cleanNumberInput = (text: string) => text.replace(/[^0-9.]/g, '');
@@ -91,8 +92,9 @@ function usePlayback(totalDist: number, pixelsPerFoot: number) {
   return { isPlaying, distance, velocity, setVelocity: (text: string) => setVelocity(cleanNumberInput(text)), play, stop: () => setIsPlaying(false), restart };
 }
 
-interface AutoPathProps { match: MatchData; canvasWidth?: number; canvasHeight?: number }
+interface AutoPathProps { match: Match; canvasWidth?: number; canvasHeight?: number }
 
+/** Draws a match's auto path and markers over the field and replays the robot driving it. */
 export function AutoPathVisualization({ match, canvasWidth = 520, canvasHeight = 355 }: AutoPathProps) {
   const [showViewer, setShowViewer] = useState(true);
   const { segments, totalDist } = useMemo(() => parseSegments(match?.auto?.paths || [], canvasWidth, canvasHeight), [match, canvasWidth, canvasHeight]);
@@ -163,10 +165,10 @@ function SpeedInput({ value, onChange }: { value: string; onChange: (text: strin
   );
 }
 
-interface FieldCanvasProps { match: MatchData; width: number; height: number; segments: Segment[]; totalDist: number; showRobot: boolean; distance: number }
+interface FieldCanvasProps { match: Match; width: number; height: number; segments: Segment[]; totalDist: number; showRobot: boolean; distance: number }
 
 function FieldCanvas({ match, width, height, segments, totalDist, showRobot, distance }: FieldCanvasProps) {
-  const flipImage = match?.start?.alliance?.toLowerCase() === 'blue';
+  const flipImage = match?.allianceColor === 'blue';
   const isFieldFlipped = Boolean(match?.auto?.fieldFlipped);
 
   return (

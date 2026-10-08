@@ -1,7 +1,9 @@
+// Small pieces shared by the Teams panels: the bordered Section and the alliance tag.
 'use client';
 
 import type { ReactNode } from 'react';
 
+/** A bordered panel with a title row and optional right-hand content. */
 export function Section({
   title,
   aside,

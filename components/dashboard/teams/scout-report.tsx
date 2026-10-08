@@ -1,22 +1,12 @@
+// The pit interview panel, grouped by who said it (asked, interviewed, observed).
 'use client';
 
 import type { ReactNode } from 'react';
 import { Check, FileQuestion, X } from 'lucide-react';
 import { EmptyState, labelClass } from '@/components/ui/kit';
 import type { PitData } from '@/lib/data/team-documents';
+import type { PitInterview } from '@/lib/domain/pit-interview';
 import { Section } from './primitives';
-
-function resolvePhotoUri(robotPhoto: PitData['robotPhoto']): string | null {
-  if (!robotPhoto) return null;
-  if (typeof robotPhoto === 'string') return robotPhoto;
-  const base64 = robotPhoto.content ?? robotPhoto.data;
-  const mime = robotPhoto.contentType ?? robotPhoto.content_type ?? 'image/jpeg';
-  if (base64) {
-    const clean = base64.replace(/^data:[^;]+;base64,/, '');
-    return `data:${mime};base64,${clean}`;
-  }
-  return null;
-}
 
 function capitalizeSelector(value?: string): string | undefined {
   if (!value) return value;
@@ -107,15 +97,17 @@ function RatingBlock({ label, value, max, descriptions }: RatingProps) {
   );
 }
 
-export function ExpertScoutReport({ pitData, teamNumber }: { pitData?: PitData; teamNumber: number }) {
-  if (!pitData) return <NoPitInterview teamNumber={teamNumber} />;
+/** The pit interview, or a prompt to go and do one when there is none yet. */
+export function ExpertScoutReport({ pit, teamNumber }: { pit: PitInterview | null; teamNumber: number }) {
+  if (!pit) return <NoPitInterview teamNumber={teamNumber} />;
 
-  const photoUri = resolvePhotoUri(pitData.robotPhoto);
+  const pitData = pit.data;
+  const photoUri = pit.photoUri();
 
   return (
     <Section
       title="Expert Scout Report"
-      aside={pitData.scoutName ? <span className="text-xs text-muted">Interviewed by {pitData.scoutName}</span> : undefined}
+      aside={pit.scoutName ? <span className="text-xs text-muted">Interviewed by {pit.scoutName}</span> : undefined}
     >
       <div className={photoUri ? 'grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]' : ''}>
         {photoUri && <RobotPhoto src={photoUri} teamNumber={teamNumber} />}
@@ -128,7 +120,7 @@ export function ExpertScoutReport({ pitData, teamNumber }: { pitData?: PitData; 
         <DriverSection pit={pitData} />
         <GettingToKnowSection pit={pitData} />
         <ObservationsSection pit={pitData} />
-        <LegacySection pit={pitData} />
+        <LegacySection pit={pitData} hasLegacy={pit.hasLegacyAnswers()} />
       </div>
     </Section>
   );
@@ -239,8 +231,8 @@ function ObservationsSection({ pit }: SectionProps) {
   );
 }
 
-function LegacySection({ pit }: SectionProps) {
-  if (!(pit.qualStrategy || pit.playoffStrategy || pit.robotUnique || pit.teamUnique || pit.idealAlliance)) return null;
+function LegacySection({ pit, hasLegacy }: SectionProps & { hasLegacy: boolean }) {
+  if (!hasLegacy) return null;
   return (
     <ReportSection title="Legacy Data" source="Legacy">
       {pit.qualStrategy && <InfoBlock label="Qual Strategy" value={pit.qualStrategy} />}

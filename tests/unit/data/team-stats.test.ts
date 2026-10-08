@@ -4,10 +4,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { normalizeAggregateDocument } from "../../../lib/data/aggregates.ts";
 import {
-  compareValues, fieldValues, formatMargin, formatMatches, formatPercentMargin, formatPercent, formatPoints, formatRating, isLowSample, isOutlier,
-  LOW_SAMPLE_THRESHOLD, median, NO_DATA, statValue, totalPoints,
+  compareValues, formatMargin, formatMatches, formatPercentMargin, formatPercent, formatPoints, formatRating, isOutlier,
+  LOW_SAMPLE_THRESHOLD, median, NO_DATA,
 } from "../../../lib/data/team-stats.ts";
+import { ScoutingEvent } from "../../../lib/domain/scouting-event.ts";
+import { Team, type StatKey, type StatName } from "../../../lib/domain/team.ts";
 import type { TeamAggregate } from "../../../types/scouting.ts";
+
+// The reading rules live on Team and ScoutingEvent; these adapters keep each test about one rule.
+const statValue = (row: TeamAggregate, key: StatKey) => Team.fromAggregate(row).statValue(key);
+const totalPoints = (row: TeamAggregate) => Team.fromAggregate(row).totalPoints();
+const isLowSample = (matches: number) => Team.fromAggregate(team({}, matches)).isLowSample();
+const fieldValues = (rows: TeamAggregate[], key: StatName) => ScoutingEvent.fromAggregates(rows).fieldValues(key);
 
 function team(raw: Record<string, unknown>, matches = 6): TeamAggregate {
   return {

@@ -1,3 +1,4 @@
+// The HTML shell for every page: the typeface, global styles and the page metadata (from app.config.ts).
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";

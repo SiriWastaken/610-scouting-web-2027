@@ -1,3 +1,5 @@
+// GET /api/admin/audit — the audit log, newest first, with filters and paging. Needs `audit:read`. There is
+// deliberately no way to write or delete entries here.
 import { listAudit, type AuditResult } from "@/lib/auth/audit";
 import { guard, json, jsonError } from "@/lib/auth/requests";
 import { authRuntime } from "@/lib/auth/requests";

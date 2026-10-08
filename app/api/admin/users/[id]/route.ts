@@ -1,3 +1,5 @@
+// GET and PATCH /api/admin/users/<id> — read one account, or change its role, status, names or note. The role
+// rules are enforced here, not only in the UI.
 import { AccountError, adminUpdateUser, getUser, parsePatch, principalFor, publicUser } from "@/lib/auth/accounts";
 import { listAudit, recordAudit } from "@/lib/auth/audit";
 import { guard, json, jsonError, readJson } from "@/lib/auth/requests";

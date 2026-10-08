@@ -1,3 +1,5 @@
+// GET /api/auth/callback/<provider> — where Google sends the browser back after sign-in. Exchanges the code,
+// verifies the ID token, creates the session and redirects.
 import { resolveSignIn } from "@/lib/auth/accounts";
 import { recordAudit } from "@/lib/auth/audit";
 import { isProviderId } from "@/lib/auth/config";

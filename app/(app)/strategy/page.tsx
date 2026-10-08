@@ -1,3 +1,5 @@
+// /strategy — head-to-head comparison and alliance score prediction. Title and description come from
+// app.config.ts.
 import { LivePage } from "@/components/dashboard/live-page";
 import { StrategyTools } from "@/components/dashboard/strategy-tools";
 
