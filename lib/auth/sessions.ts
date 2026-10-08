@@ -10,6 +10,10 @@ import type { Principal } from "./roles.ts";
 import type { AccountStore } from "./store.ts";
 import { authMetrics } from "../ops/metrics.ts";
 
+/**
+ * A sign-in session as stored. The browser holds a secret token; only a hash of it appears in this 
+ * document's id.
+ */
 export interface SessionDoc {
   type: "auth_session";
   userId: string;
@@ -21,6 +25,9 @@ export interface SessionDoc {
   device?: string;
 }
 
+/**
+ * A signed-in person for one request: the account, their principal (role and status), and the session.
+ */
 export interface Viewer {
   userId: string;
   user: UserDoc;
@@ -28,7 +35,9 @@ export interface Viewer {
   session: { id: string; provider: ProviderId; createdAt: string; expiresAt: string; idleExpiresAt: string; lastSeenAt: string; device?: string };
 }
 
+/** Prefix of session document ids. */
 export const SESSION_PREFIX = "session_";
+/** The session cookie's name; the '__Host-' form is used when cookies are secure. */
 export const sessionCookieName = (config: Pick<AuthConfig, "secureCookies">) => (config.secureCookies ? "__Host-610_session" : "610_session");
 
 const TOUCH_INTERVAL_MS = 5 * 60_000;
@@ -43,6 +52,10 @@ function parseToken(token: string | undefined | null): { userId: string; secret:
   return { userId, secret };
 }
 
+/**
+ * A short device description such as 'Chrome on macOS' from a User-Agent, for the devices list. 
+ * 'Unknown device' when nothing is recognised, undefined when there is no User-Agent.
+ */
 export function describeDevice(userAgent: string | null | undefined): string | undefined {
   if (!userAgent) return undefined;
   const browser = /Edg\//.test(userAgent) ? "Edge" : /Firefox\//.test(userAgent) ? "Firefox" : /Chrome\//.test(userAgent) ? "Chrome" : /Safari\//.test(userAgent) ? "Safari" : undefined;
@@ -60,6 +73,7 @@ export function invalidateUserSessions(userId: string) {
   for (const [key, entry] of cache()) if (entry.viewer.userId === userId) cache().delete(key);
 }
 
+/** Stores a new session and returns the token to put in the cookie and when it expires. */
 export async function createSession(store: AccountStore, config: AuthConfig, userId: string, provider: ProviderId, userAgent?: string | null): Promise<{ token: string; expiresAt: Date }> {
   const secret = randomToken(32);
   const now = Date.now();
@@ -72,6 +86,7 @@ export async function createSession(store: AccountStore, config: AuthConfig, use
   return { token: `${userId}.${secret}`, expiresAt };
 }
 
+/** The outcome of checking a session token: the viewer, or the reason it is not valid. */
 export type SessionCheck = { ok: true; viewer: Viewer } | { ok: false; reason: "missing" | "malformed" | "unknown" | "expired" | "disabled" };
 
 /**
@@ -131,6 +146,7 @@ export async function revokeSession(store: AccountStore, token: string | undefin
   return session ? store.remove(id, session.rev).catch(() => false) : false;
 }
 
+/** Every stored session of an account. */
 export async function listUserSessions(store: AccountStore, userId: string): Promise<Array<{ id: string; rev: string; session: SessionDoc }>> {
   if (!isUserId(userId)) return [];
   return (await store.list<SessionDoc>(`${SESSION_PREFIX}${userId}_`)).flatMap((doc) => doc.body?.type === "auth_session" ? [{ id: doc.id, rev: doc.rev, session: doc.body }] : []);

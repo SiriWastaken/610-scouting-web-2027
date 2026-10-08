@@ -36,6 +36,10 @@ function CheckCard({ title, check, href }: { title: string; check: Check | undef
 
 const RECENT_ERROR_MS = 15 * 60_000;
 
+/**
+ * Admin → Overview: overall status, one card per check, headline numbers, server facts and recent 
+ * errors.
+ */
 export function Overview() {
   const { data, error, loading } = useOps();
   const now = useNow();
@@ -119,6 +123,7 @@ function RecentErrorsPanel({ data }: { data: Overview | null }) {
 
 const KIND_LABEL: Record<string, string> = { scouting: "Match records", aggregate: "Team aggregates", pit: "Pit records", report: "Card reports", other: "Other documents" };
 
+/** Admin → Sync: Sync Gateway and Couchbase health, the server snapshot, and document counts. */
 export function SyncMonitor() {
   const { data, loading } = useOps();
   if (loading && !data) return <Panel title="Synchronization"><EmptyRow>Loading…</EmptyRow></Panel>;
@@ -284,6 +289,7 @@ function useFullDiagnostics(run: () => Promise<unknown>) {
   return { running, error, ranAt, runAll };
 }
 
+/** Admin → Diagnostics: run the checks on demand and read the event-day checklist. */
 export function Diagnostics() {
   const { data, error, clientLatencyMs } = useOps();
   const { result, run } = useWebSocketSelfTest();

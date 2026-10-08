@@ -1,3 +1,5 @@
+// Accepts WebSocket upgrades on a plain Node HTTP server: origin check, session check, then hands the socket
+// to the bridge.
 import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocketServer } from "ws";
@@ -11,12 +13,14 @@ import { realtimeMetrics, recordError } from "../ops/metrics.ts";
 
 const REALTIME_PATH = "/api/realtime";
 
+/** Options for the upgrade handler; tests replace the config and authentication. */
 export interface RealtimeUpgradeOptions extends Omit<BridgeOptions, "identity" | "revalidate"> {
   getConfig?: () => CouchbaseChangesConfig | null;
   /** Who is upgrading. Defaults to the session cookie checked against the account store. */
   authenticate?: (cookieHeader: string | string[] | undefined) => Promise<Authentication>;
 }
 
+/** Whether to accept a WebSocket upgrade, or the status and reason to refuse with. */
 export type UpgradeDecision =
   | { ok: true; viewer: Viewer }
   | { ok: false; status: 401 | 403 | 503; reason: "auth" | "unconfigured" };

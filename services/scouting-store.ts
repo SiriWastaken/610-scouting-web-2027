@@ -8,6 +8,7 @@ import { appConfig, type ScoutingBackend } from "@/app.config";
 import type { TeamAggregate } from "@/types/scouting";
 import * as syncGateway from "@/services/couchbase";
 
+/** What the pages need from a scouting-data backend. */
 export interface ScoutingStore {
   /** Team rows plus the feed cursor they were built from, and every pit team name. */
   fetchTeamAggregatesSnapshot(): Promise<{ teams: TeamAggregate[]; lastSeq: unknown; names: Record<string, string> }>;
@@ -19,4 +20,5 @@ export interface ScoutingStore {
 
 const BACKENDS: Record<ScoutingBackend, ScoutingStore> = { syncGateway };
 
+/** The backend chosen by `storage.scouting` in app.config.ts. */
 export const scoutingStore: ScoutingStore = BACKENDS[appConfig.storage.scouting];

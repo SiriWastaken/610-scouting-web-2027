@@ -1,5 +1,8 @@
+// The browser's store of live documents: keeps the newest revision of each, deletions included, and merges
+// them onto REST results.
 import { compareRevs, isRev, type RealtimeChange } from "./protocol.ts";
 
+/** A document as the browser's live store keeps it. */
 export interface StoredDocument { id: string; rev?: string; seq: unknown; deleted: boolean; doc?: Record<string, unknown> }
 type Doc = Record<string, unknown>;
 
@@ -58,6 +61,7 @@ export class DocumentStore {
   }
 }
 
+/** Whether a live document supersedes the revision a REST snapshot holds. */
 export function storedIsNewer(stored: StoredDocument, snapshotRev: unknown): boolean {
   if (!isRev(snapshotRev) || !stored.rev) return true;
   return compareRevs(stored.rev, snapshotRev) >= 0;

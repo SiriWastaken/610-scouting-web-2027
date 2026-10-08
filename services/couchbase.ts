@@ -1,3 +1,5 @@
+// The Sync Gateway implementation of ScoutingStore: reads documents through one cached snapshot, projects them
+// to the privacy allow-list, and probes Sync Gateway for health.
 import "server-only";
 import { projectDashboardDocument } from "@/lib/realtime/protocol";
 import { getCouchbaseChangesConfig, readCouchbaseConfig } from "@/lib/data/couchbase-config";
@@ -84,6 +86,7 @@ async function fetchAllDocuments(config: CouchbaseConfig): Promise<{ documents: 
   return { documents, lastSeq: payload.last_seq ?? 0 };
 }
 
+/** One team's documents of one kind from the snapshot, reduced to the privacy allow-list. */
 export async function queryDashboardDocuments(kind: "matches" | "pit" | "reports", teamNumber: number): Promise<{ _default: Record<string, unknown> }[]> {
   const config = readCouchbaseConfig();
   if (!config || !Number.isSafeInteger(teamNumber) || teamNumber <= 0) return [];
@@ -145,6 +148,7 @@ function pitNames(documents: CouchbaseDocument[]): Map<number, string> {
   return names;
 }
 
+/** What asking Sync Gateway directly found: reachable, database state, version, latency. */
 export interface SyncGatewayProbe {
   configured: boolean;
   /** Sync Gateway answered its root endpoint. */

@@ -8,17 +8,20 @@ import type { TeamAggregate } from "./types/scouting.ts";
 /** Names a lucide icon; the sidebar maps each name to a component (components/layout/nav-links.tsx). */
 export type NavIcon = "bot" | "sigma" | "target" | "chart" | "checklist" | "shield";
 
+/** One page in the main navigation. */
 export interface NavEntry { href: string; label: string; icon: NavIcon; description: string }
 
 /** Scouting-data backends. Adding one means implementing `ScoutingStore` and registering it in services/scouting-store.ts. */
 export type ScoutingBackend = "syncGateway";
 
+/** One column of the Averages table: which aggregate field, its heading, and an optional unit suffix. */
 export interface AverageColumn {
   key: keyof TeamAggregate["rawData"];
   label: string;
   suffix?: string;
 }
 
+/** Everything that describes this deployment. See docs/configuration.md. */
 export const appConfig = {
   team: {
     number: 610,

@@ -1,3 +1,4 @@
+// Admin → Audit log: searchable, filterable, pageable list of audit entries.
 "use client";
 
 import { useEffect, useState } from "react";
@@ -46,6 +47,7 @@ function useAuditEntries(filters: Filters) {
   return { entries, next, error, loadingMore, loadMore };
 }
 
+/** Admin → Audit log: the filters, the table, and a 'load older entries' button. */
 export function AuditLog() {
   const [filters, setFilters] = useState<Filters>({ action: "", result: "", q: "" });
   const { entries, next, error, loadingMore, loadMore } = useAuditEntries(filters);

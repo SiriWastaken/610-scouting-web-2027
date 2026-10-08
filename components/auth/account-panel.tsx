@@ -1,3 +1,4 @@
+// The /account page body: profile, access, current session and other devices.
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";

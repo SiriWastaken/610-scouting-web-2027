@@ -9,6 +9,10 @@ import type { ProviderId } from "@/lib/auth/config";
 
 const LABEL: Record<ProviderId, string> = { google: "Continue with Google" };
 
+/**
+ * One sign-in button per configured provider ('Continue with Google') for the welcome page; shows a 
+ * redirecting state once clicked.
+ */
 export function SignInButtons({ providers, next }: { providers: ProviderId[]; next: string }) {
   const [busy, setBusy] = useState<ProviderId | null>(null);
   if (providers.length === 0) return <p className="text-sm text-muted">No sign-in method is configured on this server.</p>;

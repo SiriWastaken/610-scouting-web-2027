@@ -1,6 +1,9 @@
+// Server side of one browser's realtime connection: waits for the subscribe message, starts that browser's
+// changes feed, relays frames, enforces limits and re-checks the session. See docs/realtime.md.
 import { parseSubscription, type RealtimeFrame } from "./protocol.ts";
 import { realtimeMetrics } from "../ops/metrics.ts";
 
+/** The part of a WebSocket the bridge uses (the `ws` package matches it). */
 export interface BridgeSocket {
   readyState: number;
   on(event: "message", listener: (data: { toString(): string }) => void): this;
@@ -9,6 +12,7 @@ export interface BridgeSocket {
   send(data: string): unknown;
   close(code?: number, reason?: string): unknown;
 }
+/** Starts a changes feed from a cursor and returns the function that stops it. */
 export type FeedStarter = (
   since: unknown,
   onFrame: (frame: RealtimeFrame) => void,
@@ -16,6 +20,10 @@ export type FeedStarter = (
   onError: (error: Error & { resync?: boolean }) => void,
 ) => () => void;
 
+/**
+ * Limits and hooks for a bridged connection: timeouts, capacity, who opened it, and the session 
+ * re-check.
+ */
 export interface BridgeOptions {
   subscriptionTimeoutMs?: number;
   /** Close healthy connections (code 1012) before a hosting platform would cut them off. */
@@ -45,6 +53,7 @@ function logFeedError(message: string) {
   lastFeedErrorLog = { message, at: now };
   console.error("Realtime changes feed failed:", message);
 }
+/** How many browsers are connected to this process right now. */
 export function getActiveRealtimeConnections() { return activeConnections; }
 
 /** Browsers always send Origin on WebSocket upgrades; only accept our own host. */

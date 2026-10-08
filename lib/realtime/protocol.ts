@@ -3,11 +3,17 @@
 
 export interface RealtimeChange { type: "change"; seq: unknown; id: string; deleted: boolean; rev?: string; doc?: Record<string, unknown> }
 interface CursorUpdate { type: "cursor"; seq: unknown }
+/** A message the server relays: a document change or a cursor update. */
 export type RealtimeFrame = RealtimeChange | CursorUpdate;
+/** Anything the server may send a browser. */
 export type ServerMessage = RealtimeFrame | { type: "ready" } | { type: "error"; retryable: boolean; resync: boolean };
 
 const MAX_DOC_BYTES = 64 * 1024;
 
+/**
+ * Whether a value is a plausible feed cursor: a non-negative number, a non-empty string up to 4096 
+ * characters, or a small object (cursors can be compound).
+ */
 export function isCursor(value: unknown): boolean {
   if (typeof value === "number") return Number.isFinite(value) && value >= 0;
   if (typeof value === "string") return value.length > 0 && value.length <= 4096;
@@ -15,6 +21,7 @@ export function isCursor(value: unknown): boolean {
   try { return JSON.stringify(value).length <= 4096; } catch { return false; }
 }
 
+/** Validates the browser's first message, `{ type: 'subscribe', since }`. */
 export function parseSubscription(value: unknown): { since: unknown } | null {
   if (typeof value !== "string" || value.length > 8192) return null;
   try {
@@ -23,6 +30,7 @@ export function parseSubscription(value: unknown): { since: unknown } | null {
   } catch { return null; }
 }
 
+/** Whether a document id belongs to a kind the dashboard shows (and so may be relayed). */
 export function isDashboardDocument(id: string): boolean {
   return /^(?:aggregate_\d+|scouting_\d+_\d+|pit_\d+|report_(?:card_)?\d+_[A-Za-z0-9 ._-]{1,128})$/.test(id);
 }
@@ -53,6 +61,10 @@ function pick(value: unknown, fields: Set<string>): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   return Object.fromEntries(Object.entries(value as Record<string, unknown>).filter(([key]) => fields.has(key)));
 }
+/**
+ * Reduces a document to the allow-listed fields of its kind, or null if it is the wrong type or too 
+ * large. This is the privacy boundary.
+ */
 export function projectDashboardDocument(id: string, doc: Record<string, unknown>): Record<string, unknown> | null {
   const data = doc.data && typeof doc.data === "object" && !Array.isArray(doc.data) ? doc.data as Record<string, unknown> : doc;
   const out: Record<string, unknown> = { _id: id };

@@ -39,6 +39,10 @@ function openSelfTestSocket(cursor: string): Promise<SelfTest> {
   });
 }
 
+/**
+ * Opens a real WebSocket from this browser through the dashboard's endpoint and times it. Returns the 
+ * latest result and a function that runs the test.
+ */
 export function useWebSocketSelfTest() {
   const { data } = useOps();
   const [result, setResult] = useState<SelfTest | null>(null);
@@ -51,6 +55,7 @@ export function useWebSocketSelfTest() {
   return { result, run };
 }
 
+/** Shows the outcome of a WebSocket self-test (running, passed or failed, with timings). */
 export function SelfTestResult({ result }: { result: SelfTest | null }) {
   if (!result) return null;
   const status: CheckStatus = result.status === "ok" ? "ok" : result.status === "failed" ? "down" : "idle";
@@ -61,6 +66,10 @@ export function SelfTestResult({ result }: { result: SelfTest | null }) {
   </div>;
 }
 
+/**
+ * Admin → Realtime: are WebSockets working, connection and event counters, open connections, recent 
+ * events.
+ */
 export function RealtimeMonitor() {
   const { data, loading } = useOps();
   const r = data?.metrics.realtime;

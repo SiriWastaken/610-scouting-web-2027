@@ -11,6 +11,7 @@
 //   MEMBER      reads the dashboard. Everyone starts here.
 
 export const ROLES = ["MEMBER", "SCOUT", "SCOUT_LEAD", "MENTOR", "OWNER"] as const;
+/** One of the five roles, from Member to Owner. */
 export type Role = (typeof ROLES)[number];
 
 /** Roles the admin panel can hand out. OWNER comes from configuration only. */
@@ -22,6 +23,7 @@ export const ASSIGNABLE_ROLES = ["MEMBER", "SCOUT", "SCOUT_LEAD", "MENTOR"] as c
  * may still say `pending`; they read as `active` (see {@link accountStatus}).
  */
 export const ACCOUNT_STATUSES = ["active", "disabled"] as const;
+/** Whether an account may use the app. */
 export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
 
 /** The status as enforced: only `disabled` blocks access. */
@@ -29,7 +31,9 @@ export function accountStatus(value: unknown): AccountStatus { return value === 
 
 const RANK: Record<Role, number> = { MEMBER: 0, SCOUT: 1, SCOUT_LEAD: 2, MENTOR: 3, OWNER: 4 };
 
+/** Display names for the roles. */
 export const ROLE_LABELS: Record<Role, string> = { MEMBER: "Member", SCOUT: "Scout", SCOUT_LEAD: "Scout lead", MENTOR: "Mentor", OWNER: "Owner" };
+/** One-sentence explanations of the roles, shown in the UI. */
 export const ROLE_DESCRIPTIONS: Record<Role, string> = {
   MEMBER: "Reads the scouting dashboard.",
   SCOUT: "Scouts matches; reads the dashboard.",
@@ -38,8 +42,11 @@ export const ROLE_DESCRIPTIONS: Record<Role, string> = {
   OWNER: "Everything. Set in the server configuration; the only one who manages mentors and changes names.",
 };
 
+/** Whether a value is a role a manager can give (anything except Owner). */
 export function isAssignableRole(value: unknown): value is (typeof ASSIGNABLE_ROLES)[number] { return typeof value === "string" && (ASSIGNABLE_ROLES as readonly string[]).includes(value); }
+/** Whether a value is a valid account status. */
 export function isAccountStatus(value: unknown): value is AccountStatus { return typeof value === "string" && (ACCOUNT_STATUSES as readonly string[]).includes(value); }
+/** A role's position in the hierarchy (higher outranks lower). */
 export function roleRank(role: Role): number { return RANK[role]; }
 
 /**
@@ -71,6 +78,7 @@ export const PERMISSIONS = {
   "ops:diagnose": "MENTOR",
   "audit:read": "MENTOR",
 } as const satisfies Record<string, Role>;
+/** A named thing a role may do, such as 'users:manage'. */
 export type Permission = keyof typeof PERMISSIONS;
 
 /** What authorization decisions need to know about an account. Always loaded server-side. */
@@ -100,6 +108,10 @@ export function assignableRoles(actor: Principal | null | undefined): Role[] {
   return ASSIGNABLE_ROLES.filter((role) => RANK[role] < RANK[actor.role]);
 }
 
+/**
+ * Whether the actor may give the target this role: they must be able to manage the target, and the 
+ * role must be below the actor's own.
+ */
 export function canAssignRole(actor: Principal | null | undefined, target: Principal, role: Role): boolean {
   return canManageUser(actor, target) && assignableRoles(actor).includes(role);
 }
@@ -115,6 +127,7 @@ export const ADMIN_SECTIONS = [
   { href: "/admin/diagnostics", label: "Diagnostics", permission: "ops:diagnose" },
 ] as const satisfies ReadonlyArray<{ href: string; label: string; permission: Permission }>;
 
+/** Whether the principal may open at least one admin section. */
 export function canOpenAdmin(principal: Principal | null | undefined): boolean {
   return ADMIN_SECTIONS.some((section) => can(principal, section.permission));
 }

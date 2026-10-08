@@ -1,3 +1,5 @@
+// The main navigation. Which pages exist, their labels and icons come from app.config.ts; this file only draws
+// them.
 "use client";
 
 import Link from "next/link";

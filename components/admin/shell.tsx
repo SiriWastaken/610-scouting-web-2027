@@ -103,6 +103,7 @@ export function OpsProvider({ enabled, children }: { enabled: boolean; children:
   return <OpsContext.Provider value={value}>{children}</OpsContext.Provider>;
 }
 
+/** The shared overview data for the admin area. Throws if used outside OpsProvider. */
 export function useOps(): OpsContextValue {
   const value = useContext(OpsContext);
   if (!value) throw new Error("useOps must be used inside OpsProvider");

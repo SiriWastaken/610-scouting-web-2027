@@ -18,8 +18,10 @@ import { storeKeyspace, type AuthStoreConfig } from "./config.ts";
 // never silently overwrite each other: the loser gets a ConflictError.
 
 export class StoreUnavailableError extends Error {}
+/** A write lost a race: the document changed or already exists. */
 export class ConflictError extends Error {}
 
+/** A stored document with its id and revision. */
 export interface StoredDoc<T> { id: string; rev: string; body: T }
 
 /**
@@ -40,6 +42,7 @@ export interface AccountStore {
 
 const TIMEOUT_MS = 8_000;
 
+/** The account store backed by a Sync Gateway collection. */
 export class AuthStore implements AccountStore {
   /** Documents: `/{db}` or, for a named collection, `/{db}.{scope}.{collection}`. */
   private readonly base: string;
@@ -224,6 +227,7 @@ const stateFor = (path: string): State => {
   return holder[key]!;
 };
 
+/** A file-based account store for development (AUTH_STORE=local). Refused in production. */
 export class LocalAuthStore implements AccountStore {
   private readonly state: State;
 

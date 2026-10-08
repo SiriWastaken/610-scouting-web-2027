@@ -44,6 +44,7 @@ function matchesFilters(user: AdminUser, { query, role, status }: Filters) {
     && (!text || [user.displayName, user.email, user.scoutName].some((value) => value?.toLowerCase().includes(text)));
 }
 
+/** Admin → Users: every account with search and role/status filters. */
 export function UsersTable() {
   const { users, error, load } = useAdminUsers();
   const [filters, setFilters] = useState<Filters>({ query: "", role: "all", status: "all" });
@@ -173,6 +174,7 @@ function useUserDetail(id: string) {
   return { detail, error, notice, busy, loads, patch, revokeSessions };
 }
 
+/** Admin → Users → one account: details, role and access, sessions, profile and history. */
 export function UserDetail({ id }: { id: string }) {
   const canRename = useSession().session.permissions["users:rename"] === true;
   const { detail, error, notice, busy, loads, patch, revokeSessions } = useUserDetail(id);

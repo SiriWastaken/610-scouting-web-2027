@@ -92,6 +92,9 @@ export function SessionProvider({ initial, children }: { initial: SessionState; 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 
+/**
+ * The signed-in user, their permissions, sign-out and refresh. Throws if used outside SessionProvider.
+ */
 export function useSession(): SessionContextValue {
   const value = useContext(SessionContext);
   if (!value) throw new Error("useSession must be used inside SessionProvider");

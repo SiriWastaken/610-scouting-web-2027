@@ -1,7 +1,10 @@
+// Turns aggregate documents (computed upstream, one per team) into TeamAggregate rows, and merges live changes
+// onto a server snapshot. Statistic names are mapped here.
 import type { TeamAggregate } from "@/types/scouting";
 import { isRev } from "../realtime/protocol.ts";
 import { storedIsNewer, type DocumentStore, type StoredDocument } from "../realtime/documents.ts";
 
+/** An aggregate document before normalisation. */
 export interface AggregateDocument {
   _id?: string;
   timestamp?: string;
@@ -22,16 +25,22 @@ function asPercentage(value: unknown, fallback = 0): number {
   return Math.round(asNumber(value, fallback));
 }
 
+/** The team number of a document, from its body or its id. */
 export function getDocumentTeam(document: AggregateDocument): number {
   return asNumber(document.team ?? document.data?.team ?? document.data?.teamNumber);
 }
 
+/** The team name in a document, if it has one. */
 export function getDocumentTeamName(document: AggregateDocument): string | undefined {
   const data = document.data ?? document;
   const value = data.teamName ?? data.team_name ?? data.name;
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
+/**
+ * Turns an aggregate document into a TeamAggregate row, or null if it has no statistics, a 
+ * non-positive team, or a body that disagrees with its id.
+ */
 export function normalizeAggregateDocument(document: AggregateDocument, names: Map<number, string> = new Map()): TeamAggregate | null {
   const data = document.data;
   // No statistics (including a body the privacy projection emptied) is not a team row.

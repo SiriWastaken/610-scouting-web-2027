@@ -1,6 +1,9 @@
+// Browser side of the realtime connection: the connection state machine (connect, back off, resume from the
+// last cursor, resync) and the store of live documents.
 import { parseServerMessage } from "./protocol.ts";
 import { DocumentStore } from "./documents.ts";
 
+/** Where the browser's connection is: disconnected, connecting, connected or reconnecting. */
 export type RealtimeStatus = "disconnected" | "connecting" | "connected" | "reconnecting";
 
 /** The subset of the browser WebSocket API the client relies on (the `ws` package matches it too). */
@@ -14,6 +17,7 @@ export interface SocketLike {
   addEventListener(type: "error", listener: () => void): void;
 }
 
+/** Timeouts and backoff for the client, and the socket factory (replaceable in tests). */
 export interface RealtimeClientOptions {
   url?: () => string;
   createSocket?: (url: string) => SocketLike;
@@ -47,6 +51,10 @@ interface Attempt {
   readyTimeout: ReturnType<typeof setTimeout> | undefined;
 }
 
+/**
+ * The browser's one realtime connection. One per tab, shared by every component (the `realtime` 
+ * export).
+ */
 export class RealtimeClient {
   readonly store = new DocumentStore();
   private readonly options: Required<RealtimeClientOptions>;

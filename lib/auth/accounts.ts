@@ -7,6 +7,10 @@ import { sha256Hex } from "./sign-in.ts";
 import { ASSIGNABLE_ROLES, accountStatus, can, canAssignRole, canManageUser, isAccountStatus, isAssignableRole, storedRole, type AccountStatus, type Principal, type Role } from "./roles.ts";
 import { ConflictError, type AccountStore, type StoredDoc } from "./store.ts";
 
+/**
+ * An account as stored: identity, role, status, sign-in history and who approved it. One document per 
+ * person.
+ */
 export interface UserDoc {
   type: "auth_user";
   email: string;
@@ -39,15 +43,20 @@ export interface UserDoc {
 interface IdentityDoc { type: "auth_identity"; provider: ProviderId; userId: string; createdAt: string }
 interface EmailIndexDoc { type: "auth_email"; userId: string }
 
+/** What the identity provider vouched for after a successful sign-in. */
 export interface VerifiedIdentity { provider: ProviderId; subject: string; email?: string; emailVerified: boolean; name?: string; picture?: string }
 
+/** Prefix of account document ids. */
 export const USER_PREFIX = "user_";
+/** Whether a value is shaped like an account id ('u' plus 20 hex digits). */
 export const isUserId = (value: unknown): value is string => typeof value === "string" && /^u[0-9a-f]{20}$/.test(value);
+/** The document id of an account. */
 export const userDocId = (userId: string) => `${USER_PREFIX}${userId}`;
 const identityDocId = (provider: ProviderId, subject: string) => `identity_${provider}_${sha256Hex(`${provider}:${subject}`).slice(0, 40)}`;
 const emailDocId = (email: string) => `email_${sha256Hex(email.toLowerCase()).slice(0, 40)}`;
 const newUserId = () => `u${randomBytes(10).toString("hex")}`;
 
+/** A refused account operation, with a machine-readable code and a message safe to show. */
 export class AccountError extends Error {
   readonly code: "forbidden" | "invalid" | "not_found" | "conflict";
   constructor(code: AccountError["code"], message: string) { super(message); this.code = code; }
@@ -71,6 +80,10 @@ export function safePicture(value: unknown): string | undefined {
 }
 
 const CONTROL = /[\u0000-\u001f\u007f\u2028\u2029]/g;
+/**
+ * Replaces control characters and runs of whitespace with single spaces, trims, and limits to `max` 
+ * characters; undefined when nothing is left.
+ */
 export function cleanText(value: unknown, max: number): string | undefined {
   if (typeof value !== "string") return undefined;
   const text = value.replace(CONTROL, " ").replace(/\s+/g, " ").trim();
@@ -81,6 +94,10 @@ function defaultName(identity: VerifiedIdentity) {
   return cleanText(identity.name, 80) ?? identity.email?.split("@")[0] ?? "Scout";
 }
 
+/**
+ * The result of resolving a sign-in: success (with whether the account was created or linked), or the 
+ * reason it failed.
+ */
 export type SignInOutcome =
   | { ok: true; userId: string; user: UserDoc; created: boolean; linked: boolean }
   | { ok: false; reason: "email_unverified" | "no_email" | "disabled"; userId?: string; user?: UserDoc };
@@ -175,13 +192,16 @@ function signedInUser(config: AuthConfig, user: UserDoc, identity: VerifiedIdent
   return next;
 }
 
+/** Reads one account, or null if the id is malformed or unknown. */
 export async function getUser(store: AccountStore, userId: string): Promise<StoredDoc<UserDoc> | null> {
   if (!isUserId(userId)) return null;
   const doc = await store.get<UserDoc>(userDocId(userId));
   return doc && doc.body.type === "auth_user" ? doc : null;
 }
 
+/** Changes a manager may request on someone else's account. */
 export interface AdminPatch { displayName?: string; scoutName?: string | null; adminNote?: string | null; role?: Exclude<Role, "OWNER">; status?: AccountStatus }
+/** Changes a person may request on their own account. */
 export interface ProfilePatch { displayName?: string; scoutName?: string | null }
 
 const ADMIN_FIELDS = new Set(["displayName", "scoutName", "adminNote", "role", "status", "expectedRev"]);

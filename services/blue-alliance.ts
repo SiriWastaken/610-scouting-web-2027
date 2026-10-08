@@ -1,3 +1,5 @@
+// The Blue Alliance API client. Only used for team nicknames, and only when TBA_API_KEY is set; failures
+// return null so pages fall back to the scouted name.
 import "server-only";
 
 const BLUE_ALLIANCE_API_URL = "https://www.thebluealliance.com/api/v3";

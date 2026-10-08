@@ -1,3 +1,5 @@
+// The shape of one team's aggregate row. The ScoutingEvent/Team classes in lib/domain wrap it.
+/** One team's averages and identity, as the server sends it to the browser. */
 export interface TeamAggregate {
   team: number;
   name: string;

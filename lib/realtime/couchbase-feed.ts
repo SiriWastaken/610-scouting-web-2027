@@ -1,9 +1,14 @@
+// Reads Sync Gateway's _changes feed by long-polling and turns it into frames safe to relay to a browser.
 import { parseChangesFrame, isCursor, type RealtimeFrame } from "./protocol.ts";
 import { recordUpstreamPoll } from "../ops/metrics.ts";
 
+/** Where and how to read the changes feed: URL and Authorization header. */
 export interface CouchbaseChangesConfig { url: string; authorization: string }
+/** Receives each frame to relay. */
 export type FeedFrameHandler = (frame: RealtimeFrame) => void;
+/** Called once the feed is confirmed reachable. */
 export type FeedReadyHandler = () => void;
+/** Called when the feed fails; `resync` is set when the cursor is unusable. */
 export type FeedErrorHandler = (error: FeedError) => void;
 
 /** `resync` means Sync Gateway rejected the cursor, so the client must reload its snapshot. */

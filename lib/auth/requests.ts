@@ -22,6 +22,7 @@ export type AuthRuntime = { ok: true; config: AuthConfig; store: AccountStore } 
 
 let cached: { key: string; store: AccountStore } | undefined;
 
+/** The auth configuration and account store for this process, or the list of what is misconfigured. */
 export function authRuntime(env: Record<string, string | undefined> = process.env): AuthRuntime {
   const result = readAuthConfig(env);
   if (!result.ok) return result;
@@ -31,12 +32,20 @@ export function authRuntime(env: Record<string, string | undefined> = process.en
   return { ok: true, config: result.config, store: cached.store };
 }
 
+/**
+ * Who is making a request: a signed-in viewer, nobody (with the reason), or 'unavailable' when the 
+ * account store is down.
+ */
 export type Authentication =
   | { status: "signed-in"; viewer: Viewer }
   | { status: "signed-out"; reason: "missing" | "malformed" | "unknown" | "expired" | "disabled" }
   /** Sign-in is not configured, or the account store is unreachable: nobody can be authenticated right now. */
   | { status: "unavailable"; reason: string };
 
+/**
+ * Resolves a raw Cookie header to an Authentication. Used by API routes, pages and the WebSocket 
+ * upgrade.
+ */
 export async function authenticateCookieHeader(cookieHeader: string | string[] | null | undefined, runtime: AuthRuntime = authRuntime()): Promise<Authentication> {
   if (!runtime.ok) return { status: "unavailable", reason: "Sign-in is not configured on this server" };
   const token = readCookie(cookieHeader, sessionCookieName(runtime.config));
@@ -77,6 +86,7 @@ export function clientViewer(config: AuthConfig, viewer: Viewer) {
     session: { provider: viewer.session.provider, createdAt: viewer.session.createdAt, expiresAt: viewer.session.expiresAt, idleExpiresAt: viewer.session.idleExpiresAt, lastSeenAt: viewer.session.lastSeenAt, device: viewer.session.device ?? null },
   };
 }
+/** The part of a viewer that is safe to send to the browser. */
 export type ClientViewer = ReturnType<typeof clientViewer>;
 
 // ── http ────────────────────────────────────────
@@ -87,22 +97,27 @@ export type ClientViewer = ReturnType<typeof clientViewer>;
 
 const noStore = { "Cache-Control": "private, no-store, max-age=0" };
 
+/** A JSON response with no-store caching and optional extra cookies. */
 export function json(body: unknown, init: { status?: number; headers?: Record<string, string>; cookies?: string[] } = {}): Response {
   const headers = new Headers({ ...noStore, ...init.headers, "Content-Type": "application/json" });
   for (const cookie of init.cookies ?? []) headers.append("Set-Cookie", cookie);
   return new Response(JSON.stringify(body), { status: init.status ?? 200, headers });
 }
 
+/** A JSON error response: status, a short code, and a message safe to show. */
 export const jsonError = (status: number, error: string, message: string, extra: Record<string, unknown> = {}) => json({ error, message, ...extra }, { status });
 
+/** A redirect response (303 by default) that can also set cookies. */
 export function redirectTo(location: string, cookies: string[] = [], status = 303): Response {
   const headers = new Headers({ ...noStore, Location: location });
   for (const cookie of cookies) headers.append("Set-Cookie", cookie);
   return new Response(null, { status, headers });
 }
 
+/** The cookie attributes this app uses. */
 export interface CookieOptions { httpOnly?: boolean; secure?: boolean; sameSite?: "lax" | "strict" | "none"; path?: string; maxAge?: number; expires?: Date }
 
+/** Builds a Set-Cookie header value. */
 export function serializeCookie(name: string, value: string, options: CookieOptions = {}): string {
   const parts = [`${name}=${encodeURIComponent(value)}`, `Path=${options.path ?? "/"}`];
   if (options.maxAge !== undefined) parts.push(`Max-Age=${Math.floor(options.maxAge)}`);
@@ -113,10 +128,12 @@ export function serializeCookie(name: string, value: string, options: CookieOpti
   return parts.join("; ");
 }
 
+/** A Set-Cookie header value that deletes a cookie. */
 export const clearCookie = (name: string, secure: boolean) => serializeCookie(name, "", { httpOnly: true, secure, sameSite: "lax", maxAge: 0, expires: new Date(0) });
 
 const AUDITED: ReadonlySet<Permission> = new Set(["users:read", "users:manage", "ops:read", "ops:diagnose", "audit:read"]);
 
+/** What an API route requires: an optional permission, and the audit action name to record. */
 export interface GuardOptions { permission?: Permission; action: string }
 
 /**

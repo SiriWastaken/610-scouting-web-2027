@@ -34,6 +34,7 @@ export function Panel({ title, action, children, className = "" }: { title: stri
   </section>;
 }
 
+/** A label and value row inside a <dl>. */
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return <div className="flex flex-col gap-1 border-t border-line px-5 py-3 first:border-t-0 sm:flex-row sm:items-center sm:gap-4">
     <dt className={`w-40 shrink-0 ${labelClass}`}>{label}</dt>
@@ -42,18 +43,28 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 }
 
 const buttonBase = "inline-flex h-10 items-center justify-center gap-2 rounded-md border px-3.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50";
+/** Class names for a standard button. */
 export const buttonClass = `${buttonBase} border-line-strong bg-raised text-ink hover:bg-surface-2`;
+/** Class names for the main action on a screen (green). */
 export const primaryButtonClass = `${buttonBase} border-accent bg-accent text-accent-foreground hover:border-accent-hover hover:bg-accent-hover`;
+/** Class names for a destructive action (red outline). */
 export const dangerButtonClass = `${buttonBase} border-bad/40 bg-surface text-bad hover:bg-bad-soft`;
+/** Class names for a text input. */
 export const inputClass = "h-10 w-full rounded-md border border-line-strong bg-raised px-3 text-sm text-ink placeholder:text-muted focus:border-accent focus:outline-none";
 /** Native selects get the input look plus a drawn chevron, so they read as dropdowns on every platform. */
 export const selectClass = `${inputClass} cursor-pointer appearance-none bg-[length:16px] bg-[position:right_0.6rem_center] bg-no-repeat pr-9 bg-[url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")]`;
 
 /** Shared table styling so every data table in the app reads the same. */
 export const tableClass = "w-full border-collapse text-left text-sm";
+/** Class names for a table header row. */
 export const theadClass = "border-b border-line text-xs font-medium text-muted";
+/** Class names for a table body row. */
 export const rowClass = "border-t border-line first:border-t-0 transition-colors hover:bg-surface-2/70";
 
+/**
+ * A date for people: 'Oct 8, 3:04 PM', or with `relative`, '5m ago' / 'in 2h'. Returns '—' for missing 
+ * or invalid input.
+ */
 export function formatDate(value: string | number | null | undefined, { relative = false }: { relative?: boolean } = {}) {
   if (value === null || value === undefined) return "—";
   const date = new Date(value);
@@ -67,6 +78,10 @@ export function formatDate(value: string | number | null | undefined, { relative
   return date.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
+/**
+ * A duration in ms as the two largest units: '45s', '3m 20s', '2h 5m', '1d 4h'. Returns '—' for 
+ * missing input.
+ */
 export function formatDuration(ms: number | null | undefined) {
   if (ms === null || ms === undefined) return "—";
   const seconds = Math.round(ms / 1000);
@@ -88,6 +103,7 @@ const STYLE: Record<CheckStatus, { icon: LucideIcon; label: string; className: s
   unconfigured: { icon: CircleMinus, label: "Not configured", className: "bg-surface-2 text-muted" },
 };
 
+/** A health status as an icon and a word (never colour alone). */
 export function StatusPill({ status, label }: { status: CheckStatus; label?: string }) {
   const style = STYLE[status];
   const Icon = style.icon;
@@ -96,6 +112,7 @@ export function StatusPill({ status, label }: { status: CheckStatus; label?: str
   </span>;
 }
 
+/** The word for a health status. */
 export function statusText(status: CheckStatus) { return STYLE[status].label; }
 
 /** A small neutral note beside a value (icon + words, no hue): "Low sample", "Outlier". Never colour alone. */
@@ -115,10 +132,12 @@ export function StatTile({ label, value, hint, tone = "normal" }: { label: strin
   </div>;
 }
 
+/** A responsive grid of StatTiles with hairline separators. */
 export function TileGrid({ children, columns = "sm:grid-cols-4" }: { children: ReactNode; columns?: string }) {
   return <div className={`grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line ${columns}`}>{children}</div>;
 }
 
+/** A one-line message inside a panel: loading, nothing found, and so on. */
 export function EmptyRow({ children }: { children: ReactNode }) {
   return <div className="px-5 py-10 text-center text-sm text-muted">{children}</div>;
 }

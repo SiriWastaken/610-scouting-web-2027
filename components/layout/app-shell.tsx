@@ -1,3 +1,4 @@
+// The frame around every signed-in page: sidebar on desktop, header with a tab strip on phones.
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { NavLinks } from "@/components/layout/nav-links";
@@ -5,6 +6,7 @@ import { AccountChip } from "@/components/auth/session";
 import { BrandMark } from "@/components/layout/brand-mark";
 import { appConfig } from "@/app.config";
 
+/** The signed-in page frame. */
 export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[232px_1fr]">

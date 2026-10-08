@@ -11,7 +11,9 @@ import type { AuthConfig, ProviderConfig, ProviderId } from "./config.ts";
 // ── crypto ────────────────────────────────────────
 
 const base64url = (buffer: Buffer | Uint8Array) => Buffer.from(buffer).toString("base64url");
+/** A URL-safe random string from `bytes` random bytes. */
 export const randomToken = (bytes = 32) => base64url(randomBytes(bytes));
+/** SHA-256 of a string, as hex. */
 export const sha256Hex = (value: string) => createHash("sha256").update(value).digest("hex");
 
 function safeEqual(left: string, right: string): boolean {
@@ -33,6 +35,10 @@ export function seal(value: unknown, secret: string, purpose: string): string {
   return base64url(Buffer.concat([iv, cipher.getAuthTag(), body]));
 }
 
+/**
+ * Opens a value sealed by `seal`, or returns null if it is malformed, was altered, or was sealed for a 
+ * different purpose.
+ */
 export function unseal<T>(token: string | undefined, secret: string, purpose: string): T | null {
   if (!token || token.length > 4096) return null;
   try {
@@ -54,6 +60,7 @@ export const pkceChallenge = (verifier: string) => base64url(createHash("sha256"
 
 export interface JwtClaims { iss?: unknown; aud?: unknown; sub?: unknown; exp?: unknown; iat?: unknown; nbf?: unknown; nonce?: unknown; [claim: string]: unknown }
 
+/** An ID token that cannot be trusted. */
 export class TokenError extends Error {}
 
 const ALGORITHMS: Record<string, { hash: string; kty: string }> = {
@@ -85,6 +92,7 @@ function decodeSegment<T>(segment: string): T {
   try { return JSON.parse(Buffer.from(segment, "base64url").toString("utf8")) as T; } catch { throw new TokenError("Malformed token"); }
 }
 
+/** What an ID token must satisfy: signing keys location, issuer, audience, nonce and clock tolerance. */
 export interface VerifyOptions { jwksUri: string; issuers: string[]; audience: string; nonce?: string; clockSkewSeconds?: number; now?: number }
 
 /** Verifies signature, issuer, audience, expiry, and nonce. Throws TokenError on any failure. */
@@ -128,6 +136,7 @@ export function clearJwksCache() { jwksCache.clear(); }
 
 export type SignInErrorCode = "provider_unavailable" | "state_mismatch" | "expired" | "denied" | "token_invalid" | "exchange_failed" | "email_unverified" | "no_email" | "disabled" | "store_unavailable";
 
+/** A failed sign-in with a code the welcome page turns into a message. */
 export class SignInError extends Error {
   readonly code: SignInErrorCode;
   constructor(code: SignInErrorCode, message: string) { super(message); this.code = code; }
@@ -137,6 +146,7 @@ interface OAuthState { provider: ProviderId; state: string; nonce: string; verif
 
 const STATE_PURPOSE = "oauth-state";
 const STATE_MAX_AGE_MS = 10 * 60_000;
+/** The name of the short-lived cookie that carries sign-in state between redirect and callback. */
 export const stateCookieName = (config: Pick<AuthConfig, "secureCookies">) => (config.secureCookies ? "__Host-610_oauth" : "610_oauth");
 
 /**
@@ -154,6 +164,7 @@ export function safeReturnTo(value: unknown): string {
 
 const redirectUri = (config: AuthConfig, provider: ProviderId) => `${config.baseUrl}/api/auth/callback/${provider}`;
 
+/** A cookie to set: name, value and attributes. */
 export interface CookieSpec { name: string; value: string; options: { httpOnly: true; secure: boolean; sameSite: "lax"; path: "/"; maxAge: number } }
 
 function requireProvider(config: AuthConfig, provider: ProviderId): ProviderConfig {
@@ -162,6 +173,10 @@ function requireProvider(config: AuthConfig, provider: ProviderId): ProviderConf
   return settings;
 }
 
+/**
+ * Starts sign-in: builds the provider URL (with state, nonce and PKCE) and the sealed cookie that 
+ * remembers them.
+ */
 export function beginSignIn(config: AuthConfig, provider: ProviderId, returnTo: unknown): { url: string; cookie: CookieSpec } {
   const settings = requireProvider(config, provider);
   const state: OAuthState = { provider, state: randomToken(24), nonce: randomToken(24), returnTo: safeReturnTo(returnTo), createdAt: Date.now() };
@@ -186,6 +201,7 @@ export function beginSignIn(config: AuthConfig, provider: ProviderId, returnTo: 
   };
 }
 
+/** The query parameters Google sends back to the callback. */
 export interface CallbackParams { code?: string | null; state?: string | null; error?: string | null }
 
 async function exchangeCode(config: AuthConfig, settings: ProviderConfig, code: string, verifier?: string): Promise<string> {
