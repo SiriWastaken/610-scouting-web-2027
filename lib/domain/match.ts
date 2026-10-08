@@ -3,7 +3,9 @@
 // the questions the UI keeps asking of it, so no component re-derives "which climb level?" itself.
 import type { SanitizedMatch } from "../data/match-data.ts";
 
+/** The two alliances in a match. */
 export type AllianceColor = "red" | "blue";
+/** The rung a robot hung from, or "-" for none. */
 export type ClimbLevel = "L1" | "L2" | "L3" | "-";
 
 /**

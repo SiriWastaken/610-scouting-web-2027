@@ -1,7 +1,7 @@
 ---
 title: Pages and routes
 description: Every route, who may open it, and the files that build it
-verified_at: 77d08a6 (2026-10-08)
+verified_at: 6c13ac9 (2026-10-08)
 sources:
   - app/(app)
   - app/api
@@ -31,7 +31,7 @@ Pages are thin: check access, fetch a snapshot, render a component. All of them 
 
 ## The Teams page, piece by piece
 
-`teams-view.tsx` owns the selected team and match, loads that team's documents through `useTeamDocuments` ([[realtime]]), and composes
+`teams-view.tsx` builds the `ScoutingEvent`, owns the selected team and match, loads that team's documents through `useTeamDocuments` ([[realtime]]) into a `Team` with its `Match`es and `PitInterview` ([[03-the-objects]]), and composes
 `components/dashboard/teams/`:
 
 | File | Panel |

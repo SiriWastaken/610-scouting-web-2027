@@ -1,10 +1,10 @@
-import { NextResponse, type NextRequest } from "next/server";
-
 // Optimistic check only: sends visitors without a session cookie to the
 // welcome screen before any page work happens, and tells pages which path was
 // requested. The real check (is the session valid, is the account active, may
 // this role see this page) runs in every page (lib/auth/pages.ts) and every API
 // route (lib/auth/requests.ts); nothing here is trusted for authorization.
+import { NextResponse, type NextRequest } from "next/server";
+
 const SESSION_COOKIES = ["__Host-610_session", "610_session"];
 const PUBLIC_PAGES = new Set(["/welcome"]);
 

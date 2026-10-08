@@ -1,3 +1,5 @@
+// The team mark (number on a green tile, product name and team name), from app.config.ts. Used in the sidebar, the
+// phone header and the sign-in page.
 import { appConfig } from "@/app.config";
 
 /** The team mark: team number on a green tile, used in the sidebar, header, and sign-in page. */

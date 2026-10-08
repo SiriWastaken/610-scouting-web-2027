@@ -1,3 +1,5 @@
+// GET /api/realtime — the WebSocket endpoint on Vercel, where a route handler can upgrade a request. Everywhere else,
+// scripts/server.mjs handles this path before Next.js sees it.
 import { experimental_upgradeWebSocket } from "@vercel/functions";
 import { getCouchbaseChangesConfig } from "@/lib/data/couchbase-config";
 import { startCouchbaseLongPoll } from "@/lib/realtime/couchbase-feed";

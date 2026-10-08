@@ -1,7 +1,7 @@
 ---
 title: App configuration
 description: What app.config.ts controls, what it deliberately does not, and how to make common changes
-verified_at: 70d836f (2026-10-08)
+verified_at: 6c13ac9 (2026-10-08)
 sources:
   - app.config.ts
   - services/scouting-store.ts

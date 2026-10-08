@@ -20,6 +20,7 @@ const RAW_FIELDS = {
 
 /** A statistic a Team can report, or "total" for auto + teleop + endgame points. */
 export type StatKey = keyof typeof RAW_FIELDS;
+/** A statistic a Team can report: any StatKey, or "total". */
 export type StatName = StatKey | "total";
 
 /** What is known about a team beyond its averages. Loaded on demand, one team at a time. */

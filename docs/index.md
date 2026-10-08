@@ -1,7 +1,7 @@
 ---
 title: Docs index
 description: Where to start, and which page answers which question
-verified_at: 70d836f (2026-10-08)
+verified_at: 6c13ac9 (2026-10-08)
 sources:
   - README.md
 ---
@@ -12,6 +12,8 @@ Documentation for the Team 610 scouting dashboard. Pages are short and each answ
 follow the route that matches what you are doing.
 
 ## Reading order
+
+- **The book:** [[handbook]] is a front-to-back read about how we scout, how the software works and how we work. Start there if you are new. [[glossary]] and [[decisions]] go with it.
 
 - **New to the project:** [[overview]] → [[architecture]] → [[data-model]] → [[pages]]
 - **Changing team, pages, columns or thresholds:** [[configuration]]
@@ -35,4 +37,7 @@ follow the route that matches what you are doing.
 | [[operations]] | The admin panel: health, WebSocket and sync monitoring, event-day troubleshooting |
 | [[configuration]] | What does `app.config.ts` control, and how do I change the team, pages, columns, thresholds or storage backend? |
 | [[development]] | Setup, commands, conventions, how to add a page or an API route |
+| [[handbook]] | The book: ten chapters, from why we scout to who owns the code |
+| [[glossary]] | What does this term mean? |
+| [[decisions]] | Why did we choose this? Nine decision records |
 | [[log]] | What changed in the docs and why |

@@ -5,8 +5,10 @@
 
 export type ProviderId = "google";
 const PROVIDERS: readonly ProviderId[] = ["google"];
+/** Whether a value names a sign-in provider this app supports. */
 export function isProviderId(value: unknown): value is ProviderId { return value === "google"; }
 
+/** One sign-in provider's OAuth client settings and endpoints. */
 export interface ProviderConfig {
   id: ProviderId;
   clientId: string;
@@ -19,6 +21,7 @@ export interface ProviderConfig {
   jwksUri: string;
 }
 
+/** Where accounts, sessions and the audit log are stored (a Sync Gateway collection, or a local file in development). */
 export interface AuthStoreConfig {
   url: string;
   /** Sync Gateway database (on Capella App Services: the App Endpoint name). */
@@ -38,6 +41,7 @@ export function storeKeyspace(store: Pick<AuthStoreConfig, "database" | "scope" 
   return store.scope === "_default" && store.collection === "_default" ? store.database : `${store.database}.${store.scope}.${store.collection}`;
 }
 
+/** Everything the auth code needs, read once from the environment and validated. */
 export interface AuthConfig {
   /** Public origin of the dashboard, e.g. `https://scout.example.org`. Redirect URIs and CSRF checks use it, never the Host header. */
   baseUrl: string;
@@ -55,6 +59,7 @@ export interface AuthConfig {
   endpointOverride?: string;
 }
 
+/** Either a valid configuration, or the list of what is wrong with it (names of settings only, never values). */
 export type AuthConfigResult = { ok: true; config: AuthConfig } | { ok: false; problems: string[] };
 
 const list = (value: string | undefined) => (value ?? "").split(",").map((item) => item.trim().toLowerCase()).filter(Boolean);
@@ -169,6 +174,7 @@ function placeholderProblems(env: Env, store: AuthStoreConfig, local: boolean): 
   return problems;
 }
 
+/** Reads and validates the AUTH_* and account-store settings. Never throws: a bad configuration is reported as a list of problems. */
 export function readAuthConfig(env: Env = process.env): AuthConfigResult {
   const problems: string[] = [];
   const baseUrl = readBaseUrl(env, problems);

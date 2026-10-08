@@ -1,12 +1,13 @@
 ---
 title: Data model
 description: Couchbase document types and how they become the rows the UI renders
-verified_at: 27726e0 (2026-10-02)
+verified_at: 6c13ac9 (2026-10-08)
 sources:
   - lib/data/aggregates.ts
   - lib/data/match-data.ts
   - lib/data/team-documents.ts
   - lib/data/team-stats.ts
+  - lib/domain
   - lib/realtime/protocol.ts
   - types/scouting.ts
 ---
@@ -33,8 +34,16 @@ Anything else is ignored by the dashboard and never relayed ([[realtime]]).
 
 ## Missing is not zero
 
-`TeamAggregate` stores unscouted values as 0. `statValue` in `lib/data/team-stats.ts` returns `null`
+`TeamAggregate` stores unscouted values as 0. `Team.statValue` (`lib/domain/team.ts`) returns `null`
 for those, and every comparison page shows "—" instead of a fake 0. Use it for any new statistic.
+
+## From rows to objects
+
+The server sends `TeamAggregate` rows (plain data, the only thing that can cross to the browser). In the browser
+`useScoutingEvent` builds `ScoutingEvent.fromAggregates(rows)`: a `ScoutingEvent` holding `Team`s. A `Team` wraps its row and,
+once loaded, its `Match`es (wrapping `SanitizedMatch`), `PitInterview` (wrapping `PitData`) and cards; an `Alliance` groups teams.
+Questions with a meaning in the sport (missing data, low sample, climb level, who leads) are methods on these classes;
+arithmetic and formatting stay in `lib/data/team-stats.ts`. The story and the rules are in [[03-the-objects]].
 
 ## Privacy
 

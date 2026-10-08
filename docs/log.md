@@ -1,7 +1,7 @@
 ---
 title: Docs log
 description: Append-only record of documentation changes
-verified_at: 77d08a6 (2026-10-08)
+verified_at: 6c13ac9 (2026-10-08)
 sources:
   - docs
 ---
@@ -41,3 +41,11 @@ Add a new entry; do not edit old ones. If a fact changes, write a correcting ent
 - `LivePage` replaces the access check, snapshot fetch and header repeated in the five dashboard pages; page titles and descriptions now come from `navigation` in `app.config.ts`. `MetricBoard` no longer takes a `header`.
 - `tba/blueAlliance.ts` moved to `services/blue-alliance.ts`; `NativeSelect` moved into `selectors.tsx`, its only user.
 - `lib/data/match-data.ts` stays separate from `team-documents.ts`: it is the input sanitizer, with its own tests and coverage floor.
+
+## 2026-10-08: the handbook, the domain model, the license
+
+- Added `docs/handbook/`: ten chapters ([[handbook]]), the [[glossary]], and nine decision records ([[decisions]]). Rewrote the rules in `docs/CLAUDE.md` to define four kinds of page, so short reference pages and long narrative chapters can live side by side.
+- Documented the object model ([[03-the-objects]]) and updated [[data-model]], [[architecture]], [[pages]] and [[development]] for `lib/domain`, `LivePage` and the new checks (`test:docs`, `test:size`).
+- Every source file now has a header comment and every export a doc comment, enforced by `npm run test:docs`. Function length is enforced by `npm run test:size`.
+- Added `LICENSE` (proprietary, all rights reserved) and [[10-ownership-and-license]]. The license text needs review by the team's sponsor or a lawyer before it is relied on.
+- Correction: the earlier 2026-10-08 entry said `statValue` lives in `lib/data/team-stats.ts`; it is now `Team.statValue` in `lib/domain/team.ts`.
