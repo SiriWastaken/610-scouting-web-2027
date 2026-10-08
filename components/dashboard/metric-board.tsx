@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowDown, ArrowUp, Sigma } from "lucide-react";
 import { buttonClass, EmptyState, selectClass, theadClass } from "@/components/ui/kit";
@@ -46,11 +46,9 @@ function useSort(initialStat: StatKey) {
 interface MetricBoardProps {
   teams: TeamAggregate[];
   initialStat: StatKey;
-  /** The page's header, rendered by the server page. */
-  header: ReactNode;
 }
 
-export function MetricBoard({ teams, initialStat, header }: MetricBoardProps) {
+export function MetricBoard({ teams, initialStat }: MetricBoardProps) {
   const liveTeams = useAggregateRealtime(teams);
   const { sortKey, setSortKey, ascending, flip, sortBy } = useSort(initialStat);
   const sorted = useMemo(() => sortTeams(liveTeams, sortKey, ascending), [ascending, sortKey, liveTeams]);
@@ -58,8 +56,6 @@ export function MetricBoard({ teams, initialStat, header }: MetricBoardProps) {
 
   return (
     <div>
-      {header}
-
       <section className="overflow-hidden rounded-lg border border-line bg-surface">
         <div className="flex flex-col gap-3 border-b border-line px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <Summary count={sorted.length} sortedLabel={sortedLabel} />

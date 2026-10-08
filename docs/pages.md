@@ -1,7 +1,7 @@
 ---
 title: Pages and routes
 description: Every route, who may open it, and the files that build it
-verified_at: b611a7f (2026-10-08)
+verified_at: 77d08a6 (2026-10-08)
 sources:
   - app/(app)
   - app/api
@@ -13,7 +13,7 @@ sources:
 
 # Pages and routes
 
-Pages are thin: check access, fetch a snapshot, render a component. All of them call `requirePage` ([[authentication]]).
+Pages are thin: check access, fetch a snapshot, render a component. All of them call `requirePage` ([[authentication]]). The five dashboard pages share `components/dashboard/live-page.tsx` (`LivePage`): it does the access check and snapshot and draws the header (title and description from `navigation` in `app.config.ts`, [[configuration]]) with the live-status badge, so a page file is only its body.
 
 ## Dashboard (permission `dashboard:read`, any active account)
 
@@ -42,10 +42,10 @@ Pages are thin: check access, fetch a snapshot, render a component. All of them 
 | `match-log.tsx` | The table of every scouted match |
 | `scout-report.tsx` | The pit interview, grouped by who said it (asked, interview, observed) |
 | `card-reports.tsx` | Cards for the team (loads and updates live on its own) |
-| `primitives.tsx` | `Section`, `NativeSelect`, `AllianceTag` shared by the above |
+| `primitives.tsx` | `Section` and `AllianceTag`, shared by the above (`NativeSelect` lives in `selectors.tsx`) |
 
 Document parsing for these lives in `lib/data/team-documents.ts`; the field image is `public/field.png`.
-Team nicknames come from The Blue Alliance when `TBA_API_KEY` is set (`tba/blueAlliance.ts`), otherwise from the pit name.
+Team nicknames come from The Blue Alliance when `TBA_API_KEY` is set (`services/blue-alliance.ts`), otherwise from the pit name.
 
 ## Admin (`/admin/**`)
 

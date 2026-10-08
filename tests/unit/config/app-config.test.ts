@@ -7,6 +7,7 @@ test("app config: every navigation entry opens a page that exists, and each is l
   const items = [...appConfig.navigation, appConfig.adminNavigation];
   for (const { href } of items) assert.ok(existsSync(`app/(app)${href}/page.tsx`), `${href} has no page`);
   assert.equal(new Set(items.map((item) => item.href)).size, items.length);
+  assert.ok(appConfig.navigation.every((item) => item.description.trim().length > 0), "every page has a description");
 });
 
 test("app config: the Averages columns are unique and every column has a label", () => {

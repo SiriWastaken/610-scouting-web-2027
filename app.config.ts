@@ -8,6 +8,8 @@ import type { TeamAggregate } from "./types/scouting.ts";
 /** Names a lucide icon; the sidebar maps each name to a component (components/layout/nav-links.tsx). */
 export type NavIcon = "bot" | "sigma" | "target" | "chart" | "checklist" | "shield";
 
+export interface NavEntry { href: string; label: string; icon: NavIcon; description: string }
+
 /** Scouting-data backends. Adding one means implementing `ScoutingStore` and registering it in services/scouting-store.ts. */
 export type ScoutingBackend = "syncGateway";
 
@@ -28,15 +30,15 @@ export const appConfig = {
     description: "FRC Team 610 scouting and strategy workspace",
   },
 
-  /** Main navigation, in order. The Admin entry is added for accounts that can open it. */
+  /** Main navigation, in order. `description` is the line under the page title. The Admin entry is added for accounts that can open it. */
   navigation: [
-    { href: "/teams", label: "Teams", icon: "bot" },
-    { href: "/averages", label: "Averages", icon: "sigma" },
-    { href: "/strategy", label: "Strategy", icon: "target" },
-    { href: "/box-plot", label: "Box Plot", icon: "chart" },
-    { href: "/coverage", label: "Coverage", icon: "checklist" },
-  ] satisfies Array<{ href: string; label: string; icon: NavIcon }>,
-  adminNavigation: { href: "/admin", label: "Admin", icon: "shield" } satisfies { href: string; label: string; icon: NavIcon },
+    { href: "/teams", label: "Teams", icon: "bot", description: "Pick a team to see its averages, every scouted match, the pit interview, and any cards." },
+    { href: "/averages", label: "Averages", icon: "sigma", description: "Every team, every stat, averaged across the matches we have scouted. Tap a column heading to rank the board." },
+    { href: "/strategy", label: "Strategy", icon: "target", description: "Line teams up against each other before a match. Everything here reads from the same averages as Teams." },
+    { href: "/box-plot", label: "Box Plot", icon: "chart", description: "Compare the spread of a scouting statistic across the event. Tap a column heading to rank the board." },
+    { href: "/coverage", label: "Coverage", icon: "checklist", description: "How complete our scouting is for this event, so the scout lead knows who still needs eyes on them." },
+  ] as const satisfies ReadonlyArray<NavEntry>,
+  adminNavigation: { href: "/admin", label: "Admin", icon: "shield" } as const satisfies Omit<NavEntry, "description">,
 
   /** How the Strategy and Teams pages judge the numbers. */
   analysis: {

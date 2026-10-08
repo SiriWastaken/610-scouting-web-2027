@@ -85,7 +85,7 @@ requires (one folder per URL); everything else is grouped by topic.
 | `lib/ops/metrics.ts` | Counters for the admin panel (connections, requests, errors) |
 | `services/couchbase.ts` | Reading scouting data from Sync Gateway (with a 20 s cache) and Sync Gateway health probes |
 | `services/health.ts` | The admin panel's health checks |
-| `tba/blueAlliance.ts` | The Blue Alliance API client (team nicknames on the Teams page, when `TBA_API_KEY` is set) |
+| `services/blue-alliance.ts` | The Blue Alliance API client (team nicknames on the Teams page, when `TBA_API_KEY` is set) |
 | `types/scouting.ts` | Shared scouting data types |
 | `public/field.png` | The field diagram behind the auto path |
 | `proxy.ts` | Sends signed-out visitors to the sign-in page (pages re-check for real) |

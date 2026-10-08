@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import { AccountPanel } from "@/components/auth/account-panel";
 import { requirePage } from "@/lib/auth/pages";
 import { PageHeader } from "@/components/ui/kit";
+import { appConfig } from "@/app.config";
 
-export const metadata: Metadata = { title: "Account · 610 Scouting" };
+export const metadata: Metadata = { title: `Account · ${appConfig.team.productName}` };
 
 export default async function AccountPage() {
   await requirePage();

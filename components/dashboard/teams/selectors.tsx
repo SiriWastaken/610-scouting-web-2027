@@ -1,10 +1,36 @@
 'use client';
 
 import { useMemo } from 'react';
-import { labelClass } from '@/components/ui/kit';
+import { labelClass, selectClass } from '@/components/ui/kit';
 import type { TeamAggregate } from '@/types/scouting';
 import type { MatchData } from '@/lib/data/team-documents';
-import { NativeSelect } from './primitives';
+
+export function NativeSelect({
+  id,
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  id: string;
+  value: string | null;
+  onChange: (value: string) => void;
+  options: { label: string; value: string }[];
+  placeholder: string;
+}) {
+  return (
+    <select id={id} value={value ?? ''} onChange={(e) => onChange(e.target.value)} className={`${selectClass} h-11 text-base sm:text-sm`}>
+      <option value="" disabled>
+        {placeholder}
+      </option>
+      {options.map((opt) => (
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 interface TeamSelectorProps {
   teams: TeamAggregate[];

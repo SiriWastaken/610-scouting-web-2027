@@ -1,7 +1,7 @@
 ---
 title: Docs log
 description: Append-only record of documentation changes
-verified_at: 70d836f (2026-10-08)
+verified_at: 77d08a6 (2026-10-08)
 sources:
   - docs
 ---
@@ -38,3 +38,6 @@ Add a new entry; do not edit old ones. If a fact changes, write a correcting ent
 ## 2026-10-08: app.config.ts
 
 - Added [[configuration]]: team identity, navigation, Averages columns, analysis thresholds and the scouting backend now live in `app.config.ts`. Pages read scouting data through `services/scouting-store.ts`. Updated [[architecture]] and [[index]].
+- `LivePage` replaces the access check, snapshot fetch and header repeated in the five dashboard pages; page titles and descriptions now come from `navigation` in `app.config.ts`. `MetricBoard` no longer takes a `header`.
+- `tba/blueAlliance.ts` moved to `services/blue-alliance.ts`; `NativeSelect` moved into `selectors.tsx`, its only user.
+- `lib/data/match-data.ts` stays separate from `team-documents.ts`: it is the input sanitizer, with its own tests and coverage floor.
