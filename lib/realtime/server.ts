@@ -49,6 +49,10 @@ export function sessionBridgeOptions(viewer: Viewer, recheck: () => Promise<Auth
 
 const STATUS_TEXT = { 401: "401 Unauthorized", 403: "403 Forbidden", 500: "500 Internal Server Error", 503: "503 Service Unavailable" } as const;
 
+function reject(socket: Duplex, status: keyof typeof STATUS_TEXT) {
+  socket.end(`HTTP/1.1 ${STATUS_TEXT[status]}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
+}
+
 /**
  * Handles `upgrade` requests for the realtime path on a plain Node HTTP server.
  * Returns false for any other path so the caller can hand it to Next.js.
@@ -56,9 +60,6 @@ const STATUS_TEXT = { 401: "401 Unauthorized", 403: "403 Forbidden", 500: "500 I
 export function createRealtimeUpgradeHandler(options: RealtimeUpgradeOptions = {}) {
   const { getConfig = getCouchbaseChangesConfig, authenticate = (cookie) => authenticateCookieHeader(cookie), ...bridgeOptions } = options;
   const webSockets = new WebSocketServer({ noServer: true, maxPayload: 8 * 1024 });
-  const reject = (socket: Duplex, status: keyof typeof STATUS_TEXT) => {
-    socket.end(`HTTP/1.1 ${STATUS_TEXT[status]}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
-  };
 
   return function handleUpgrade(request: IncomingMessage, socket: Duplex, head: Buffer): boolean {
     let pathname: string;
