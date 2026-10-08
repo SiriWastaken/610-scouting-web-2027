@@ -1,5 +1,7 @@
 # 610 Scouting Web
 
+> **Proprietary.** Copyright (c) 2026 FIRST Robotics Competition Team 610. All rights reserved. This is not open-source software: you may read it to learn, and team members may use it for the team; copying, modifying, redistributing, hosting or using it to train AI models is not allowed. See [LICENSE](LICENSE) and [the ownership chapter](docs/handbook/10-ownership-and-license.md).
+
 Next.js web platform for Team 610 scouting analysis. The Teams, Averages, and Box Plot pages read aggregate data from Couchbase through the server-only repository at `services/couchbase.ts`.
 
 Everyone signs in with Google first, and anyone Google lets through is in straight away; managers can deny access afterwards. The server enforces five roles: **Owner** (set in configuration; everything, including names), **Mentor**, **Scout lead**, **Scout**, and **Member**. Mentors and the Owner get an operations panel for system health, realtime, sync, users, and the audit log.
