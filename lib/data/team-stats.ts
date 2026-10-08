@@ -2,16 +2,19 @@
 // really scouted, whether a sample is trustworthy, and how numbers are printed.
 // Used by the Strategy page; no React, no I/O, so it is unit-tested directly.
 import type { TeamAggregate } from "../../types/scouting.ts";
+import { appConfig } from "../../app.config.ts";
+
+const { analysis } = appConfig;
 
 /** Shown wherever a value was never scouted. Distinct from a real 0. */
 export const NO_DATA = "—";
 
 /** Rating scales, as the scouting form records them (also printed on the team page). */
-export const DRIVER_SKILL_SCALE = 10;
-export const DEFENSE_RATING_SCALE = 5;
+export const DRIVER_SKILL_SCALE = analysis.driverSkillScale;
+export const DEFENSE_RATING_SCALE = analysis.defenseRatingScale;
 
 /** A team with fewer scouted matches than this is flagged "low sample". */
-export const LOW_SAMPLE_THRESHOLD = 3;
+export const LOW_SAMPLE_THRESHOLD = analysis.lowSampleThreshold;
 
 /**
  * Outlier rule (see `isOutlier`): a value is a likely outlier when, compared with
@@ -19,10 +22,10 @@ export const LOW_SAMPLE_THRESHOLD = 3;
  * `OUTLIER_SD` standard deviations from the mean, or more than
  * `OUTLIER_MEDIAN_MULTIPLE` times the median.
  */
-export const OUTLIER_SD = 2.5;
-export const OUTLIER_MEDIAN_MULTIPLE = 3;
+export const OUTLIER_SD = analysis.outlierSd;
+export const OUTLIER_MEDIAN_MULTIPLE = analysis.outlierMedianMultiple;
 /** Fewer teams than this and neither rule says anything useful, so nothing is flagged. */
-const OUTLIER_MIN_FIELD = 5;
+const OUTLIER_MIN_FIELD = analysis.outlierMinField;
 
 /** Statistics on `TeamAggregate` that can be missing, mapped to the raw fields they are read from (first present wins). */
 const RAW_FIELDS = {

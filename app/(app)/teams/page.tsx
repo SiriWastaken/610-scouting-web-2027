@@ -1,7 +1,7 @@
 import { connection } from 'next/server';
 import { requirePage } from '@/lib/auth/pages';
 import { AccessDenied, PageHeader } from '@/components/ui/kit';
-import { fetchTeamAggregatesSnapshot } from '@/services/couchbase';
+import { scoutingStore } from "@/services/scouting-store";
 import { fetchTeamNickname } from '@/tba/blueAlliance';
 import TeamsClientView from '@/components/dashboard/teams-view';
 import { RealtimeConnection } from '@/components/dashboard/live-status';
@@ -11,7 +11,7 @@ export default async function TeamsPage() {
   await connection();
   if (!(await requirePage("dashboard:read")).allowed) return <AccessDenied />;
   // 1. Team aggregates from Couchbase.
-  const { teams: teamStats, lastSeq, names } = await fetchTeamAggregatesSnapshot();
+  const { teams: teamStats, lastSeq, names } = await scoutingStore.fetchTeamAggregatesSnapshot();
 
   // 2. Look up team nicknames on The Blue Alliance (server-side, so the API key stays private).
   const teamNames: Record<number, string> = {};

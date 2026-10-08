@@ -4,19 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bot, ChartCandlestick, ClipboardCheck, ShieldCheck, Sigma, Target, type LucideIcon } from "lucide-react";
 import { useSession } from "@/components/auth/session";
+import { appConfig, type NavIcon } from "@/app.config";
 
-type NavItem = { href: string; label: string; icon: LucideIcon };
-
-// Each tab's icon names what the page is for: robots to look up, averages to rank,
-// a target for match planning, candlesticks for spread, a checklist for coverage.
-const navigation: NavItem[] = [
-  { href: "/teams", label: "Teams", icon: Bot },
-  { href: "/averages", label: "Averages", icon: Sigma },
-  { href: "/strategy", label: "Strategy", icon: Target },
-  { href: "/box-plot", label: "Box Plot", icon: ChartCandlestick },
-  { href: "/coverage", label: "Coverage", icon: ClipboardCheck },
-];
-const admin: NavItem = { href: "/admin", label: "Admin", icon: ShieldCheck };
+// Each icon names what the page is for: robots to look up, averages to rank, a target for match
+// planning, candlesticks for spread, a checklist for coverage. The pages and labels are in app.config.ts.
+const ICONS: Record<NavIcon, LucideIcon> = { bot: Bot, sigma: Sigma, target: Target, chart: ChartCandlestick, checklist: ClipboardCheck, shield: ShieldCheck };
+const toItem = ({ href, label, icon }: { href: string; label: string; icon: NavIcon }) => ({ href, label, icon: ICONS[icon] });
+const navigation = appConfig.navigation.map(toItem);
+const admin = toItem(appConfig.adminNavigation);
 
 function isActive(pathname: string, href: string) {
   return href === "/admin" || href === "/teams" ? pathname === href || pathname.startsWith(`${href}/`) : pathname === href;

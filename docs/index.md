@@ -1,7 +1,7 @@
 ---
 title: Docs index
 description: Where to start, and which page answers which question
-verified_at: 27726e0 (2026-10-02)
+verified_at: 70d836f (2026-10-08)
 sources:
   - README.md
 ---
@@ -14,6 +14,7 @@ follow the route that matches what you are doing.
 ## Reading order
 
 - **New to the project:** [[overview]] → [[architecture]] → [[data-model]] → [[pages]]
+- **Changing team, pages, columns or thresholds:** [[configuration]]
 - **Changing the UI:** [[design-system]] → [[pages]] → [[development]]
 - **Touching live updates:** [[realtime]] → [[data-model]]
 - **Setting up sign-in or managing users:** [[authentication]]
@@ -32,5 +33,6 @@ follow the route that matches what you are doing.
 | [[design-system]] | The look, colour tokens, shared building blocks, and the rules for using them |
 | [[authentication]] | Sign-in setup, roles and permissions, sessions, audit log, security |
 | [[operations]] | The admin panel: health, WebSocket and sync monitoring, event-day troubleshooting |
+| [[configuration]] | What does `app.config.ts` control, and how do I change the team, pages, columns, thresholds or storage backend? |
 | [[development]] | Setup, commands, conventions, how to add a page or an API route |
 | [[log]] | What changed in the docs and why |

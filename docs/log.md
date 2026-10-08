@@ -1,7 +1,7 @@
 ---
 title: Docs log
 description: Append-only record of documentation changes
-verified_at: b611a7f (2026-10-08)
+verified_at: 70d836f (2026-10-08)
 sources:
   - docs
 ---
@@ -34,3 +34,7 @@ Add a new entry; do not edit old ones. If a fact changes, write a correcting ent
 - `useTeamDocuments` in `lib/realtime/hooks.ts` replaces the duplicated load-and-merge code in the Teams page and card reports; `FactGrid` joins the kit. Updated [[realtime]], [[pages]] and [[design-system]].
 - **Bug fixed:** a document nested deeply enough to overflow `JSON.stringify` crashed the realtime feed; it is now dropped like an oversized one.
 - The Teams page no longer logs a console warning when a team has no match documents.
+
+## 2026-10-08: app.config.ts
+
+- Added [[configuration]]: team identity, navigation, Averages columns, analysis thresholds and the scouting backend now live in `app.config.ts`. Pages read scouting data through `services/scouting-store.ts`. Updated [[architecture]] and [[index]].

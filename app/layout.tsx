@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { appConfig } from "@/app.config";
 
 // The one typeface for the whole app, numbers included (see the tabular-nums rule in globals.css).
 const inter = Inter({
@@ -9,8 +10,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "610 Scouting",
-  description: "FRC Team 610 scouting and strategy workspace",
+  title: appConfig.team.productName,
+  description: appConfig.team.description,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

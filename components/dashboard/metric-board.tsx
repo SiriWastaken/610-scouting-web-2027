@@ -6,47 +6,11 @@ import { ArrowDown, ArrowUp, Sigma } from "lucide-react";
 import { buttonClass, EmptyState, selectClass, theadClass } from "@/components/ui/kit";
 import type { TeamAggregate } from "@/types/scouting";
 import { useAggregateRealtime } from "@/lib/realtime/hooks";
+import { appConfig, type AverageColumn } from "@/app.config";
 
 type StatKey = keyof TeamAggregate["rawData"];
 
-type StatLabel = {
-  key: StatKey;
-  label: string;
-  suffix?: string;
-};
-
-const rawStatLabels: StatLabel[] = [
-  { key: "avgDefenseSkill", label: "Average defense skill", suffix: "/ 5" },
-  { key: "breakSeverity", label: "Break severity" },
-  { key: "bumpCrossed", label: "Bumps crossed" },
-  { key: "fuelPlowed", label: "Fuel plowed / match" },
-  { key: "fuelpassed", label: "Fuel passed / match" },
-  { key: "fuelscored", label: "Fuel scored / match" },
-  { key: "teleopFuelFed", label: "Teleop fuel fed" },
-  { key: "trenchCrossed", label: "Trenches crossed" },
-  { key: "L1accuracy", label: "L1 accuracy", suffix: "%" },
-  { key: "L2accuracy", label: "L2 accuracy", suffix: "%" },
-  { key: "L3accuracy", label: "L3 accuracy", suffix: "%" },
-  { key: "aStopAvg", label: "Average A-stop" },
-  { key: "autoFuelaccuracy", label: "Auto fuel accuracy", suffix: "%" },
-  { key: "autoL1accuracy", label: "Auto L1 accuracy", suffix: "%" },
-  { key: "autoPPG", label: "Auto PPG" },
-  { key: "avgDriverSkill", label: "Average driver skill", suffix: "/ 10" },
-  { key: "brokePercentage", label: "Broke percentage", suffix: "%" },
-  { key: "endgamePPG", label: "Endgame PPG" },
-  { key: "fuelfed", label: "Fuel fed" },
-  { key: "matchesPlayed", label: "Matches played" },
-  { key: "standing", label: "Standing" },
-  { key: "teleopPPG", label: "Teleop PPG" },
-  { key: "totalFuelPassed", label: "Total fuel passed" },
-  { key: "totalFuelPlowed", label: "Total fuel plowed" },
-  { key: "L1AverageHangTime", label: "L1 average hang time", suffix: "s" },
-  { key: "L2AverageHangTime", label: "L2 average hang time", suffix: "s" },
-  { key: "L3AverageHangTime", label: "L3 average hang time", suffix: "s" },
-  { key: "playedDefenseMatches", label: "Played defense matches" },
-  { key: "teleopFuelaccuracy", label: "Teleop fuel accuracy", suffix: "%" },
-  { key: "weightedBrokePercentage", label: "Weighted broke percentage", suffix: "%" },
-];
+const COLUMNS = appConfig.averagesColumns;
 
 function formatValue(value: unknown): string {
   if (value === null || value === undefined || value === "") return "--";
@@ -90,7 +54,7 @@ export function MetricBoard({ teams, initialStat, header }: MetricBoardProps) {
   const liveTeams = useAggregateRealtime(teams);
   const { sortKey, setSortKey, ascending, flip, sortBy } = useSort(initialStat);
   const sorted = useMemo(() => sortTeams(liveTeams, sortKey, ascending), [ascending, sortKey, liveTeams]);
-  const sortedLabel = rawStatLabels.find((stat) => stat.key === sortKey)?.label ?? "";
+  const sortedLabel = COLUMNS.find((stat) => stat.key === sortKey)?.label ?? "";
 
   return (
     <div>
@@ -129,7 +93,7 @@ function SortControls({ sortKey, ascending, onSortKey, onFlip }: { sortKey: Stat
   return (
     <div className="flex items-center gap-2">
       <select aria-label="Sort statistics by" value={sortKey} onChange={(event) => onSortKey(event.target.value as StatKey)} className={`${selectClass} sm:w-64`}>
-        {rawStatLabels.map((stat) => (
+        {COLUMNS.map((stat) => (
           <option key={stat.key} value={stat.key}>
             {stat.label} {stat.suffix ?? ""}
           </option>
@@ -149,7 +113,7 @@ function MetricTable({ teams, sortKey, ascending, onSort }: { teams: TeamAggrega
         <thead className={theadClass}>
           <tr>
             <th className="sticky left-0 z-10 bg-surface px-4 py-2.5 text-left">Team</th>
-            {rawStatLabels.map((stat) => <MetricHead key={stat.key} stat={stat} active={stat.key === sortKey} ascending={ascending} onSort={() => onSort(stat.key)} />)}
+            {COLUMNS.map((stat) => <MetricHead key={stat.key} stat={stat} active={stat.key === sortKey} ascending={ascending} onSort={() => onSort(stat.key)} />)}
           </tr>
         </thead>
         <tbody>{teams.map((team) => <MetricRow key={team.team} team={team} sortKey={sortKey} />)}</tbody>
@@ -158,7 +122,7 @@ function MetricTable({ teams, sortKey, ascending, onSort }: { teams: TeamAggrega
   );
 }
 
-function MetricHead({ stat, active, ascending, onSort }: { stat: StatLabel; active: boolean; ascending: boolean; onSort: () => void }) {
+function MetricHead({ stat, active, ascending, onSort }: { stat: AverageColumn; active: boolean; ascending: boolean; onSort: () => void }) {
   return (
     <th className={`px-3 py-2.5 text-right align-bottom ${active ? "bg-accent-muted text-accent-text" : ""}`} aria-sort={active ? (ascending ? "ascending" : "descending") : undefined}>
       <button type="button" aria-label={`Sort by ${stat.label}`} onClick={onSort} className="inline-flex max-w-[9rem] items-end justify-end gap-1 text-right hover:text-ink">
@@ -178,7 +142,7 @@ function MetricRow({ team, sortKey }: { team: TeamAggregate; sortKey: StatKey })
           <span className="max-w-[12rem] truncate text-ink">{team.name}</span>
         </Link>
       </td>
-      {rawStatLabels.map((stat) => (
+      {COLUMNS.map((stat) => (
         <td key={stat.key} className={`whitespace-nowrap px-3 py-2.5 text-right font-mono group-hover:bg-surface-2 ${stat.key === sortKey ? "bg-accent-muted/50 font-semibold text-ink" : "text-ink-2"}`}>
           {formatValue(team.rawData[stat.key])}{stat.suffix ?? ""}
         </td>

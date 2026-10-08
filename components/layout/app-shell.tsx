@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { NavLinks } from "@/components/layout/nav-links";
 import { AccountChip } from "@/components/auth/session";
 import { BrandMark } from "@/components/layout/brand-mark";
+import { appConfig } from "@/app.config";
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
@@ -27,7 +28,7 @@ function Sidebar() {
         <NavLinks />
         <div className="mt-auto space-y-3 border-t border-line pt-3">
           <div className="px-3 text-xs text-muted">
-            <span className="font-semibold text-ink-2">2026 season</span> · REBUILT
+            <span className="font-semibold text-ink-2">{appConfig.team.season} season</span> · {appConfig.team.game}
           </div>
           <AccountChip />
         </div>

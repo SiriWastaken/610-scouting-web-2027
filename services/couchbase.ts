@@ -3,6 +3,7 @@ import { projectDashboardDocument } from "@/lib/realtime/protocol";
 import { getCouchbaseChangesConfig, readCouchbaseConfig } from "@/lib/data/couchbase-config";
 import type { TeamAggregate } from "@/types/scouting";
 import { getDocumentTeam, getDocumentTeamName, normalizeAggregateDocument } from "@/lib/data/aggregates";
+import { appConfig } from "@/app.config";
 import { recordSnapshot } from "@/lib/ops/metrics";
 import { describeFetchError } from "@/lib/realtime/couchbase-feed";
 
@@ -31,7 +32,7 @@ function requestTimeoutMs(): number {
 type DocumentSnapshot = { documents: CouchbaseDocument[]; lastSeq: unknown };
 let snapshotCache: { value: DocumentSnapshot; expiresAt: number } | undefined;
 let snapshotInFlight: Promise<DocumentSnapshot> | undefined;
-const SNAPSHOT_CACHE_MS = 20_000;
+const SNAPSHOT_CACHE_MS = appConfig.storage.snapshotCacheMs;
 
 async function getCachedSnapshot(config: CouchbaseConfig): Promise<DocumentSnapshot> {
   if (snapshotCache && snapshotCache.expiresAt > Date.now()) return snapshotCache.value;

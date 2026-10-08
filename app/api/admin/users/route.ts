@@ -3,7 +3,7 @@ import { guard, json, jsonError } from "@/lib/auth/requests";
 import { canManageUser, assignableRoles } from "@/lib/auth/roles";
 import { authRuntime } from "@/lib/auth/requests";
 import { SESSION_PREFIX, type SessionDoc } from "@/lib/auth/sessions";
-import { scoutActivity } from "@/services/couchbase";
+import { scoutingStore } from "@/services/scouting-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
   if (!auth.ok) return jsonError(503, "auth_unavailable", "Sign-in is not configured");
   const actor = checked.viewer.principal;
   // One read of the account store for both users and sessions (on Capella each list is a full pass over _changes).
-  const [everything, activity] = await Promise.all([auth.store.list<UserDoc | SessionDoc>(""), scoutActivity()]);
+  const [everything, activity] = await Promise.all([auth.store.list<UserDoc | SessionDoc>(""), scoutingStore.scoutActivity()]);
   const users = everything.flatMap((doc) => doc.id.startsWith(USER_PREFIX) && doc.body?.type === "auth_user" ? [{ id: doc.id.slice(USER_PREFIX.length), user: doc.body }] : []);
   const sessions = everything.filter((doc) => doc.id.startsWith(SESSION_PREFIX)) as Array<{ body?: SessionDoc }>;
   const now = Date.now();

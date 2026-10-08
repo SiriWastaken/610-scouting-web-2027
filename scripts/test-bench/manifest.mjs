@@ -12,6 +12,7 @@ export const suites = {
     timeoutMs: 20_000,
     files: {
       "tests/testTemplate.test.ts": 3,
+      "tests/unit/config/app-config.test.ts": 3,
       "tests/unit/config/couchbase-config.test.ts": 3,
       "tests/unit/data/aggregate-normalization.test.ts": 19,
       "tests/unit/data/match-data-sanitizer.test.ts": 4,

@@ -7,8 +7,9 @@ import { SignInButtons } from "@/components/auth/sign-in";
 import { enabledProviders, readAuthConfig } from "@/lib/auth/config";
 import { getAuthentication } from "@/lib/auth/pages";
 import { safeReturnTo } from "@/lib/auth/sign-in";
+import { appConfig } from "@/app.config";
 
-export const metadata: Metadata = { title: "Sign in · 610 Scouting" };
+export const metadata: Metadata = { title: `Sign in · ${appConfig.team.productName}` };
 
 const ERRORS: Record<string, string> = {
   denied: "Sign-in was cancelled. Choose an account to continue.",
@@ -68,7 +69,7 @@ export default async function WelcomePage({ searchParams }: PageProps<"/welcome"
         <div className="mt-6"><SignInButtons providers={providers} next={next} /></div>
       </div>
     </section>
-    <p className="mt-5 text-xs text-muted">FRC Team 610 · Crescent Coyotes</p>
+    <p className="mt-5 text-xs text-muted">FRC Team {appConfig.team.number} · {appConfig.team.name}</p>
   </main>;
 }
 

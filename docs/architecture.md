@@ -1,7 +1,7 @@
 ---
 title: Architecture
 description: How code is organised and how data moves from Couchbase to the screen
-verified_at: 27726e0 (2026-10-02)
+verified_at: 70d836f (2026-10-08)
 sources:
   - app/(app)/layout.tsx
   - services/couchbase.ts
@@ -21,6 +21,8 @@ Check `node_modules/next/dist/docs/` before relying on Next.js behaviour: this v
 | Folder | What belongs there |
 |---|---|
 | `app/` | Routes only: one folder per URL, thin `page.tsx` and `route.ts` files that check access, fetch data and render a component |
+| `app.config.ts` | Deployment facts: team, navigation, Averages columns, analysis thresholds, scouting backend ([[configuration]]) |
+| `services/` | Server-side data access; `scouting-store.ts` is the interface the pages read through, `couchbase.ts` the Sync Gateway implementation |
 | `components/` | UI, grouped by feature (`dashboard/`, `admin/`, `auth/`, `layout/`, `ui/`) |
 | `components/dashboard/teams/` | The pieces of the Teams page, one file per panel |
 | `lib/` | Logic with no UI: `auth/`, `data/`, `realtime/`, `ops/`, `ui/` |

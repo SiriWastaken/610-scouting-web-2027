@@ -5,14 +5,15 @@ import { Activity, ArrowLeftRight, CircleAlert, Target } from "lucide-react";
 import { buttonClass, EmptyState, NoteChip, rowClass, selectClass } from "@/components/ui/kit";
 import type { TeamAggregate } from "@/types/scouting";
 import { useAggregateRealtime } from "@/lib/realtime/hooks";
+import { appConfig } from "@/app.config";
 import {
   compareValues, DEFENSE_RATING_SCALE, DRIVER_SKILL_SCALE, fieldValues, formatMargin, formatMatches, formatPercent, formatPercentMargin, formatPoints, formatRating,
   isLowSample, isOutlier, LOW_SAMPLE_THRESHOLD, NO_DATA, OUTLIER_MEDIAN_MULTIPLE, OUTLIER_SD, statValue, totalPoints, type Leader, type StatKey,
 } from "@/lib/data/team-stats";
 
 /** Our own team: the "vs 610" shortcut compares against it. */
-const OWN_TEAM = 610;
-const ROBOTS_PER_ALLIANCE = 3;
+const OWN_TEAM = appConfig.team.number;
+const ROBOTS_PER_ALLIANCE = appConfig.analysis.robotsPerAlliance;
 /** Micro-labels are at least 12px (text-xs) everywhere on this page. */
 const microLabel = "text-xs font-medium text-muted";
 const OUTLIER_HINT = `Likely outlier: more than ${OUTLIER_SD} standard deviations from the field mean, or over ${OUTLIER_MEDIAN_MULTIPLE}× the field median.`;

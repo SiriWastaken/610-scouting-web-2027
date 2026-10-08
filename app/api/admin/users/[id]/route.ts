@@ -4,7 +4,7 @@ import { guard, json, jsonError, readJson } from "@/lib/auth/requests";
 import { assignableRoles, can, canManageUser } from "@/lib/auth/roles";
 import { authRuntime } from "@/lib/auth/requests";
 import { invalidateUserSessions, listUserSessions, revokeUserSessions } from "@/lib/auth/sessions";
-import { scoutActivity } from "@/services/couchbase";
+import { scoutingStore } from "@/services/scouting-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ export async function GET(request: Request, { params }: Context) {
   const actor = checked.viewer.principal;
   const manageable = canManageUser(actor, principalFor(auth.config, id, found.body));
   const sessions = (await listUserSessions(auth.store, id)).map(({ session }) => ({ provider: session.provider, device: session.device ?? null, createdAt: session.createdAt, lastSeenAt: session.lastSeenAt, expiresAt: session.expiresAt }));
-  const scouting = found.body.scoutName ? (await scoutActivity()).get(found.body.scoutName.trim().toLowerCase()) ?? null : null;
+  const scouting = found.body.scoutName ? (await scoutingStore.scoutActivity()).get(found.body.scoutName.trim().toLowerCase()) ?? null : null;
   // Audit history only for those allowed to read the audit log.
   const history = can(actor, "audit:read") ? (await listAudit(auth.store, { search: id, limit: 20 })).entries : null;
   return json({ user: { ...publicUser(auth.config, id, found.body, "admin"), rev: found.rev }, sessions, scouting, history, manageable, assignableRoles: manageable ? assignableRoles(actor) : [] });

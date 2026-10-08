@@ -26,6 +26,7 @@ if a page passes about 3,000 characters, split it.
 | Colours, tab hues, `components/ui/kit.tsx` | [[design-system]] |
 | Roles, sessions, sign-in, env vars | [[authentication]] |
 | Admin panel, health checks, metrics | [[operations]] |
+| `app.config.ts`, `services/scouting-store.ts` | [[configuration]] |
 | Commands, conventions, folder layout | [[development]] or [[architecture]] |
 
 Bump `verified_at` on every page you re-check, add a line to [[log]], and keep the page list in [[index]] complete.
