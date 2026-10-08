@@ -6,7 +6,7 @@
 // Next.js route handlers (bundled) load separate copies of this module in the
 // same process; a module-level variable would split the numbers between them.
 // Numbers are per server process: on a platform that runs several instances
-// each instance reports its own (see docs/operations.md).
+// each instance reports its own (see docs/16-operations.md).
 
 const RING = { events: 200, errors: 50, durations: 200, latencies: 500 };
 const RECONNECT_WINDOW_MS = 60_000;

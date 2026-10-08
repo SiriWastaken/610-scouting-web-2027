@@ -12,5 +12,5 @@
 | `register-aliases.mjs` | Loaded by the bench: resolves `@/` imports and stubs `server-only` so real server modules import in Node |
 | `auth.ts` | `startTestAuth()`: a fake account store and fake Google; `auth.user(role)` makes a real session; `signIn()` runs the whole OAuth flow over HTTP or in-process; `asUser()` builds signed-in requests |
 | `fake-oidc.ts` | Google stand-in over real HTTP: authorize (redirect), token exchange with PKCE checks, published keys, forged-token faults |
-| `run-fake-auth.ts` | Standalone fake account store and provider for local development (docs/authentication.md) |
+| `run-fake-auth.ts` | Standalone fake account store and provider for local development (docs/10-authentication.md) |
 | `run-fake-sync-gateway.ts` | Standalone fake gateway for trying the dashboard by hand (see the project README) |

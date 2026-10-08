@@ -1,5 +1,5 @@
 // Server side of one browser's realtime connection: waits for the subscribe message, starts that browser's
-// changes feed, relays frames, enforces limits and re-checks the session. See docs/realtime.md.
+// changes feed, relays frames, enforces limits and re-checks the session. See docs/12-realtime.md.
 import { parseSubscription, type RealtimeFrame } from "./protocol.ts";
 import { realtimeMetrics } from "../ops/metrics.ts";
 

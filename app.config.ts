@@ -2,7 +2,7 @@
 // shown, how strict the analysis is, and which storage backend the scouting data is read from.
 // Plain data only (no React, no icons, no env), so server code, client code and Node tests all import it.
 // Secrets and connection settings stay in environment variables (.env.example); who may do what stays in
-// lib/auth/roles.ts, because it is a security rule, not a preference. See docs/configuration.md.
+// lib/auth/roles.ts, because it is a security rule, not a preference. See docs/08-configuration.md.
 import type { TeamAggregate } from "./types/scouting.ts";
 
 /** Names a lucide icon; the sidebar maps each name to a component (components/layout/nav-links.tsx). */
@@ -21,7 +21,7 @@ export interface AverageColumn {
   suffix?: string;
 }
 
-/** Everything that describes this deployment. See docs/configuration.md. */
+/** Everything that describes this deployment. See docs/08-configuration.md. */
 export const appConfig = {
   team: {
     number: 610,

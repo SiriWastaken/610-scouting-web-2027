@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Function length: no function in the app's source is longer than 30 lines, nested functions included.
-// This is the check behind docs/handbook/decisions/0008-thirty-line-functions.md. Tests are not measured.
+// This is the check behind docs/decisions/0008-thirty-line-functions.md. Tests are not measured.
 // Exits 1 with the offenders, longest first.
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -29,7 +29,7 @@ for (const file of files) {
 
 if (offenders.length) {
   offenders.sort((a, b) => b.lines - a.lines);
-  console.error(`✖ Function length: ${offenders.length} function(s) over ${MAX_LINES} lines\n  ${offenders.map((o) => `${o.lines} lines  ${o.where}  ${o.name}`).join("\n  ")}\nSplit them (docs/handbook/08-how-we-build.md).`);
+  console.error(`✖ Function length: ${offenders.length} function(s) over ${MAX_LINES} lines\n  ${offenders.map((o) => `${o.lines} lines  ${o.where}  ${o.name}`).join("\n  ")}\nSplit them (docs/17-how-we-build.md).`);
   process.exit(1);
 }
 console.log(`✔ Function length: every function in ${files.length} source files is ${MAX_LINES} lines or fewer.`);

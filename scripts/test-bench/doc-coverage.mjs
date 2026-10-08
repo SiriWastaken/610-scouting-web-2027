@@ -2,8 +2,10 @@
 // Documentation coverage. Code: every source file starts with a comment saying what it is for, and every exported
 // function, class, type and constant has a doc comment (route, page and layout files need only the header, because
 // their exports are framework settings and handlers named by Next.js). Docs: every page has frontmatter with a
-// title, description, verified_at and sources; every `sources` path exists; every [[link]] names a real page.
-// This is the check behind the rules in docs/handbook/09-how-we-document.md. Exits 1 with a list when it fails.
+// title, description, verified_at and sources; every `sources` path exists; every [[link]] names a real page;
+// the pages in docs/ are numbered 00, 01, 02… in reading order with a matching title, heading and navigation line,
+// and 00-preface lists them all.
+// This is the check behind the rules in docs/19-how-we-document.md. Exits 1 with a list when it fails.
 import { execSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { basename } from "node:path";
@@ -61,12 +63,31 @@ function docProblems() {
     const prose = text.replace(/```[\s\S]*?```/g, "").replace(/`[^`]*`/g, "");
     for (const [, target] of prose.matchAll(/\[\[([^\]|#]+)/g)) if (!names.has(target.trim())) found.push(`${page}: link [[${target.trim()}]] names no page`);
   }
+  return [...found, ...numberingProblems(pages)];
+}
+
+/** `docs/NN-name.md` pages (docs/CLAUDE.md and docs/decisions/ are exempt): contiguous numbers, matching title and heading, a nav line, listed in the preface. */
+function numberingProblems(pages) {
+  const found = [];
+  const numbered = pages.filter((page) => /^docs\/[^/]+\.md$/.test(page) && basename(page) !== "CLAUDE.md").sort();
+  numbered.forEach((page, index) => {
+    const name = basename(page, ".md");
+    const wanted = String(index).padStart(2, "0");
+    if (!name.startsWith(`${wanted}-`)) { found.push(`${page}: expected a name starting \`${wanted}-\` (numbers run 00, 01, 02… with none skipped or repeated)`); return; }
+    const text = readFileSync(page, "utf8");
+    const title = /^title: (.*)$/m.exec(text)?.[1]?.trim() ?? "";
+    const heading = /^# (.*)$/m.exec(text)?.[1]?.trim() ?? "";
+    if (!title.startsWith(`${wanted} - `)) found.push(`${page}: title must start with "${wanted} - "`);
+    if (heading !== title) found.push(`${page}: the first heading must equal the title ("${title}")`);
+    if (!/\*\*(Contents|Start reading):\*\*/.test(text)) found.push(`${page}: no Previous / Contents / Next line under the heading`);
+    if (index > 0 && !readFileSync("docs/00-preface.md", "utf8").includes(`[[${name}]]`)) found.push(`${page}: not listed in the contents table of 00-preface`);
+  });
   return found;
 }
 problems.push(...docProblems());
 
 if (problems.length) {
-  console.error(`✖ Documentation coverage: ${problems.length} gap(s)\n  ${problems.join("\n  ")}\nSee docs/handbook/09-how-we-document.md.`);
+  console.error(`✖ Documentation coverage: ${problems.length} gap(s)\n  ${problems.join("\n  ")}\nSee docs/19-how-we-document.md.`);
   process.exit(1);
 }
 console.log(`✔ Documentation coverage: ${files.length} source files have a header and every export is documented, and every docs page has frontmatter and working links.`);

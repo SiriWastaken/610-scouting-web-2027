@@ -21,7 +21,7 @@ const ERRORS: Record<string, string> = {
   no_email: "Google didn't share an email address for that account. Choose a different Google account.",
   provider_unavailable: "That sign-in option isn't available right now.",
   store_unavailable: "Accounts are temporarily unavailable. Try again in a minute.",
-  unavailable: "Sign-in isn't configured on this server yet (see docs/authentication.md).",
+  unavailable: "Sign-in isn't configured on this server yet (see docs/10-authentication.md).",
 };
 
 type Params = Awaited<PageProps<"/welcome">["searchParams"]>;

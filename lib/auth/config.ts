@@ -1,7 +1,7 @@
 // Server-side authentication settings, read from the environment on each call
 // (like lib/couchbase-config.ts) so tests and restarts pick up changes. Nothing
 // here may reach the browser: it holds client secrets and store credentials.
-// Every variable is documented in docs/authentication.md.
+// Every variable is documented in docs/10-authentication.md.
 
 export type ProviderId = "google";
 const PROVIDERS: readonly ProviderId[] = ["google"];

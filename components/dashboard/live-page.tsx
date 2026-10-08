@@ -1,5 +1,5 @@
 // The shared body of every dashboard page: access check, a snapshot of the team rows, the title and description from
-// app.config.ts, and the live-connection badge. A page file is then only its body (see docs/handbook/04).
+// app.config.ts, and the live-connection badge. A page file is then only its body (see docs/07-one-file-controls-the-app.md).
 import { connection } from "next/server";
 import type { ReactNode } from "react";
 import { appConfig } from "@/app.config";
