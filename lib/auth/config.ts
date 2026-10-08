@@ -4,7 +4,7 @@
 // Every variable is documented in docs/authentication.md.
 
 export type ProviderId = "google";
-export const PROVIDERS: readonly ProviderId[] = ["google"];
+const PROVIDERS: readonly ProviderId[] = ["google"];
 export function isProviderId(value: unknown): value is ProviderId { return value === "google"; }
 
 export interface ProviderConfig {
@@ -76,7 +76,7 @@ function providerEndpoints(id: ProviderId, override: string | undefined) {
  * that public endpoint (`https://` or `wss://`, usually port 4984), not a Couchbase connection string.
  * A copied Capella App Endpoint URL ending in `/<database>` is accepted and trimmed to the origin.
  */
-export function checkStoreUrl(raw: string | undefined, database: string): { url: string; problem?: string } {
+function checkStoreUrl(raw: string | undefined, database: string): { url: string; problem?: string } {
   const value = (raw ?? "").trim();
   if (!value) return { url: "" };
   if (/^couchbases?:\/\//i.test(value)) {
@@ -92,7 +92,7 @@ export function checkStoreUrl(raw: string | undefined, database: string): { url:
 }
 
 /** Marker words used only by the placeholders in .env.example. */
-export function isTemplatePlaceholder(value: string): boolean {
+function isTemplatePlaceholder(value: string): boolean {
   return /your-sync-gateway-host|other-sync-gateway-host|replace-with-|replace-me|your-client-id|your-google-client-secret|your-account-store-password|you@example\.org/i.test(value);
 }
 

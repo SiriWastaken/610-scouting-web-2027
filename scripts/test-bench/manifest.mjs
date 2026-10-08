@@ -126,8 +126,7 @@ export const coverage = {
     "app/api/dashboard-documents/route.ts": { lines: 97, branches: 95, functions: 95 },
     // The upgrade itself runs only inside Vercel's runtime; its origin and configuration checks are covered.
     "app/api/realtime/route.ts": { lines: 70, branches: 75, functions: 45 },
-    // Persistence reads. Four exported helpers are unused by the app (queryDocsByType,
-    // listDocumentTypes, queryDocsByIdPrefix, fetchTeamAggregates), which caps line coverage.
+    // Persistence reads.
     "services/couchbase.ts": { lines: 70, branches: 85, functions: 75 },
     // Who may do what: every permission and management rule.
     "lib/auth/roles.ts": { lines: 97, branches: 95, functions: 85 },

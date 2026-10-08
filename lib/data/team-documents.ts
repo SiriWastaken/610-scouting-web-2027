@@ -35,7 +35,7 @@ export async function queryDashboardDocuments(kind: 'matches' | 'pit' | 'reports
  * team field, so team (and match) numbers are pulled from `_id` as a
  * fallback whenever the doc/data body doesn't have them directly.
  */
-export function parseScoutingId(id: unknown): { team?: string; match?: string } {
+function parseScoutingId(id: unknown): { team?: string; match?: string } {
   if (typeof id !== 'string') return {};
   const match = id.match(/^(?:scouting|pit|aggregate|report(?:_card)?)_(\d+)(?:_(.+))?/);
   if (!match) return {};
@@ -88,7 +88,7 @@ export function toCardReport(doc: Record<string, unknown>): CardReport {
  */
 export const MATCH_DOC_ID_PREFIX = 'scouting_';
 
-export interface CouchbaseBlob {
+interface CouchbaseBlob {
   content?: string;
   contentType?: string;
   data?: string;

@@ -2,7 +2,7 @@
 // must stay free of framework imports and path aliases.
 
 export interface RealtimeChange { type: "change"; seq: unknown; id: string; deleted: boolean; rev?: string; doc?: Record<string, unknown> }
-export interface CursorUpdate { type: "cursor"; seq: unknown }
+interface CursorUpdate { type: "cursor"; seq: unknown }
 export type RealtimeFrame = RealtimeChange | CursorUpdate;
 export type ServerMessage = RealtimeFrame | { type: "ready" } | { type: "error"; retryable: boolean; resync: boolean };
 

@@ -18,7 +18,7 @@ export interface TeamAggregate {
   breakRate: number;
 }
 
-export type TeamSortKey = keyof Pick<
+type TeamSortKey = keyof Pick<
   TeamAggregate,
   "team" | "rank" | "matches" | "autoPpg" | "teleopPpg" | "endgamePpg" | "fuelPerMatch" | "fuelAccuracy"
 >;

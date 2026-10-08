@@ -36,8 +36,8 @@ export interface UserDoc {
   approvedAt?: string;
 }
 
-export interface IdentityDoc { type: "auth_identity"; provider: ProviderId; userId: string; createdAt: string }
-export interface EmailIndexDoc { type: "auth_email"; userId: string }
+interface IdentityDoc { type: "auth_identity"; provider: ProviderId; userId: string; createdAt: string }
+interface EmailIndexDoc { type: "auth_email"; userId: string }
 
 export interface VerifiedIdentity { provider: ProviderId; subject: string; email?: string; emailVerified: boolean; name?: string; picture?: string }
 
@@ -53,7 +53,7 @@ export class AccountError extends Error {
   constructor(code: AccountError["code"], message: string) { super(message); this.code = code; }
 }
 
-export function isOwnerEmail(config: AuthConfig, email: string) { return config.ownerEmails.has(email.toLowerCase()); }
+function isOwnerEmail(config: AuthConfig, email: string) { return config.ownerEmails.has(email.toLowerCase()); }
 
 /** Role and status as enforced: Owner emails are always an active OWNER, whatever the stored document says. */
 export function principalFor(config: AuthConfig, userId: string, user: UserDoc): Principal {
@@ -256,4 +256,4 @@ export function publicUser(config: AuthConfig, userId: string, user: UserDoc, vi
     ...(view === "admin" ? { providerName: user.providerName ?? null, adminNote: user.adminNote ?? null, approvedBy: user.approvedBy ?? null, approvedAt: user.approvedAt ?? null, updatedAt: user.updatedAt } : {}),
   };
 }
-export type PublicUser = ReturnType<typeof publicUser>;
+type PublicUser = ReturnType<typeof publicUser>;

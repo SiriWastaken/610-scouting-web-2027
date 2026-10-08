@@ -9,7 +9,7 @@ import { can } from "../auth/roles.ts";
 import type { Viewer } from "../auth/sessions.ts";
 import { realtimeMetrics, recordError } from "../ops/metrics.ts";
 
-export const REALTIME_PATH = "/api/realtime";
+const REALTIME_PATH = "/api/realtime";
 
 export interface RealtimeUpgradeOptions extends Omit<BridgeOptions, "identity" | "revalidate"> {
   getConfig?: () => CouchbaseChangesConfig | null;

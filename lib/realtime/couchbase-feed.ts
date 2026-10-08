@@ -7,7 +7,7 @@ export type FeedReadyHandler = () => void;
 export type FeedErrorHandler = (error: FeedError) => void;
 
 /** `resync` means Sync Gateway rejected the cursor, so the client must reload its snapshot. */
-export class FeedError extends Error {
+class FeedError extends Error {
   readonly resync: boolean;
   constructor(message: string, resync = false) { super(message); this.resync = resync; }
 }

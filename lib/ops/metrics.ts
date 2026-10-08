@@ -11,9 +11,9 @@
 const RING = { events: 200, errors: 50, durations: 200, latencies: 500 };
 const RECONNECT_WINDOW_MS = 60_000;
 
-export interface RealtimeEvent { at: number; type: string; connection?: number; detail?: string }
-export interface ErrorEntry { at: number; source: string; message: string; path?: string }
-export interface ActiveConnection { id: number; openedAt: number; userId?: string; role?: string; subscribedAt?: number; since?: string; framesSent: number; changesSent: number; lastFrameAt?: number }
+interface RealtimeEvent { at: number; type: string; connection?: number; detail?: string }
+interface ErrorEntry { at: number; source: string; message: string; path?: string }
+interface ActiveConnection { id: number; openedAt: number; userId?: string; role?: string; subscribedAt?: number; since?: string; framesSent: number; changesSent: number; lastFrameAt?: number }
 
 interface Registry {
   startedAt: number;
@@ -54,7 +54,7 @@ function fresh(): Registry {
   };
 }
 
-export function registry(): Registry {
+function registry(): Registry {
   const holder = globalThis as GlobalWithRegistry;
   return (holder[KEY] ??= fresh());
 }

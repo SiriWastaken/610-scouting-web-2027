@@ -9,7 +9,7 @@ type NavItem = { href: string; label: string; icon: LucideIcon };
 
 // Each tab's icon names what the page is for: robots to look up, averages to rank,
 // a target for match planning, candlesticks for spread, a checklist for coverage.
-export const navigation: NavItem[] = [
+const navigation: NavItem[] = [
   { href: "/teams", label: "Teams", icon: Bot },
   { href: "/averages", label: "Averages", icon: Sigma },
   { href: "/strategy", label: "Strategy", icon: Target },

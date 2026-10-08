@@ -147,7 +147,7 @@ export async function revokeUserSessions(store: AccountStore, userId: string, op
 }
 
 /** Deletes sessions that can no longer be used, so the store does not grow without bound. */
-export async function pruneExpiredSessions(store: AccountStore, config: AuthConfig, userId: string, now = Date.now()) {
+async function pruneExpiredSessions(store: AccountStore, config: AuthConfig, userId: string, now = Date.now()) {
   for (const { id, rev, session } of await listUserSessions(store, userId)) {
     if (Date.parse(session.expiresAt) <= now || Date.parse(session.lastSeenAt) + config.sessionIdleMs <= now) await store.remove(id, rev).catch(() => {});
   }

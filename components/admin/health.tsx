@@ -19,7 +19,7 @@ const CARDS: Array<{ key: Exclude<CheckName, "persistence">; title: string; href
   { key: "auth", title: "Authentication", href: "/admin/users" },
 ];
 
-export function CheckCard({ title, check, href }: { title: string; check: Check | undefined; href?: string }) {
+function CheckCard({ title, check, href }: { title: string; check: Check | undefined; href?: string }) {
   const body = <>
     <div className="flex items-center justify-between gap-2">
       <span className="text-sm">{title}</span>

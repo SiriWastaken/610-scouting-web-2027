@@ -9,10 +9,10 @@ import type { AccountStore } from "./store.ts";
 
 export type AuditResult = "success" | "denied" | "failure";
 
-export interface AuditActor { id: string; email?: string; role?: Role }
-export interface AuditTarget { type: "user" | "session" | "system"; id?: string; label?: string }
+interface AuditActor { id: string; email?: string; role?: Role }
+interface AuditTarget { type: "user" | "session" | "system"; id?: string; label?: string }
 
-export interface AuditEvent {
+interface AuditEvent {
   type: "audit";
   at: string;
   action: string;
@@ -27,7 +27,7 @@ export interface AuditEntry extends AuditEvent { id: string }
 export const AUDIT_PREFIX = "audit_";
 
 /** Ids sort by time: `audit_<ms, 14 digits>_<random>`. */
-export function auditId(now = Date.now()) {
+function auditId(now = Date.now()) {
   return `${AUDIT_PREFIX}${String(now).padStart(14, "0")}_${randomBytes(5).toString("hex")}`;
 }
 

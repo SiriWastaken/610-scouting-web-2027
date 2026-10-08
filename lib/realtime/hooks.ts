@@ -12,7 +12,7 @@ const getVersion = () => realtime.getVersion();
 const getServerVersion = () => 0;
 
 /** Re-renders the caller whenever the realtime feed records new information. */
-export function useRealtimeVersion(): number {
+function useRealtimeVersion(): number {
   return useSyncExternalStore(subscribe, getVersion, getServerVersion);
 }
 

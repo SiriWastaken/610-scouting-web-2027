@@ -10,11 +10,11 @@ import type { AuthConfig, ProviderConfig, ProviderId } from "./config.ts";
 
 // ── crypto ────────────────────────────────────────
 
-export const base64url = (buffer: Buffer | Uint8Array) => Buffer.from(buffer).toString("base64url");
+const base64url = (buffer: Buffer | Uint8Array) => Buffer.from(buffer).toString("base64url");
 export const randomToken = (bytes = 32) => base64url(randomBytes(bytes));
 export const sha256Hex = (value: string) => createHash("sha256").update(value).digest("hex");
 
-export function safeEqual(left: string, right: string): boolean {
+function safeEqual(left: string, right: string): boolean {
   const a = Buffer.from(left); const b = Buffer.from(right);
   return a.length === b.length && timingSafeEqual(a, b);
 }
@@ -152,7 +152,7 @@ export function safeReturnTo(value: unknown): string {
   } catch { return "/"; }
 }
 
-export const redirectUri = (config: AuthConfig, provider: ProviderId) => `${config.baseUrl}/api/auth/callback/${provider}`;
+const redirectUri = (config: AuthConfig, provider: ProviderId) => `${config.baseUrl}/api/auth/callback/${provider}`;
 
 export interface CookieSpec { name: string; value: string; options: { httpOnly: true; secure: boolean; sameSite: "lax"; path: "/"; maxAge: number } }
 

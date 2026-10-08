@@ -1,6 +1,6 @@
 import "server-only";
 import { projectDashboardDocument } from "@/lib/realtime/protocol";
-import { getCouchbaseChangesConfig as makeChangesConfig, readCouchbaseConfig } from "@/lib/data/couchbase-config";
+import { getCouchbaseChangesConfig, readCouchbaseConfig } from "@/lib/data/couchbase-config";
 import type { TeamAggregate } from "@/types/scouting";
 import { getDocumentTeam, getDocumentTeamName, normalizeAggregateDocument } from "@/lib/data/aggregates";
 import { recordSnapshot } from "@/lib/ops/metrics";
@@ -17,17 +17,9 @@ interface CouchbaseDocument {
 
 type CouchbaseConfig = NonNullable<ReturnType<typeof readCouchbaseConfig>>;
 
-export function getCouchbaseChangesConfig() {
-  return makeChangesConfig();
-}
-
-function getConfig(): CouchbaseConfig | null {
-  return readCouchbaseConfig();
-}
-
 /** The same database URL the realtime feed uses (ws: -> http:, wss: -> https:). */
 function collectionUrl(config: CouchbaseConfig): string {
-  return makeChangesConfig(config)!.url.replace(/\/_changes$/, "");
+  return getCouchbaseChangesConfig(config)!.url.replace(/\/_changes$/, "");
 }
 
 /** Upper bound on a snapshot request, so an unresponsive Sync Gateway cannot hang page rendering. */
@@ -91,86 +83,8 @@ async function fetchAllDocuments(config: CouchbaseConfig): Promise<{ documents: 
   return { documents, lastSeq: payload.last_seq ?? 0 };
 }
 
-/**
- * Fetches every Couchbase doc whose `type` field matches, wrapped as
- * `{ _default: doc }` so callers can pull the raw doc via `r._default`
- * (this matches the shape CardReportsTable / TeamsClientView expect).
- *
- * e.g. queryDocsByType('report_card'), queryDocsByType('match'), queryDocsByType('pit')
- */
-export async function queryDocsByType(type: string): Promise<{ _default: CouchbaseDocument }[]> {
-  const config = getConfig();
-  if (!config) return [];
-
-  try {
-    const { documents } = await getCachedSnapshot(config);
-    return documents
-      .filter((document) => document.type === type)
-      .map((document) => ({ _default: document }));
-  } catch (error) {
-    console.error(`Unable to query Couchbase docs of type "${type}".`, error);
-    return [];
-  }
-}
-
-/**
- * Diagnostic helper: returns every distinct `type` value present in the
- * bucket along with how many docs have it (plus one sample doc per type),
- * so you can find the real name your match-scouting docs use without
- * guessing. Call this from the browser console or a component effect.
- */
-export async function listDocumentTypes(): Promise<
-  { type: string; count: number; sample: CouchbaseDocument }[]
-> {
-  const config = getConfig();
-  if (!config) return [];
-
-  try {
-    const { documents } = await getCachedSnapshot(config);
-    const byType = new Map<string, { count: number; sample: CouchbaseDocument }>();
-
-    documents.forEach((document) => {
-      const key = document.type ?? '(no type field)';
-      const existing = byType.get(key);
-      if (existing) {
-        existing.count += 1;
-      } else {
-        byType.set(key, { count: 1, sample: document });
-      }
-    });
-
-    return Array.from(byType.entries())
-      .map(([type, { count, sample }]) => ({ type, count, sample }))
-      .sort((a, b) => b.count - a.count);
-  } catch (error) {
-    console.error('Unable to list Couchbase document types.', error);
-    return [];
-  }
-}
-
-/**
- * Fetches every doc whose `_id` starts with the given prefix, wrapped as
- * `{ _default: doc }`. Your scouting docs are keyed like
- * `scouting_<teamNumber>_<matchNumber>` rather than by a `type` field, so
- * this is how TeamsClientView finds match entries — `queryDocsByIdPrefix('scouting_')`.
- */
-export async function queryDocsByIdPrefix(prefix: string): Promise<{ _default: CouchbaseDocument }[]> {
-  const config = getConfig();
-  if (!config) return [];
-
-  try {
-    const { documents } = await getCachedSnapshot(config);
-    return documents
-      .filter((document) => typeof document._id === 'string' && document._id.startsWith(prefix))
-      .map((document) => ({ _default: document }));
-  } catch (error) {
-    console.error(`Unable to query Couchbase docs with id prefix "${prefix}".`, error);
-    return [];
-  }
-}
-
 export async function queryDashboardDocuments(kind: "matches" | "pit" | "reports", teamNumber: number): Promise<{ _default: Record<string, unknown> }[]> {
-  const config = getConfig();
+  const config = readCouchbaseConfig();
   if (!config || !Number.isSafeInteger(teamNumber) || teamNumber <= 0) return [];
   try {
     const { documents } = await getCachedSnapshot(config);
@@ -190,17 +104,13 @@ export async function queryDashboardDocuments(kind: "matches" | "pit" | "reports
   }
 }
 
-export async function fetchTeamAggregates(): Promise<TeamAggregate[]> {
-  return (await fetchTeamAggregatesSnapshot()).teams;
-}
-
 /**
  * Team rows plus the feed cursor they were built from. `names` holds every pit
  * team name in the snapshot (including teams with no aggregate yet) so the
  * browser can name teams whose aggregate arrives over the realtime feed.
  */
 export async function fetchTeamAggregatesSnapshot(): Promise<{ teams: TeamAggregate[]; lastSeq: unknown; names: Record<string, string> }> {
-  const config = getConfig();
+  const config = readCouchbaseConfig();
   if (!config) return { teams: [], lastSeq: 0, names: {} };
 
   try {
@@ -254,7 +164,7 @@ export interface SyncGatewayProbe {
  * database answer with our credentials, and is it Online).
  */
 export async function probeSyncGateway(): Promise<SyncGatewayProbe> {
-  const config = getConfig();
+  const config = readCouchbaseConfig();
   const checkedAt = Date.now();
   const empty = { reachable: false, databaseOk: false, state: null, version: null, updateSeq: null, latencyMs: null };
   if (!config) return { configured: false, ...empty, error: "COUCHBASE_* settings are missing", checkedAt };
@@ -293,7 +203,7 @@ export function snapshotStatus() {
  * `scoutName` field scouting tablets write; names never leave the admin API.
  */
 export async function scoutActivity(): Promise<Map<string, { submissions: number; lastSubmittedAt: string | null }>> {
-  const config = getConfig();
+  const config = readCouchbaseConfig();
   const activity = new Map<string, { submissions: number; lastSubmittedAt: string | null }>();
   if (!config) return activity;
   try {

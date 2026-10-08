@@ -22,7 +22,7 @@ export const LOW_SAMPLE_THRESHOLD = 3;
 export const OUTLIER_SD = 2.5;
 export const OUTLIER_MEDIAN_MULTIPLE = 3;
 /** Fewer teams than this and neither rule says anything useful, so nothing is flagged. */
-export const OUTLIER_MIN_FIELD = 5;
+const OUTLIER_MIN_FIELD = 5;
 
 /** Statistics on `TeamAggregate` that can be missing, mapped to the raw fields they are read from (first present wins). */
 const RAW_FIELDS = {

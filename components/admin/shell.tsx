@@ -46,7 +46,7 @@ interface OpsContextValue {
 }
 
 const OpsContext = createContext<OpsContextValue | null>(null);
-export const POLL_MS = 15_000;
+const POLL_MS = 15_000;
 
 /**
  * One overview request for the whole admin area, every 15 s while the tab is

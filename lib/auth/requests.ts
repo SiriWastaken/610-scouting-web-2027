@@ -85,7 +85,7 @@ export type ClientViewer = ReturnType<typeof clientViewer>;
 // runs, JSON errors, and cookies. Plain Web `Request`/`Response` only (no
 // next/* imports), so the test bench calls the real handlers directly.
 
-export const noStore = { "Cache-Control": "private, no-store, max-age=0" };
+const noStore = { "Cache-Control": "private, no-store, max-age=0" };
 
 export function json(body: unknown, init: { status?: number; headers?: Record<string, string>; cookies?: string[] } = {}): Response {
   const headers = new Headers({ ...noStore, ...init.headers, "Content-Type": "application/json" });

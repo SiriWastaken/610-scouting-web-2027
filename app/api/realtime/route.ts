@@ -1,5 +1,5 @@
 import { experimental_upgradeWebSocket } from "@vercel/functions";
-import { getCouchbaseChangesConfig } from "@/services/couchbase";
+import { getCouchbaseChangesConfig } from "@/lib/data/couchbase-config";
 import { startCouchbaseLongPoll } from "@/lib/realtime/couchbase-feed";
 import { attachRealtimeBridge, isSameOriginUpgrade, type BridgeSocket } from "@/lib/realtime/bridge";
 import { sessionBridgeOptions, upgradeDecision } from "@/lib/realtime/server";

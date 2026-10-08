@@ -10,7 +10,7 @@ import { can, type Permission } from "./roles.ts";
 import type { Viewer } from "./sessions.ts";
 
 /** Set by proxy.ts so pages know where a signed-out visitor was headed. */
-export const PATH_HEADER = "x-610-path";
+const PATH_HEADER = "x-610-path";
 
 /** Who is making this request, resolved once per request (React cache) from the session cookie. */
 export const getAuthentication = cache(async (): Promise<Authentication> => {
