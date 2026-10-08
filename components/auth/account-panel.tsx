@@ -43,27 +43,36 @@ function ProfilePanel({ signedIn: { user, permissions } }: { signedIn: SignedIn 
   </Panel>;
 }
 
-function NamesForm({ user }: { user: SignedIn["user"] }) {
+async function saveNames(displayName: string, scoutName: string) {
+  const response = await fetch("/api/account", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ displayName, scoutName: scoutName.trim() || null }) });
+  const body = await response.json() as { message?: string };
+  if (!response.ok) throw new Error(body.message ?? `HTTP ${response.status}`);
+}
+
+/** Saves the names, then refreshes the session so the rest of the app shows them. */
+function useSaveNames() {
   const { refresh } = useSession();
-  const [displayName, setDisplayName] = useState(user.displayName);
-  const [scoutName, setScoutName] = useState(user.scoutName ?? "");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
-
-  const save = async (event: FormEvent) => {
-    event.preventDefault();
+  const save = async (displayName: string, scoutName: string) => {
     setSaving(true); setMessage(null);
     try {
-      const response = await fetch("/api/account", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ displayName, scoutName: scoutName.trim() || null }) });
-      const body = await response.json() as { message?: string };
-      if (!response.ok) throw new Error(body.message ?? `HTTP ${response.status}`);
+      await saveNames(displayName, scoutName);
       setMessage({ tone: "ok", text: "Saved." });
       await refresh();
     } catch (error) { setMessage({ tone: "error", text: error instanceof Error ? error.message : "Couldn't save." }); }
     finally { setSaving(false); }
   };
+  return { saving, message, save };
+}
 
-  return <form onSubmit={save} className="grid gap-4 border-t border-line px-5 py-5 sm:grid-cols-2">
+function NamesForm({ user }: { user: SignedIn["user"] }) {
+  const [displayName, setDisplayName] = useState(user.displayName);
+  const [scoutName, setScoutName] = useState(user.scoutName ?? "");
+  const { saving, message, save } = useSaveNames();
+  const submit = (event: FormEvent) => { event.preventDefault(); void save(displayName, scoutName); };
+
+  return <form onSubmit={submit} className="grid gap-4 border-t border-line px-5 py-5 sm:grid-cols-2">
     <label className="text-xs text-muted">Display name
       <input className={`${inputClass} mt-1`} value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={80} required />
     </label>

@@ -1,12 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { buttonClass, EmptyRow, formatDate, inputClass, Panel, selectClass } from "@/components/ui/kit";
 import type { AuditEntry } from "@/lib/auth/audit";
 
 const ACTIONS = [["", "All actions"], ["auth", "Sign-in / sign-out"], ["users", "Account changes"], ["account", "Own-profile changes"], ["ops", "Operations"], ["dashboard", "Dashboard access"], ["audit", "Audit access"]] as const;
 
 interface Filters { action: string; result: string; q: string }
+
+async function fetchAuditPage(filters: Filters, before?: string) {
+  const params = new URLSearchParams({ limit: "50" });
+  if (filters.action) params.set("action", filters.action);
+  if (filters.result) params.set("result", filters.result);
+  if (filters.q.trim()) params.set("q", filters.q.trim());
+  if (before) params.set("before", before);
+  const response = await fetch(`/api/admin/audit?${params}`, { cache: "no-store" });
+  const body = await response.json() as { entries?: AuditEntry[]; next?: string | null; message?: string };
+  if (!response.ok || !body.entries) throw new Error(body.message ?? `HTTP ${response.status}`);
+  return { entries: body.entries, next: body.next ?? null };
+}
 
 /** Audit entries matching `filters` (refetched, debounced, when they change), newest first, with paging for older ones. */
 function useAuditEntries(filters: Filters) {
@@ -15,30 +27,18 @@ function useAuditEntries(filters: Filters) {
   const [error, setError] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  const fetchPage = useCallback(async (before?: string) => {
-    const params = new URLSearchParams({ limit: "50" });
-    if (filters.action) params.set("action", filters.action);
-    if (filters.result) params.set("result", filters.result);
-    if (filters.q.trim()) params.set("q", filters.q.trim());
-    if (before) params.set("before", before);
-    const response = await fetch(`/api/admin/audit?${params}`, { cache: "no-store" });
-    const body = await response.json() as { entries?: AuditEntry[]; next?: string | null; message?: string };
-    if (!response.ok || !body.entries) throw new Error(body.message ?? `HTTP ${response.status}`);
-    return { entries: body.entries, next: body.next ?? null };
-  }, [filters]);
-
   useEffect(() => {
     let cancelled = false;
     const timer = setTimeout(() => {
-      fetchPage().then((page) => { if (!cancelled) { setEntries(page.entries); setNext(page.next); setError(null); } }, (reason: Error) => { if (!cancelled) setError(reason.message); });
+      fetchAuditPage(filters).then((page) => { if (!cancelled) { setEntries(page.entries); setNext(page.next); setError(null); } }, (reason: Error) => { if (!cancelled) setError(reason.message); });
     }, 250);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [fetchPage]);
+  }, [filters]);
 
   const loadMore = async () => {
     if (!next || !entries) return;
     setLoadingMore(true);
-    try { const page = await fetchPage(next); setEntries([...entries, ...page.entries]); setNext(page.next); }
+    try { const page = await fetchAuditPage(filters, next); setEntries([...entries, ...page.entries]); setNext(page.next); }
     catch (reason) { setError(reason instanceof Error ? reason.message : "Couldn't load more"); }
     finally { setLoadingMore(false); }
   };

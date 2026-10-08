@@ -265,24 +265,30 @@ function healthAnswers({ checks, metrics }: Overview, now: number): Answer[] {
   ];
 }
 
-export function Diagnostics() {
-  const { data, error, clientLatencyMs, replace } = useOps();
-  const { result, run } = useWebSocketSelfTest();
+/** Runs every server check plus the WebSocket self-test, and shows the fresh result everywhere. */
+function useFullDiagnostics(run: () => Promise<unknown>) {
+  const { replace } = useOps();
   const [running, setRunning] = useState(false);
-  const [runError, setRunError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [ranAt, setRanAt] = useState<number | null>(null);
-  const now = useNow();
-
   const runAll = async () => {
-    setRunning(true); setRunError(null);
+    setRunning(true); setError(null);
     try {
       const [response] = await Promise.all([fetch("/api/admin/diagnostics", { method: "POST" }), run()]);
       const body = await response.json() as Overview & { message?: string };
       if (!response.ok) throw new Error(body.message ?? `HTTP ${response.status}`);
       replace(body); setRanAt(Date.now());
-    } catch (reason) { setRunError(reason instanceof Error ? reason.message : "Diagnostics failed"); }
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Diagnostics failed"); }
     finally { setRunning(false); }
   };
+  return { running, error, ranAt, runAll };
+}
+
+export function Diagnostics() {
+  const { data, error, clientLatencyMs } = useOps();
+  const { result, run } = useWebSocketSelfTest();
+  const { running, error: runError, ranAt, runAll } = useFullDiagnostics(run);
+  const now = useNow();
 
   return <div className="space-y-5">
     <Panel title="Run checks" action={ranAt ? <span className="text-xs text-muted">last run {formatDate(ranAt, { relative: true })}</span> : undefined}>

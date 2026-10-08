@@ -5,7 +5,7 @@ import { Bot } from 'lucide-react';
 import { EmptyState } from '@/components/ui/kit';
 import type { TeamAggregate } from '@/types/scouting';
 import { useAggregateRealtime, useTeamDocuments } from '@/lib/realtime/hooks';
-import { MATCH_DOC_ID_PREFIX, docTeam, toMatchData, type PitData } from '@/lib/data/team-documents';
+import { MATCH_DOC_ID_PREFIX, docTeam, toMatchData, type MatchData, type PitData } from '@/lib/data/team-documents';
 import { Section } from './teams/primitives';
 import { MatchSelector, TeamSelector } from './teams/selectors';
 import { TeamStatSummary } from './teams/team-summary';
@@ -35,36 +35,41 @@ export default function TeamsClientView({ initialTeams, teamNames = {} }: TeamsC
         <TeamSelector teams={liveTeams} selectedTeam={selectedTeam} teamNames={teamNames} onSelectTeam={(team) => { setSelectedTeamId(team.team); setSelectedMatchId(null); }} />
         <MatchSelector matches={matches} selectedMatch={selectedMatch} onSelectMatch={(match) => setSelectedMatchId(match._id ?? null)} />
       </div>
-
-      {!selectedTeam ? (
+      {selectedTeam ? <TeamPanels team={selectedTeam} nickname={teamNames[selectedTeam.team]} matches={matches} selectedMatch={selectedMatch} pitData={pitData} loading={loading} /> : (
         <div className="rounded-lg border border-dashed border-line-strong bg-surface">
           <EmptyState icon={Bot} title="No teams available yet.">
             Teams appear once the first match of the event is scouted and synced.
           </EmptyState>
         </div>
-      ) : (
-        <>
-          <TeamStatSummary team={selectedTeam} nickname={teamNames[selectedTeam.team]} />
-
-          {loading && <p className="text-sm text-muted" role="status">Loading match data…</p>}
-
-          {selectedMatch && (
-            <div className="grid gap-5 xl:grid-cols-2">
-              <MatchDetails match={selectedMatch} />
-              <AutoPathVisualization match={selectedMatch} />
-            </div>
-          )}
-
-          <MatchDataTable matches={matches} />
-
-          <ExpertScoutReport pitData={pitData} teamNumber={selectedTeam.team} />
-
-          <Section title="Card Reports">
-            <CardReportsTable teamNumber={selectedTeam.team} />
-          </Section>
-        </>
       )}
     </div>
+  );
+}
+
+interface TeamPanelsProps { team: TeamAggregate; nickname?: string; matches: MatchData[]; selectedMatch: MatchData | null; pitData?: PitData; loading: boolean }
+
+function TeamPanels({ team, nickname, matches, selectedMatch, pitData, loading }: TeamPanelsProps) {
+  return (
+    <>
+      <TeamStatSummary team={team} nickname={nickname} />
+
+      {loading && <p className="text-sm text-muted" role="status">Loading match data…</p>}
+
+      {selectedMatch && (
+        <div className="grid gap-5 xl:grid-cols-2">
+          <MatchDetails match={selectedMatch} />
+          <AutoPathVisualization match={selectedMatch} />
+        </div>
+      )}
+
+      <MatchDataTable matches={matches} />
+
+      <ExpertScoutReport pitData={pitData} teamNumber={team.team} />
+
+      <Section title="Card Reports">
+        <CardReportsTable teamNumber={team.team} />
+      </Section>
+    </>
   );
 }
 

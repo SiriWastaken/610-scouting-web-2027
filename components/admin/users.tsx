@@ -117,15 +117,24 @@ function isSensitive(current: Detail["user"], patch: Record<string, unknown>) {
   return patch.status === "disabled" || (role !== undefined && (roleRank(role) >= roleRank("MENTOR") || roleRank(current.role) >= roleRank("MENTOR")));
 }
 
-/** One account's data and the two things an admin can do to it: change fields, end sessions. */
-function useUserDetail(id: string) {
+async function patchUser(id: string, changes: Record<string, unknown>, expectedRev: string) {
+  const response = await fetch(`/api/admin/users/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...changes, expectedRev }) });
+  const body = await response.json() as { message?: string };
+  if (!response.ok) throw new Error(body.message ?? `HTTP ${response.status}`);
+}
+
+async function revokeUserSessions(id: string): Promise<number | undefined> {
+  const response = await fetch(`/api/admin/users/${id}/sessions`, { method: "DELETE" });
+  const body = await response.json() as { revoked?: number; message?: string };
+  if (!response.ok) throw new Error(body.message ?? `HTTP ${response.status}`);
+  return body.revoked;
+}
+
+/** One account's data, reloaded on demand. `loads` is bumped by every load so forms re-seed from the saved values. */
+function useLoadedUser(id: string) {
   const [detail, setDetail] = useState<Detail | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  // Bumped by every load, so forms re-seed from the saved values.
   const [loads, setLoads] = useState(0);
-
   const load = useCallback(async () => {
     const response = await fetch(`/api/admin/users/${id}`, { cache: "no-store" });
     const body = await response.json() as Detail & { message?: string };
@@ -133,6 +142,14 @@ function useUserDetail(id: string) {
     setDetail(body); setError(null); setLoads((count) => count + 1);
   }, [id]);
   useEffect(() => { const timer = setTimeout(() => void load(), 0); return () => clearTimeout(timer); }, [load]);
+  return { detail, error, setError, loads, load };
+}
+
+/** One account's data and the two things an admin can do to it: change fields, end sessions. */
+function useUserDetail(id: string) {
+  const { detail, error, setError, loads, load } = useLoadedUser(id);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   /** Runs one change; `action` returns the success message. Reloading first means nothing selected afterwards is overwritten by it. */
   const run = async (action: () => Promise<string>, failure: string) => {
@@ -145,20 +162,12 @@ function useUserDetail(id: string) {
   const patch = (changes: Record<string, unknown>, done: string, onSaved: () => void = () => {}) => {
     if (!detail) return;
     setError(null); setNotice(null);
-    return run(async () => {
-      const response = await fetch(`/api/admin/users/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...changes, expectedRev: detail.user.rev }) });
-      const body = await response.json() as { message?: string };
-      if (!response.ok) throw new Error(body.message ?? `HTTP ${response.status}`);
-      onSaved();
-      return done;
-    }, "Change failed");
+    return run(async () => { await patchUser(id, changes, detail.user.rev); onSaved(); return done; }, "Change failed");
   };
 
   const revokeSessions = () => run(async () => {
-    const response = await fetch(`/api/admin/users/${id}/sessions`, { method: "DELETE" });
-    const body = await response.json() as { revoked?: number; message?: string };
-    if (!response.ok) throw new Error(body.message ?? `HTTP ${response.status}`);
-    return `Signed out of ${body.revoked} session${body.revoked === 1 ? "" : "s"}.`;
+    const revoked = await revokeUserSessions(id);
+    return `Signed out of ${revoked} session${revoked === 1 ? "" : "s"}.`;
   }, "Couldn't revoke sessions");
 
   return { detail, error, notice, busy, loads, patch, revokeSessions };

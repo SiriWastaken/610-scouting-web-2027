@@ -31,11 +31,7 @@ async function handle(request: Request, provider: string, params: CallbackParams
   const cookieHeader = request.headers.get("cookie");
   const stateName = stateCookieName(config);
   const clearState = clearCookie(stateName, config.secureCookies);
-  const fail = async (code: string, reason: string, actor?: { id: string; email?: string }) => {
-    authMetrics.signInFailed(reason);
-    await recordAudit(store, { action: "auth.signin", result: code === "disabled" ? "denied" : "failure", actor, reason, meta: { provider, error: code } });
-    return redirectTo(`${config.baseUrl}/welcome?error=${encodeURIComponent(code)}`, [clearState]);
-  };
+  const fail = (code: string, reason: string, actor?: { id: string; email?: string }) => failSignIn({ store, config, provider, clearState }, code, reason, actor);
   if (!isProviderId(provider)) return fail("provider_unavailable", "Unknown provider");
 
   try {
@@ -56,6 +52,15 @@ async function handle(request: Request, provider: string, params: CallbackParams
     const { code, message } = logSignInError(provider, error);
     return fail(code, message);
   }
+}
+
+interface FailContext { store: Parameters<typeof recordAudit>[0]; config: { baseUrl: string }; provider: string; clearState: string }
+
+/** Audits the failed attempt, then sends the browser back to the welcome page with the reason code. */
+async function failSignIn({ store, config, provider, clearState }: FailContext, code: string, reason: string, actor?: { id: string; email?: string }) {
+  authMetrics.signInFailed(reason);
+  await recordAudit(store, { action: "auth.signin", result: code === "disabled" ? "denied" : "failure", actor, reason, meta: { provider, error: code } });
+  return redirectTo(`${config.baseUrl}/welcome?error=${encodeURIComponent(code)}`, [clearState]);
 }
 
 async function recordSignedIn(store: Parameters<typeof recordAudit>[0], provider: string, outcome: SignedIn) {

@@ -60,6 +60,12 @@ function useVisiblePolling(tick: () => Promise<void>, enabled: boolean) {
   }, [enabled, tick]);
 }
 
+async function readOverview(response: Response): Promise<Overview> {
+  const body = await response.json().catch(() => null) as (Overview & { message?: string }) | null;
+  if (!response.ok || !body) throw new Error(body?.message ?? `The API answered HTTP ${response.status}`);
+  return body;
+}
+
 const describeFailure = (reason: unknown) => reason instanceof Error && reason.message !== "Failed to fetch" ? reason.message : "The API did not answer. The server may be down or unreachable from this device.";
 
 /**
@@ -84,9 +90,7 @@ export function OpsProvider({ enabled, children }: { enabled: boolean; children:
       const response = await fetch("/api/admin/overview", { cache: "no-store" });
       setClientLatencyMs(Math.round(performance.now() - started));
       if (response.status === 401) { router.replace(`/welcome?reason=expired&next=${encodeURIComponent(window.location.pathname)}`); return; }
-      const body = await response.json().catch(() => null) as (Overview & { message?: string }) | null;
-      if (!response.ok || !body) throw new Error(body?.message ?? `The API answered HTTP ${response.status}`);
-      setData(body); setError(null); setUpdatedAt(Date.now());
+      setData(await readOverview(response)); setError(null); setUpdatedAt(Date.now());
     } catch (reason) {
       setClientLatencyMs(null);
       setError(describeFailure(reason));

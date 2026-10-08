@@ -83,31 +83,22 @@ function BadgeBlock({ label, value }: { label: string; value?: string }) {
   );
 }
 
-function RatingBlock({
-  label,
-  value,
-  max,
-  descriptions,
-}: {
-  label: string;
-  value?: number;
-  max: number;
-  descriptions?: Record<number, string>;
-}) {
+interface RatingProps { label: string; value?: number; max: number; descriptions?: Record<number, string> }
+
+/** 1..max boxes with the chosen one solid and the lower ones tinted. */
+function ratingBoxClass(n: number, value?: number) {
+  if (!value || n > value) return 'bg-surface-2 text-muted';
+  return n === value ? 'bg-accent text-accent-foreground' : 'bg-accent-muted text-accent-text';
+}
+
+function RatingBlock({ label, value, max, descriptions }: RatingProps) {
   return (
     <div>
       <dt className={labelClass}>{label}</dt>
       <dd className="mt-1.5">
         <div className="flex gap-1" role="img" aria-label={value ? `${value} out of ${max}` : 'Not rated'}>
           {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
-            <span
-              key={n}
-              className={`flex h-7 flex-1 items-center justify-center rounded-sm text-xs font-bold ${
-                value && n <= value ? (n === value ? 'bg-accent text-accent-foreground' : 'bg-accent-muted text-accent-text') : 'bg-surface-2 text-muted'
-              }`}
-            >
-              {n}
-            </span>
+            <span key={n} className={`flex h-7 flex-1 items-center justify-center rounded-sm text-xs font-bold ${ratingBoxClass(n, value)}`}>{n}</span>
           ))}
         </div>
         <p className="mt-1 text-xs text-muted">{descriptions && value ? descriptions[value] : value ? `${value} of ${max}` : 'Not rated'}</p>
@@ -117,15 +108,7 @@ function RatingBlock({
 }
 
 export function ExpertScoutReport({ pitData, teamNumber }: { pitData?: PitData; teamNumber: number }) {
-  if (!pitData) {
-    return (
-      <Section title="Expert Scout Report">
-        <EmptyState icon={FileQuestion} title={`No pit interview for ${teamNumber} yet`}>
-          Swing by their pit! The report appears here as soon as the interview is synced.
-        </EmptyState>
-      </Section>
-    );
-  }
+  if (!pitData) return <NoPitInterview teamNumber={teamNumber} />;
 
   const photoUri = resolvePhotoUri(pitData.robotPhoto);
 
@@ -135,12 +118,7 @@ export function ExpertScoutReport({ pitData, teamNumber }: { pitData?: PitData; 
       aside={pitData.scoutName ? <span className="text-xs text-muted">Interviewed by {pitData.scoutName}</span> : undefined}
     >
       <div className={photoUri ? 'grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]' : ''}>
-        {photoUri && (
-          <div className="border-b border-line bg-surface-2 p-3 md:border-b-0 md:border-r">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={photoUri} alt={`Team ${teamNumber} robot`} className="mx-auto h-64 w-full rounded-md object-contain" />
-          </div>
-        )}
+        {photoUri && <RobotPhoto src={photoUri} teamNumber={teamNumber} />}
         <DrivetrainSection pit={pitData} />
       </div>
 
@@ -153,6 +131,25 @@ export function ExpertScoutReport({ pitData, teamNumber }: { pitData?: PitData; 
         <LegacySection pit={pitData} />
       </div>
     </Section>
+  );
+}
+
+function NoPitInterview({ teamNumber }: { teamNumber: number }) {
+  return (
+    <Section title="Expert Scout Report">
+      <EmptyState icon={FileQuestion} title={`No pit interview for ${teamNumber} yet`}>
+        Swing by their pit! The report appears here as soon as the interview is synced.
+      </EmptyState>
+    </Section>
+  );
+}
+
+function RobotPhoto({ src, teamNumber }: { src: string; teamNumber: number }) {
+  return (
+    <div className="border-b border-line bg-surface-2 p-3 md:border-b-0 md:border-r">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt={`Team ${teamNumber} robot`} className="mx-auto h-64 w-full rounded-md object-contain" />
+    </div>
   );
 }
 

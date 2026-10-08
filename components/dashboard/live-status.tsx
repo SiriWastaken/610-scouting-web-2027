@@ -7,6 +7,14 @@ import { useRealtimeResync } from "@/lib/realtime/hooks";
 
 const statusLabel: Record<RealtimeStatus, string> = { disconnected: "Disconnected", connecting: "Connecting", connected: "Live updates on", reconnecting: "Reconnecting" };
 
+function useRetryWhenOnline() {
+  useEffect(() => {
+    const online = () => realtime.retryNow();
+    window.addEventListener("online", online);
+    return () => window.removeEventListener("online", online);
+  }, []);
+}
+
 /** Connects the browser's realtime client from the server-rendered cursor, and reconnects it when the feed needs a resync or the network returns. */
 function useRealtimeConnection(initialCursor: unknown, initialNames?: Record<string, string>): RealtimeStatus {
   const router = useRouter();
@@ -26,11 +34,7 @@ function useRealtimeConnection(initialCursor: unknown, initialNames?: Record<str
     const timer = setTimeout(() => realtime.connect(latestCursor.current), 10_000);
     return () => clearTimeout(timer);
   }, [resyncs]);
-  useEffect(() => {
-    const online = () => realtime.retryNow();
-    window.addEventListener("online", online);
-    return () => window.removeEventListener("online", online);
-  }, []);
+  useRetryWhenOnline();
   // The server could not resume from our cursor: fetch a fresh server snapshot
   // (and cursor) in place, without a full page reload.
   useRealtimeResync(() => {

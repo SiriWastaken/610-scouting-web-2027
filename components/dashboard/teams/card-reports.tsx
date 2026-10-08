@@ -23,6 +23,10 @@ export function CardReportsTable({ teamNumber }: { teamNumber: string | number }
     );
   }
 
+  return <CardTable reports={reports} />;
+}
+
+function CardTable({ reports }: { reports: CardReport[] }) {
   return (
     <div className="overflow-x-auto">
       <table className={tableClass}>

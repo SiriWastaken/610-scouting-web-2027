@@ -187,17 +187,16 @@ export function readAuthConfig(env: Env = process.env): AuthConfigResult {
   problems.push(...placeholderProblems(env, store, local));
 
   if (problems.length) return { ok: false, problems };
+  return { ok: true, config: { baseUrl, secret, providers, store, localStorePath, ...sessionSettings(env, baseUrl), endpointOverride: override } };
+}
+
+function sessionSettings(env: Env, baseUrl: string) {
   return {
-    ok: true,
-    config: {
-      baseUrl, secret, providers, store, localStorePath,
-      secureCookies: baseUrl.startsWith("https:"),
-      // AUTH_ROOT_EMAILS is the earlier name of the same setting.
-      ownerEmails: new Set(list(env.AUTH_OWNER_EMAILS ?? env.AUTH_ROOT_EMAILS)),
-      sessionMaxAgeMs: hours(env.AUTH_SESSION_MAX_AGE_HOURS, 24 * 30),
-      sessionIdleMs: hours(env.AUTH_SESSION_IDLE_HOURS, 24 * 7),
-      endpointOverride: override,
-    },
+    secureCookies: baseUrl.startsWith("https:"),
+    // AUTH_ROOT_EMAILS is the earlier name of the same setting.
+    ownerEmails: new Set(list(env.AUTH_OWNER_EMAILS ?? env.AUTH_ROOT_EMAILS)),
+    sessionMaxAgeMs: hours(env.AUTH_SESSION_MAX_AGE_HOURS, 24 * 30),
+    sessionIdleMs: hours(env.AUTH_SESSION_IDLE_HOURS, 24 * 7),
   };
 }
 

@@ -43,6 +43,19 @@ function useRechecks(refresh: () => Promise<void>, lastCheck: RefObject<number>)
   }, [refresh, lastCheck]);
 }
 
+function useSignOut() {
+  const router = useRouter();
+  const [signingOut, setSigningOut] = useState(false);
+  const signOut = useCallback(async () => {
+    setSigningOut(true);
+    try { await fetch("/api/auth/signout", { method: "POST" }); } catch { /* the cookie is cleared server-side; navigate anyway */ }
+    realtime.disconnect();
+    router.replace("/welcome?signedOut=1");
+    router.refresh();
+  }, [router]);
+  return { signOut, signingOut };
+}
+
 /**
  * Keeps the signed-in user's details current and notices when the session
  * ends (expired, revoked, account disabled): on focus, every few minutes, and
@@ -51,7 +64,6 @@ function useRechecks(refresh: () => Promise<void>, lastCheck: RefObject<number>)
  */
 export function SessionProvider({ initial, children }: { initial: SessionState; children: ReactNode }) {
   const [session, setSession] = useState(initial);
-  const [signingOut, setSigningOut] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const lastCheck = useRef(0);
@@ -74,13 +86,7 @@ export function SessionProvider({ initial, children }: { initial: SessionState; 
   }, [router]);
   useRechecks(refresh, lastCheck);
 
-  const signOut = useCallback(async () => {
-    setSigningOut(true);
-    try { await fetch("/api/auth/signout", { method: "POST" }); } catch { /* the cookie is cleared server-side; navigate anyway */ }
-    realtime.disconnect();
-    router.replace("/welcome?signedOut=1");
-    router.refresh();
-  }, [router]);
+  const { signOut, signingOut } = useSignOut();
 
   const value = useMemo(() => ({ session, signOut, signingOut, refresh }), [session, signOut, signingOut, refresh]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

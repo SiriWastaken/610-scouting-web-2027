@@ -61,7 +61,6 @@ function MatchRow({ match }: { match: MatchData }) {
   const auto = match.auto || {};
   const tele = match.teleop || {};
   const isBlue = start.alliance?.toLowerCase() === 'blue';
-  const attemptedClimb = [tele.L1hang, tele.missedL1, tele.L2hang, tele.missedL2, tele.L3hang, tele.missedL3].some((count) => (count ?? 0) > 0);
 
   return (
     <tr className="border-t border-line transition-colors first:border-t-0 hover:bg-surface-2/70">
@@ -78,15 +77,25 @@ function MatchRow({ match }: { match: MatchData }) {
       <td className={`${tdCls} text-muted`}>{tele.fuelpassed ?? 0}</td>
       <td className={`${tdCls} text-muted`}>{tele.teleopFuelFed ?? 0}</td>
       <td className={`${tdCls} text-muted`}>{tele.fuelPlowed ?? 0}</td>
-      <td className={tdCls}><RenderStatus success={tele.L1hang} failure={tele.missedL1} /></td>
-      <td className={tdCls}><RenderStatus success={tele.L2hang} failure={tele.missedL2} /></td>
-      <td className={tdCls}><RenderStatus success={tele.L3hang} failure={tele.missedL3} /></td>
-      <td className={tdCls}>{attemptedClimb ? <span className="text-muted">-</span> : <Ban className="mx-auto h-4 w-4 text-muted" aria-label="No climb attempted" />}</td>
+      <ClimbCells tele={tele} />
       <td className={tdCls}>
         {tele.playedDefense ? <span className="rounded-sm bg-accent-muted px-1.5 py-0.5 text-xs font-bold text-accent-text">DEF</span> : <span className="text-muted">-</span>}
       </td>
       <td className={tdCls}>{tele.breakDuration ? <span className="font-semibold text-bad">{tele.breakDuration}s</span> : <span className="text-muted">-</span>}</td>
       <td className={`${tdCls} font-sans text-xs text-muted`}>{tele.breakSeverity || '-'}</td>
     </tr>
+  );
+}
+
+/** L1 to L3 outcomes, then "None" (shown only when no climb was attempted). */
+function ClimbCells({ tele }: { tele: NonNullable<MatchData['teleop']> }) {
+  const attemptedClimb = [tele.L1hang, tele.missedL1, tele.L2hang, tele.missedL2, tele.L3hang, tele.missedL3].some((count) => (count ?? 0) > 0);
+  return (
+    <>
+      <td className={tdCls}><RenderStatus success={tele.L1hang} failure={tele.missedL1} /></td>
+      <td className={tdCls}><RenderStatus success={tele.L2hang} failure={tele.missedL2} /></td>
+      <td className={tdCls}><RenderStatus success={tele.L3hang} failure={tele.missedL3} /></td>
+      <td className={tdCls}>{attemptedClimb ? <span className="text-muted">-</span> : <Ban className="mx-auto h-4 w-4 text-muted" aria-label="No climb attempted" />}</td>
+    </>
   );
 }
