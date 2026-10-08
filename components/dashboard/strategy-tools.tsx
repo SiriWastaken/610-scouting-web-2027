@@ -45,51 +45,59 @@ const GROUPS: { title: string; rows: Row[] }[] = [
 const valueOf = (team: TeamAggregate, stat: StatKey | "total") => (stat === "total" ? totalPoints(team) : statValue(team, stat));
 const optionLabel = (team: TeamAggregate) => `${team.team} / ${team.name}`;
 
-export function StrategyTools({ teams: initialTeams }: { teams: TeamAggregate[] }) {
-  const teams = useAggregateRealtime(initialTeams);
+const STAT_FIELDS = ["total", "autoPpg", "teleopPpg", "endgamePpg", "fuelAccuracy", "driverSkill", "defenseRating"] as const;
+type Fields = Record<(typeof STAT_FIELDS)[number], number[]>;
+
+/** Which teams are picked for the head-to-head and for each alliance. */
+function useSelections(teams: TeamAggregate[]) {
   const [teamA, setTeamA] = useState(teams[0]?.team ?? 0);
   const [teamB, setTeamB] = useState(teams[1]?.team ?? teams[0]?.team ?? 0);
   const [red, setRed] = useState(() => Array.from({ length: ROBOTS_PER_ALLIANCE }, (_, index) => teams[index]?.team ?? 0));
   const [blue, setBlue] = useState(() => Array.from({ length: ROBOTS_PER_ALLIANCE }, (_, index) => teams[ROBOTS_PER_ALLIANCE + index]?.team ?? 0));
+  return { teamA, setTeamA, teamB, setTeamB, red, setRed, blue, setBlue };
+}
+
+export function StrategyTools({ teams: initialTeams }: { teams: TeamAggregate[] }) {
+  const teams = useAggregateRealtime(initialTeams);
+  const { teamA, setTeamA, teamB, setTeamB, red, setRed, blue, setBlue } = useSelections(teams);
   // "Every team's value for this statistic", the field an outlier is judged against.
-  const fields = useMemo(() => ({
-    total: fieldValues(teams, "total"), autoPpg: fieldValues(teams, "autoPpg"), teleopPpg: fieldValues(teams, "teleopPpg"), endgamePpg: fieldValues(teams, "endgamePpg"),
-    fuelAccuracy: fieldValues(teams, "fuelAccuracy"), driverSkill: fieldValues(teams, "driverSkill"), defenseRating: fieldValues(teams, "defenseRating"),
-  }), [teams]);
+  const fields = useMemo(() => Object.fromEntries(STAT_FIELDS.map((stat) => [stat, fieldValues(teams, stat)])) as Fields, [teams]);
 
   if (teams.length === 0) return <div className="rounded-lg border border-dashed border-line-strong bg-surface"><EmptyState icon={Target} title="Nothing to strategize with yet">Strategy tools need averages from scouted matches. They fill in as soon as data syncs.</EmptyState></div>;
 
   const find = (number: number) => teams.find((team) => team.team === number);
-  const first = find(teamA) ?? teams[0];
-  const second = find(teamB) ?? teams[0];
-  const hasOwnTeam = Boolean(find(OWN_TEAM));
-
   return <div className="space-y-5">
-    <section className="overflow-hidden rounded-lg border border-line bg-surface">
-      <SectionHead title="Head to head" description="Two teams' averages side by side. The leader in each row is bold and shaded; the margin sits under it." />
-      <div className="space-y-3 p-5">
-        <div className="grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-          <TeamSelect label="Team A" value={first.team} teams={teams} onChange={setTeamA} />
-          <button type="button" className={`${buttonClass} w-full sm:w-10 sm:px-0`} onClick={() => { setTeamA(second.team); setTeamB(first.team); }} aria-label="Swap Team A and Team B" title="Swap teams"><ArrowLeftRight className="h-4 w-4 rotate-90 sm:rotate-0" aria-hidden="true" /><span className="sm:hidden">Swap teams</span></button>
-          <TeamSelect label="Team B" value={second.team} teams={teams} onChange={setTeamB} />
-        </div>
-        <button type="button" className="h-8 rounded-md border border-line-strong px-2.5 text-xs font-medium text-ink-2 transition-colors hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50" disabled={!hasOwnTeam || first.team === OWN_TEAM || second.team === OWN_TEAM} onClick={() => setTeamB(OWN_TEAM)} aria-label={`Compare Team A against team ${OWN_TEAM}`}>vs {OWN_TEAM}</button>
-      </div>
-      <div className="overflow-x-auto border-t border-line px-3 pb-4 sm:px-5">
-        <table className="mx-auto w-full max-w-[38rem] table-fixed text-sm">
-          <caption className="sr-only">{`${first.team} versus ${second.team}: average points, accuracy and ratings`}</caption>
-          <colgroup><col /><col className="w-[7.5rem] sm:w-44" /><col /></colgroup>
-          <thead><tr className="border-b border-line align-bottom"><TeamHead team={first} side="a" /><th scope="col" className="sr-only">Statistic</th><TeamHead team={second} side="b" /></tr></thead>
-          {GROUPS.map((group) => <tbody key={group.title}>
-            <tr><th scope="colgroup" colSpan={3} className={`px-2 pb-1.5 pt-4 text-center ${microLabel}`}>{group.title}</th></tr>
-            {group.rows.map((row) => <CompareRow key={row.label} row={row} a={first} b={second} field={fields[row.stat]} />)}
-          </tbody>)}
-        </table>
-      </div>
-    </section>
-
+    <HeadToHead teams={teams} first={find(teamA) ?? teams[0]} second={find(teamB) ?? teams[0]} fields={fields} onFirst={setTeamA} onSecond={setTeamB} />
     <Prediction teams={teams} red={red} blue={blue} onRed={setRed} onBlue={setBlue} totals={fields.total} />
   </div>;
+}
+
+interface HeadToHeadProps { teams: TeamAggregate[]; first: TeamAggregate; second: TeamAggregate; fields: Fields; onFirst: (team: number) => void; onSecond: (team: number) => void }
+
+function HeadToHead({ teams, first, second, fields, onFirst, onSecond }: HeadToHeadProps) {
+  const canCompareOwn = teams.some((team) => team.team === OWN_TEAM) && first.team !== OWN_TEAM && second.team !== OWN_TEAM;
+  return <section className="overflow-hidden rounded-lg border border-line bg-surface">
+    <SectionHead title="Head to head" description="Two teams' averages side by side. The leader in each row is bold and shaded; the margin sits under it." />
+    <div className="space-y-3 p-5">
+      <div className="grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+        <TeamSelect label="Team A" value={first.team} teams={teams} onChange={onFirst} />
+        <button type="button" className={`${buttonClass} w-full sm:w-10 sm:px-0`} onClick={() => { onFirst(second.team); onSecond(first.team); }} aria-label="Swap Team A and Team B" title="Swap teams"><ArrowLeftRight className="h-4 w-4 rotate-90 sm:rotate-0" aria-hidden="true" /><span className="sm:hidden">Swap teams</span></button>
+        <TeamSelect label="Team B" value={second.team} teams={teams} onChange={onSecond} />
+      </div>
+      <button type="button" className="h-8 rounded-md border border-line-strong px-2.5 text-xs font-medium text-ink-2 transition-colors hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50" disabled={!canCompareOwn} onClick={() => onSecond(OWN_TEAM)} aria-label={`Compare Team A against team ${OWN_TEAM}`}>vs {OWN_TEAM}</button>
+    </div>
+    <div className="overflow-x-auto border-t border-line px-3 pb-4 sm:px-5">
+      <table className="mx-auto w-full max-w-[38rem] table-fixed text-sm">
+        <caption className="sr-only">{`${first.team} versus ${second.team}: average points, accuracy and ratings`}</caption>
+        <colgroup><col /><col className="w-[7.5rem] sm:w-44" /><col /></colgroup>
+        <thead><tr className="border-b border-line align-bottom"><TeamHead team={first} side="a" /><th scope="col" className="sr-only">Statistic</th><TeamHead team={second} side="b" /></tr></thead>
+        {GROUPS.map((group) => <tbody key={group.title}>
+          <tr><th scope="colgroup" colSpan={3} className={`px-2 pb-1.5 pt-4 text-center ${microLabel}`}>{group.title}</th></tr>
+          {group.rows.map((row) => <CompareRow key={row.label} row={row} a={first} b={second} field={fields[row.stat]} />)}
+        </tbody>)}
+      </table>
+    </div>
+  </section>;
 }
 
 function TeamHead({ team, side }: { team: TeamAggregate; side: "a" | "b" }) {
@@ -181,9 +189,9 @@ function allianceScore(robots: (TeamAggregate | undefined)[]): Score {
   return { total: selected.reduce((sum, team) => sum + (totalPoints(team) ?? 0), 0), robots: selected.length };
 }
 
-function Alliance({ name, slug, robots, slots, onSlots, teams, score, biggest, totals }: { name: string; slug: string; robots: (TeamAggregate | undefined)[]; slots: number[]; onSlots: (slots: number[]) => void; teams: TeamAggregate[]; score: Score; biggest: number; totals: number[] }) {
-  const selected = robots.filter((team): team is TeamAggregate => Boolean(team));
-  const reasons = selected.flatMap((team) => {
+/** Why an alliance score deserves caution: robots with no data, a low sample, or an outlier total. */
+function confidenceReasons(robots: TeamAggregate[], totals: number[]): string[] {
+  return robots.flatMap((team) => {
     const total = totalPoints(team);
     if (total === null) return [`${team.team}: no data`];
     const found = [];
@@ -191,6 +199,11 @@ function Alliance({ name, slug, robots, slots, onSlots, teams, score, biggest, t
     if (isOutlier(total, totals)) found.push(`${team.team}: outlier`);
     return found;
   });
+}
+
+function Alliance({ name, slug, robots, slots, onSlots, teams, score, biggest, totals }: { name: string; slug: string; robots: (TeamAggregate | undefined)[]; slots: number[]; onSlots: (slots: number[]) => void; teams: TeamAggregate[]; score: Score; biggest: number; totals: number[] }) {
+  const selected = robots.filter((team): team is TeamAggregate => Boolean(team));
+  const reasons = confidenceReasons(selected, totals);
   return <div className="bg-surface p-5" data-alliance={slug}>
     <div className="flex items-start justify-between gap-4">
       <div className="min-w-0">

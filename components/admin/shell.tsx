@@ -48,6 +48,20 @@ interface OpsContextValue {
 const OpsContext = createContext<OpsContextValue | null>(null);
 const POLL_MS = 15_000;
 
+/** Calls `tick` when the tab becomes visible and every POLL_MS while it stays visible. */
+function useVisiblePolling(tick: () => Promise<void>, enabled: boolean) {
+  useEffect(() => {
+    if (!enabled) return;
+    const first = setTimeout(() => void tick(), 0);
+    const timer = setInterval(() => { if (document.visibilityState === "visible") void tick(); }, POLL_MS);
+    const onVisible = () => { if (document.visibilityState === "visible") void tick(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { clearTimeout(first); clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };
+  }, [enabled, tick]);
+}
+
+const describeFailure = (reason: unknown) => reason instanceof Error && reason.message !== "Failed to fetch" ? reason.message : "The API did not answer. The server may be down or unreachable from this device.";
+
 /**
  * One overview request for the whole admin area, every 15 s while the tab is
  * visible, shared by every tab and card. The server caches its upstream checks
@@ -75,18 +89,10 @@ export function OpsProvider({ enabled, children }: { enabled: boolean; children:
       setData(body); setError(null); setUpdatedAt(Date.now());
     } catch (reason) {
       setClientLatencyMs(null);
-      setError(reason instanceof Error && reason.message !== "Failed to fetch" ? reason.message : "The API did not answer. The server may be down or unreachable from this device.");
+      setError(describeFailure(reason));
     } finally { inFlight.current = false; setLoading(false); }
   }, [enabled, router]);
-
-  useEffect(() => {
-    if (!enabled) return;
-    const first = setTimeout(() => void refresh(), 0);
-    const timer = setInterval(() => { if (document.visibilityState === "visible") void refresh(); }, POLL_MS);
-    const onVisible = () => { if (document.visibilityState === "visible") void refresh(); };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => { clearTimeout(first); clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };
-  }, [enabled, refresh]);
+  useVisiblePolling(refresh, enabled);
 
   const replace = useCallback((overview: Overview) => { setData(overview); setError(null); setUpdatedAt(Date.now()); }, []);
   const value = useMemo(() => ({ data, error, loading, updatedAt, clientLatencyMs, refresh, replace }), [data, error, loading, updatedAt, clientLatencyMs, refresh, replace]);

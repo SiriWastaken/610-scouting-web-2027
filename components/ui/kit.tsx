@@ -144,3 +144,13 @@ export function AccessDenied({ title = "You don't have access to this page", mes
     <Link href="/teams" className={`mt-6 ${buttonClass}`}><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back to the dashboard</Link>
   </div>;
 }
+
+/** Label and value cells separated by hairlines, for the admin panels' key facts. */
+export function FactGrid({ facts, className = "", valueClassName = "mt-1 font-mono text-sm", titled = false }: { facts: Array<[string, ReactNode]>; className?: string; valueClassName?: string; titled?: boolean }) {
+  return <dl className={`grid grid-cols-2 gap-px bg-line ${className}`}>
+    {facts.map(([label, value]) => <div key={label} className="bg-surface px-4 py-3">
+      <dt className="text-xs font-medium text-muted">{label}</dt>
+      <dd className={valueClassName} title={titled ? String(value) : undefined}>{value}</dd>
+    </div>)}
+  </dl>;
+}

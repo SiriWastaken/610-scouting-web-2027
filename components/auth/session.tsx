@@ -5,7 +5,7 @@
 // sign-out button in the sidebar's bottom corner.
 import Link from "next/link";
 import { LogOut } from "lucide-react";
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Avatar } from "@/components/auth/identity";
 import { realtime } from "@/lib/realtime/client";
@@ -30,6 +30,18 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 
 const RECHECK_MS = 5 * 60_000;
 const FOCUS_THROTTLE_MS = 60_000;
+
+/** Re-checks the session on focus (throttled), every few minutes, and when the realtime server ends it. */
+function useRechecks(refresh: () => Promise<void>, lastCheck: RefObject<number>) {
+  useEffect(() => {
+    const onFocus = () => { if (document.visibilityState === "visible" && Date.now() - lastCheck.current > FOCUS_THROTTLE_MS) void refresh(); };
+    document.addEventListener("visibilitychange", onFocus);
+    window.addEventListener("focus", onFocus);
+    const timer = setInterval(() => { if (document.visibilityState === "visible") void refresh(); }, RECHECK_MS);
+    const unsubscribe = realtime.subscribeSessionEnded(() => void refresh());
+    return () => { document.removeEventListener("visibilitychange", onFocus); window.removeEventListener("focus", onFocus); clearInterval(timer); unsubscribe(); };
+  }, [refresh, lastCheck]);
+}
 
 /**
  * Keeps the signed-in user's details current and notices when the session
@@ -60,15 +72,7 @@ export function SessionProvider({ initial, children }: { initial: SessionState; 
     if (body.user.status !== "active") { router.replace("/welcome"); return; }
     setSession({ user: body.user, session: body.session, permissions: body.permissions, admin: body.admin });
   }, [router]);
-
-  useEffect(() => {
-    const onFocus = () => { if (document.visibilityState === "visible" && Date.now() - lastCheck.current > FOCUS_THROTTLE_MS) void refresh(); };
-    document.addEventListener("visibilitychange", onFocus);
-    window.addEventListener("focus", onFocus);
-    const timer = setInterval(() => { if (document.visibilityState === "visible") void refresh(); }, RECHECK_MS);
-    const unsubscribe = realtime.subscribeSessionEnded(() => void refresh());
-    return () => { document.removeEventListener("visibilitychange", onFocus); window.removeEventListener("focus", onFocus); clearInterval(timer); unsubscribe(); };
-  }, [refresh]);
+  useRechecks(refresh, lastCheck);
 
   const signOut = useCallback(async () => {
     setSigningOut(true);

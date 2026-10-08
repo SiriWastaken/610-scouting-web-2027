@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { mergeAggregates } from "@/lib/data/aggregates";
+import { NO_DOCS, queryDashboardDocuments, unwrapDoc } from "@/lib/data/team-documents";
 import { realtime } from "@/lib/realtime/client";
 import type { TeamAggregate } from "@/types/scouting";
 
@@ -43,4 +44,36 @@ export function useRealtimeResync(onResync: () => void) {
   const latest = useRef(onResync);
   useEffect(() => { latest.current = onResync; });
   useEffect(() => realtime.subscribeResync(() => latest.current()), []);
+}
+
+/**
+ * One team's `kind` documents: loaded over REST (again after a resync), then kept
+ * current from the realtime feed. Documents loaded for another team are never returned.
+ */
+export function useTeamDocuments(kind: "matches" | "pit" | "reports", team: number | undefined, idPattern: RegExp): { docs: Doc[]; loading: boolean } {
+  const [loaded, setLoaded] = useState<{ team: number; docs: Doc[] } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [reloads, setReloads] = useState(0);
+  useRealtimeResync(() => setReloads((count) => count + 1));
+
+  useEffect(() => {
+    if (!team) return;
+    let isMounted = true;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const docs = (await queryDashboardDocuments(kind, team)).map(unwrapDoc);
+        if (isMounted) setLoaded({ team, docs });
+      } catch (error) {
+        console.error(`Error loading ${kind} documents:`, error);
+        if (isMounted) setLoaded({ team, docs: [] });
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    void load();
+    return () => { isMounted = false; };
+  }, [kind, team, reloads]);
+
+  return { docs: useRealtimeDocuments(loaded && loaded.team === team ? loaded.docs : NO_DOCS, idPattern), loading };
 }

@@ -7,7 +7,8 @@ import { useRealtimeResync } from "@/lib/realtime/hooks";
 
 const statusLabel: Record<RealtimeStatus, string> = { disconnected: "Disconnected", connecting: "Connecting", connected: "Live updates on", reconnecting: "Reconnecting" };
 
-export function RealtimeConnection({ initialCursor, initialNames }: { initialCursor: unknown; initialNames?: Record<string, string> }) {
+/** Connects the browser's realtime client from the server-rendered cursor, and reconnects it when the feed needs a resync or the network returns. */
+function useRealtimeConnection(initialCursor: unknown, initialNames?: Record<string, string>): RealtimeStatus {
   const router = useRouter();
   const [status, setStatus] = useState<RealtimeStatus>("connecting");
   const [resyncs, setResyncs] = useState(0);
@@ -36,7 +37,11 @@ export function RealtimeConnection({ initialCursor, initialNames }: { initialCur
     router.refresh();
     setResyncs((count) => count + 1);
   });
+  return status;
+}
 
+export function RealtimeConnection({ initialCursor, initialNames }: { initialCursor: unknown; initialNames?: Record<string, string> }) {
+  const status = useRealtimeConnection(initialCursor, initialNames);
   const tone = status === "connected" ? "bg-good" : status === "reconnecting" ? "bg-warn" : "bg-muted";
   return <div className="inline-flex h-9 items-center gap-2 rounded-md border border-line bg-surface px-3 text-xs font-medium text-ink-2" aria-live="polite" data-realtime-status={status}>
     <span className="relative flex h-2 w-2">
