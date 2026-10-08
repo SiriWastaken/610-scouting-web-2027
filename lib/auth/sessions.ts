@@ -88,29 +88,14 @@ export async function validateSession(store: AccountStore, config: AuthConfig, t
   if (cached && now - cached.cachedAt < CACHE_MS && Date.parse(cached.viewer.session.expiresAt) > now && Date.parse(cached.viewer.session.idleExpiresAt) > now) return { ok: true, viewer: cached.viewer };
 
   const session = await store.get<SessionDoc>(id);
-  if (!session || session.body.type !== "auth_session" || session.body.userId !== parsed.userId) { cache().delete(id); authMetrics.sessionRejected(); return { ok: false, reason: "unknown" }; }
-  const idleExpiresAt = Date.parse(session.body.lastSeenAt) + config.sessionIdleMs;
-  if (Date.parse(session.body.expiresAt) <= now || idleExpiresAt <= now) {
-    cache().delete(id); authMetrics.sessionRejected();
-    await store.remove(id, session.rev).catch(() => {});
-    return { ok: false, reason: "expired" };
-  }
+  if (!session || session.body.type !== "auth_session" || session.body.userId !== parsed.userId) return reject(store, id, "unknown");
+  if (Date.parse(session.body.expiresAt) <= now || Date.parse(session.body.lastSeenAt) + config.sessionIdleMs <= now) return reject(store, id, "expired", session.rev);
   const user = await getUser(store, parsed.userId);
-  if (!user) { cache().delete(id); authMetrics.sessionRejected(); return { ok: false, reason: "unknown" }; }
+  if (!user) return reject(store, id, "unknown");
   const principal = principalFor(config, parsed.userId, user.body);
-  if (principal.status === "disabled") {
-    cache().delete(id); authMetrics.sessionRejected();
-    await store.remove(id, session.rev).catch(() => {});
-    return { ok: false, reason: "disabled" };
-  }
+  if (principal.status === "disabled") return reject(store, id, "disabled", session.rev);
 
-  let lastSeenAt = session.body.lastSeenAt;
-  let rev = session.rev;
-  if (now - Date.parse(lastSeenAt) > TOUCH_INTERVAL_MS) {
-    // Sliding idle expiry. A concurrent touch from another tab is harmless, so conflicts are ignored.
-    const touched = { ...session.body, lastSeenAt: new Date(now).toISOString() };
-    try { rev = await store.update(id, session.rev, touched); lastSeenAt = touched.lastSeenAt; } catch { /* keep the old value */ }
-  }
+  const { lastSeenAt, rev } = await touchSession(store, id, session, now);
   const viewer: Viewer = {
     userId: parsed.userId, user: user.body, principal,
     session: { id, provider: session.body.provider, createdAt: session.body.createdAt, expiresAt: session.body.expiresAt, idleExpiresAt: new Date(Date.parse(lastSeenAt) + config.sessionIdleMs).toISOString(), lastSeenAt, device: session.body.device },
@@ -118,6 +103,22 @@ export async function validateSession(store: AccountStore, config: AuthConfig, t
   cache().set(id, { viewer, rev, cachedAt: now });
   if (cache().size > 5000) cache().clear();
   return { ok: true, viewer };
+}
+
+/** Forgets a session that failed validation; `rev` also deletes it from the store (best effort). */
+async function reject(store: AccountStore, id: string, reason: Extract<SessionCheck, { ok: false }>["reason"], rev?: string): Promise<SessionCheck> {
+  cache().delete(id);
+  authMetrics.sessionRejected();
+  if (rev !== undefined) await store.remove(id, rev).catch(() => {});
+  return { ok: false, reason };
+}
+
+/** Sliding idle expiry. A concurrent touch from another tab is harmless, so conflicts are ignored. */
+async function touchSession(store: AccountStore, id: string, session: { body: SessionDoc; rev: string }, now: number) {
+  if (now - Date.parse(session.body.lastSeenAt) <= TOUCH_INTERVAL_MS) return { lastSeenAt: session.body.lastSeenAt, rev: session.rev };
+  const touched = { ...session.body, lastSeenAt: new Date(now).toISOString() };
+  try { return { lastSeenAt: touched.lastSeenAt, rev: await store.update(id, session.rev, touched) }; }
+  catch { return { lastSeenAt: session.body.lastSeenAt, rev: session.rev }; }
 }
 
 /** Ends one session (sign-out). Returns false when it was already gone. */

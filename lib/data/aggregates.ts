@@ -1,6 +1,6 @@
 import type { TeamAggregate } from "@/types/scouting";
 import { isRev } from "../realtime/protocol.ts";
-import { storedIsNewer, type DocumentStore } from "../realtime/documents.ts";
+import { storedIsNewer, type DocumentStore, type StoredDocument } from "../realtime/documents.ts";
 
 export interface AggregateDocument {
   _id?: string;
@@ -79,22 +79,8 @@ export function mergeAggregates(snapshot: TeamAggregate[], store: DocumentStore,
   let changed = false;
   for (const stored of store.values()) {
     const pitTeam = stored.id.match(/^pit_(\d+)$/)?.[1];
-    if (pitTeam) {
-      names.set(Number(pitTeam), stored.deleted || !stored.doc ? undefined : getDocumentTeamName(stored.doc));
-      continue;
-    }
-    if (!stored.id.startsWith("aggregate_")) continue;
-    const existing = byId.get(stored.id);
-    if (existing && !storedIsNewer(stored, existing.rev)) continue;
-    if (existing && existing.rev === stored.rev && !stored.deleted) continue;
-    const normalized = stored.doc ? normalizeAggregateDocument({ ...stored.doc, _id: stored.id }) : null;
-    if (stored.deleted || !normalized) {
-      if (stored.deleted && byId.delete(stored.id)) changed = true;
-      continue;
-    }
-    normalized.name = existing?.name ?? (Object.hasOwn(snapshotNames, normalized.team) ? snapshotNames[normalized.team] : normalized.name);
-    byId.set(stored.id, normalized);
-    changed = true;
+    if (pitTeam) names.set(Number(pitTeam), stored.deleted || !stored.doc ? undefined : getDocumentTeamName(stored.doc));
+    else if (stored.id.startsWith("aggregate_") && applyAggregate(byId, stored, snapshotNames)) changed = true;
   }
   if (!changed && names.size === 0) return snapshot;
   return [...byId.values()]
@@ -104,4 +90,16 @@ export function mergeAggregates(snapshot: TeamAggregate[], store: DocumentStore,
       return name === team.name ? team : { ...team, name };
     })
     .sort(byRankThenTeam);
+}
+
+/** Applies one stored aggregate change to `byId`; returns whether anything changed. */
+function applyAggregate(byId: Map<string, TeamAggregate>, stored: StoredDocument, snapshotNames: Readonly<Record<string, string>>): boolean {
+  const existing = byId.get(stored.id);
+  if (existing && !storedIsNewer(stored, existing.rev)) return false;
+  if (existing && existing.rev === stored.rev && !stored.deleted) return false;
+  const normalized = stored.doc ? normalizeAggregateDocument({ ...stored.doc, _id: stored.id }) : null;
+  if (stored.deleted || !normalized) return Boolean(stored.deleted) && byId.delete(stored.id);
+  normalized.name = existing?.name ?? (Object.hasOwn(snapshotNames, normalized.team) ? snapshotNames[normalized.team] : normalized.name);
+  byId.set(stored.id, normalized);
+  return true;
 }

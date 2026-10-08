@@ -91,6 +91,8 @@ async function withRetry<T>(attempt: () => Promise<T>, tries = 3): Promise<T> {
   }
 }
 
+type Resolved = { userId: string; created: boolean; linked: boolean };
+
 /**
  * Finds or creates the account for a verified identity. Identities are looked
  * up by provider subject first; a new identity is linked to an existing account
@@ -98,62 +100,79 @@ async function withRetry<T>(attempt: () => Promise<T>, tries = 3): Promise<T> {
  * email index document can only be created once.
  */
 export async function resolveSignIn(store: AccountStore, config: AuthConfig, identity: VerifiedIdentity): Promise<SignInOutcome> {
-  const email = identity.email?.toLowerCase();
-  const identityId = identityDocId(identity.provider, identity.subject);
   const now = new Date().toISOString();
-  let userId = (await store.get<IdentityDoc>(identityId))?.body.userId;
-  let created = false; let linked = false;
+  const resolved = await resolveUserId(store, config, identity, now);
+  if ("reason" in resolved) return { ok: false, reason: resolved.reason };
+  const { userId, created, linked } = resolved;
+  const user = await recordSignIn(store, config, userId, identity, now);
+  if (principalFor(config, userId, user).status === "disabled") return { ok: false, reason: "disabled", userId, user };
+  return { ok: true, userId, user, created, linked };
+}
 
-  if (!userId) {
-    if (!email) return { ok: false, reason: "no_email" };
-    if (!identity.emailVerified) return { ok: false, reason: "email_unverified" };
-    userId = (await store.get<EmailIndexDoc>(emailDocId(email)))?.body.userId;
-    if (userId) linked = true;
-    else {
-      const candidate = newUserId();
-      try {
-        await store.create<EmailIndexDoc>(emailDocId(email), { type: "auth_email", userId: candidate });
-        // Everyone starts as an active MEMBER; the Owner's power comes from configuration, not this document.
-        await store.create<UserDoc>(userDocId(candidate), {
-          type: "auth_user", email, emailVerified: true, displayName: defaultName(identity), providerName: cleanText(identity.name, 80),
-          picture: identity.provider === "google" ? safePicture(identity.picture) : undefined,
-          role: "MEMBER", status: "active",
-          providers: [], createdAt: now, updatedAt: now,
-          approvedBy: isOwnerEmail(config, email) ? "configuration" : "automatic", approvedAt: now,
-        });
-        userId = candidate; created = true;
-      } catch (error) {
-        if (!(error instanceof ConflictError)) throw error;
-        // Someone else created this email's account at the same moment: use theirs.
-        userId = (await store.get<EmailIndexDoc>(emailDocId(email)))?.body.userId;
-        if (!userId) throw error;
-        linked = true;
-      }
-    }
-    try { await store.create<IdentityDoc>(identityId, { type: "auth_identity", provider: identity.provider, userId, createdAt: now }); }
-    catch (error) { if (!(error instanceof ConflictError)) throw error; }
+async function resolveUserId(store: AccountStore, config: AuthConfig, identity: VerifiedIdentity, now: string): Promise<Resolved | { reason: "no_email" | "email_unverified" }> {
+  const identityId = identityDocId(identity.provider, identity.subject);
+  const known = (await store.get<IdentityDoc>(identityId))?.body.userId;
+  if (known) return { userId: known, created: false, linked: false };
+  const email = identity.email?.toLowerCase();
+  if (!email) return { reason: "no_email" };
+  if (!identity.emailVerified) return { reason: "email_unverified" };
+  const resolved = await findOrCreateByEmail(store, config, identity, email, now);
+  try { await store.create<IdentityDoc>(identityId, { type: "auth_identity", provider: identity.provider, userId: resolved.userId, createdAt: now }); }
+  catch (error) { if (!(error instanceof ConflictError)) throw error; }
+  return resolved;
+}
+
+async function findOrCreateByEmail(store: AccountStore, config: AuthConfig, identity: VerifiedIdentity, email: string, now: string): Promise<Resolved> {
+  const existing = (await store.get<EmailIndexDoc>(emailDocId(email)))?.body.userId;
+  if (existing) return { userId: existing, created: false, linked: true };
+  const candidate = newUserId();
+  try {
+    await store.create<EmailIndexDoc>(emailDocId(email), { type: "auth_email", userId: candidate });
+    await store.create<UserDoc>(userDocId(candidate), newUserDoc(config, identity, email, now));
+    return { userId: candidate, created: true, linked: false };
+  } catch (error) {
+    if (!(error instanceof ConflictError)) throw error;
+    // Someone else created this email's account at the same moment: use theirs.
+    const winner = (await store.get<EmailIndexDoc>(emailDocId(email)))?.body.userId;
+    if (!winner) throw error;
+    return { userId: winner, created: false, linked: true };
   }
+}
 
-  const finalUserId = userId;
-  const updated = await withRetry(async () => {
-    const current = await store.get<UserDoc>(userDocId(finalUserId));
+/** Everyone starts as an active MEMBER; the Owner's power comes from configuration, not this document. */
+function newUserDoc(config: AuthConfig, identity: VerifiedIdentity, email: string, now: string): UserDoc {
+  return {
+    type: "auth_user", email, emailVerified: true, displayName: defaultName(identity), providerName: cleanText(identity.name, 80),
+    picture: identity.provider === "google" ? safePicture(identity.picture) : undefined,
+    role: "MEMBER", status: "active",
+    providers: [], createdAt: now, updatedAt: now,
+    approvedBy: isOwnerEmail(config, email) ? "configuration" : "automatic", approvedAt: now,
+  };
+}
+
+/** Saves the sign-in on the account. A disabled account is returned untouched. */
+function recordSignIn(store: AccountStore, config: AuthConfig, userId: string, identity: VerifiedIdentity, now: string): Promise<UserDoc> {
+  return withRetry(async () => {
+    const current = await store.get<UserDoc>(userDocId(userId));
     if (!current) throw new AccountError("not_found", "The account for this sign-in no longer exists");
-    const user = current.body;
-    const next: UserDoc = {
-      ...user,
-      providers: [...new Set([...user.providers, identity.provider])],
-      providerName: cleanText(identity.name, 80) ?? user.providerName,
-      ...(identity.provider === "google" && safePicture(identity.picture) ? { picture: safePicture(identity.picture) } : {}),
-      lastSignInAt: now, lastSignInProvider: identity.provider, updatedAt: now,
-    };
-    if (isOwnerEmail(config, user.email) && next.status !== "active") { next.status = "active"; next.approvedBy = "configuration"; next.approvedAt = now; }
-    else if (next.status === "pending") { next.status = "active"; next.approvedBy = "automatic"; next.approvedAt = now; } // saved before open access
-    if (principalFor(config, finalUserId, next).status === "disabled") return next; // leave a disabled account untouched
-    await store.update(userDocId(finalUserId), current.rev, next);
+    const next = signedInUser(config, current.body, identity, now);
+    if (principalFor(config, userId, next).status === "disabled") return next;
+    await store.update(userDocId(userId), current.rev, next);
     return next;
   });
-  if (principalFor(config, finalUserId, updated).status === "disabled") return { ok: false, reason: "disabled", userId: finalUserId, user: updated };
-  return { ok: true, userId: finalUserId, user: updated, created, linked };
+}
+
+function signedInUser(config: AuthConfig, user: UserDoc, identity: VerifiedIdentity, now: string): UserDoc {
+  const next: UserDoc = {
+    ...user,
+    providers: [...new Set([...user.providers, identity.provider])],
+    providerName: cleanText(identity.name, 80) ?? user.providerName,
+    ...(identity.provider === "google" && safePicture(identity.picture) ? { picture: safePicture(identity.picture) } : {}),
+    lastSignInAt: now, lastSignInProvider: identity.provider, updatedAt: now,
+  };
+  if (isOwnerEmail(config, user.email) && next.status !== "active") { next.status = "active"; next.approvedBy = "configuration"; next.approvedAt = now; }
+  else if (next.status === "pending") { next.status = "active"; next.approvedBy = "automatic"; next.approvedAt = now; } // saved before open access
+  return next;
 }
 
 export async function getUser(store: AccountStore, userId: string): Promise<StoredDoc<UserDoc> | null> {
