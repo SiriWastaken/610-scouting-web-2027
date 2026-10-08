@@ -1,7 +1,7 @@
 ---
 title: Docs log
 description: Append-only record of documentation changes
-verified_at: 885d225 (2026-10-03)
+verified_at: b611a7f (2026-10-08)
 sources:
   - docs
 ---
@@ -26,3 +26,11 @@ Add a new entry; do not edit old ones. If a fact changes, write a correcting ent
 - [[authentication]]: Sign in with Apple removed; new accounts are `active` at once (no `pending`, no `AUTH_AUTO_APPROVE`); managers deny and allow access from Admin → Users; a denied account sees "Access turned off". Accounts saved as `pending` read as `active`.
 - [[design-system]]: rewritten for the new look (Inter only, sentence-case labels, hairline borders, one green accent). The per-page tab colours and `lib/ui/tabs.ts` are gone.
 - [[pages]], [[overview]], [[operations]], [[development]] updated to match.
+
+## 2026-10-08: code cleanup (no behaviour change)
+
+- Removed unused code: four helpers in `services/couchbase.ts`, three Blue Alliance fetchers, two types, and `export` on symbols used only in their own file.
+- Long functions split into small ones (realtime bridge, long-poll, auth config, sign-in, sessions, callback route, admin and dashboard components). The realtime bridge and long-poll are now small classes in `lib/realtime/`.
+- `useTeamDocuments` in `lib/realtime/hooks.ts` replaces the duplicated load-and-merge code in the Teams page and card reports; `FactGrid` joins the kit. Updated [[realtime]], [[pages]] and [[design-system]].
+- **Bug fixed:** a document nested deeply enough to overflow `JSON.stringify` crashed the realtime feed; it is now dropped like an oversized one.
+- The Teams page no longer logs a console warning when a team has no match documents.

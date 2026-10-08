@@ -1,7 +1,7 @@
 ---
 title: Pages and routes
 description: Every route, who may open it, and the files that build it
-verified_at: 885d225 (2026-10-03)
+verified_at: b611a7f (2026-10-08)
 sources:
   - app/(app)
   - app/api
@@ -30,7 +30,7 @@ Pages are thin: check access, fetch a snapshot, render a component. All of them 
 
 ## The Teams page, piece by piece
 
-`teams-view.tsx` owns state (selected team and match, REST loading, live merge) and composes
+`teams-view.tsx` owns the selected team and match, loads that team's documents through `useTeamDocuments` ([[realtime]]), and composes
 `components/dashboard/teams/`:
 
 | File | Panel |

@@ -1,7 +1,7 @@
 ---
 title: Design system
 description: The look, colour tokens, and the shared UI kit
-verified_at: 885d225 (2026-10-03)
+verified_at: b611a7f (2026-10-08)
 sources:
   - app/globals.css
   - components/ui/kit.tsx
@@ -43,7 +43,7 @@ tab strip adds a 2px bar under it. There are no per-page colours. Adding a page 
 ## The kit (`components/ui/kit.tsx`)
 
 Server-safe (no hooks): `PageHeader` (title, description, optional right-hand slot; no icon tile), panels and fields,
-`labelClass` / `selectClass` / `tableClass` / `theadClass` / `rowClass`, status pills, stat tiles, `EmptyState`,
+`labelClass` / `selectClass` / `tableClass` / `theadClass` / `rowClass`, status pills, stat tiles, `FactGrid` (label/value cells for key facts), `EmptyState`,
 `AccessDenied`, date formatting. Reuse these before writing new table or panel markup.
 
 ## Rules

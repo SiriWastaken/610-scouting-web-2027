@@ -1,7 +1,7 @@
 ---
 title: Realtime updates
 description: How pages stay live and why stale or duplicate events cannot win
-verified_at: 27726e0 (2026-10-02)
+verified_at: b611a7f (2026-10-08)
 sources:
   - lib/realtime/protocol.ts
   - lib/realtime/documents.ts
@@ -31,6 +31,7 @@ Pages render from a snapshot plus that snapshot's `last_seq`, then follow change
 |---|---|
 | `useAggregateRealtime(initialTeams)` | Team rows with live changes merged in |
 | `useRealtimeDocuments(docs, idPattern)` | A list of REST-loaded documents with creates, updates and deletes applied |
+| `useTeamDocuments(kind, team, idPattern)` | One team's `matches`, `pit` or `reports`: loads over REST (again after a resync), then applies live changes. Use this instead of fetching in a component |
 | `useRealtimeResync(callback)` | Run `callback` when the feed cannot resume and REST data must be reloaded |
 
 ## Failure behaviour
