@@ -115,18 +115,7 @@ export async function fetchTeamAggregatesSnapshot(): Promise<{ teams: TeamAggreg
 
   try {
     const { documents, lastSeq } = await getCachedSnapshot(config);
-    const names = new Map<number, string>();
-
-    documents
-      .filter((document) => document.type === "pit")
-      .forEach((document) => {
-        // Pit documents are keyed `pit_<team>`; the id wins, as it does for realtime pit changes.
-        const idTeam = document._id?.match(/^pit_(\d+)$/)?.[1];
-        const team = idTeam ? Number(idTeam) : getDocumentTeam(document);
-        const name = getDocumentTeamName(document);
-        if (team && name) names.set(team, name);
-      });
-
+    const names = pitNames(documents);
     const teams = documents
       .filter((document) => document.type === "aggregate_data")
       // Server-rendered rows are serialised into the page, so they get the same
@@ -141,6 +130,18 @@ export async function fetchTeamAggregatesSnapshot(): Promise<{ teams: TeamAggreg
     console.warn("Unable to fetch team aggregates from Couchbase:", cause ?? (error instanceof Error ? error.message : error));
     return { teams: [], lastSeq: 0, names: {} };
   }
+}
+
+function pitNames(documents: CouchbaseDocument[]): Map<number, string> {
+  const names = new Map<number, string>();
+  for (const document of documents.filter((candidate) => candidate.type === "pit")) {
+    // Pit documents are keyed `pit_<team>`; the id wins, as it does for realtime pit changes.
+    const idTeam = document._id?.match(/^pit_(\d+)$/)?.[1];
+    const team = idTeam ? Number(idTeam) : getDocumentTeam(document);
+    const name = getDocumentTeamName(document);
+    if (team && name) names.set(team, name);
+  }
+  return names;
 }
 
 export interface SyncGatewayProbe {
