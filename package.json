@@ -21,8 +21,10 @@
     "test:coverage": "node scripts/test-bench/run.mjs coverage",
     "test:real": "node scripts/test-bench/run.mjs contract e2e --target=real",
     "test:hygiene": "node scripts/test-bench/hygiene.mjs",
-    "validate:fast": "npm run test:hygiene && npm run lint && npm run typecheck && node scripts/test-bench/run.mjs fast",
-    "validate": "npm run test:hygiene && npm run lint && npm run typecheck && npm run build && node scripts/test-bench/run.mjs all && npm run test:coverage"
+    "test:docs": "node scripts/test-bench/doc-coverage.mjs",
+    "test:size": "node scripts/test-bench/function-length.mjs",
+    "validate:fast": "npm run test:hygiene && npm run test:docs && npm run test:size && npm run lint && npm run typecheck && node scripts/test-bench/run.mjs fast",
+    "validate": "npm run test:hygiene && npm run test:docs && npm run test:size && npm run lint && npm run typecheck && npm run build && node scripts/test-bench/run.mjs all && npm run test:coverage"
   },
   "dependencies": {
     "@vercel/functions": "^3.9.9",

@@ -44,7 +44,7 @@ if (!existsSync(workflowPath)) problems.push(`${workflowPath} is missing`);
 else {
   const workflow = readFileSync(workflowPath, "utf8");
   if (forbiddenFlags.test(workflow)) problems.push(`${workflowPath} filters or ignores test results`);
-  const required = ["npm run lint", "npm run typecheck", "npm run test:hygiene", "npm run test:unit", "npm run test:integration", "npm run test:security", "npm run test:contract", "npm run test:coverage", "npm run build", "npm run test:e2e:prebuilt", "npm run test:stress", "npm run test:real"];
+  const required = ["npm run lint", "npm run typecheck", "npm run test:hygiene", "npm run test:docs", "npm run test:size", "npm run test:unit", "npm run test:integration", "npm run test:security", "npm run test:contract", "npm run test:coverage", "npm run build", "npm run test:e2e:prebuilt", "npm run test:stress", "npm run test:real"];
   for (const command of required) if (!workflow.includes(command)) problems.push(`${workflowPath} no longer runs \`${command}\``);
   if (!/pull_request:\s*\n\s*branches:\s*\[\s*main\s*\]/.test(workflow)) problems.push(`${workflowPath} must run on pull requests targeting main`);
 }
