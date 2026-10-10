@@ -4,7 +4,8 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { beforeEach, mock, test } from "node:test";
-import { attachRealtimeBridge, SESSION_ENDED, type BridgeSocket } from "../../../lib/realtime/bridge.ts";
+import { attachRealtimeBridge, type BridgeSocket } from "../../../lib/realtime/bridge.ts";
+import { SESSION_ENDED } from "../../../lib/realtime/protocol.ts";
 import { sessionBridgeOptions, upgradeDecision } from "../../../lib/realtime/server.ts";
 import type { Authentication } from "../../../lib/auth/requests.ts";
 import type { Viewer } from "../../../lib/auth/sessions.ts";

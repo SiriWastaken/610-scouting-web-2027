@@ -1,6 +1,6 @@
 // Server side of one browser's realtime connection: waits for the subscribe message, starts that browser's
 // changes feed, relays frames, enforces limits and re-checks the session. See docs/12-realtime.md.
-import { parseSubscription, type RealtimeFrame } from "./protocol.ts";
+import { parseSubscription, SESSION_ENDED, type RealtimeFrame } from "./protocol.ts";
 import { realtimeMetrics } from "../ops/metrics.ts";
 
 /** The part of a WebSocket the bridge uses (the `ws` package matches it). */
@@ -39,9 +39,6 @@ export interface BridgeOptions {
   revalidate?: () => Promise<boolean>;
   revalidateMs?: number;
 }
-
-/** Close code sent when the connection's session is no longer valid; the browser must not retry. */
-export const SESSION_ENDED = 4401;
 
 const OPEN = 1;
 let activeConnections = 0;

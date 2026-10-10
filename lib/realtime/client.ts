@@ -1,6 +1,6 @@
 // Browser side of the realtime connection: the connection state machine (connect, back off, resume from the
 // last cursor, resync) and the store of live documents.
-import { parseServerMessage } from "./protocol.ts";
+import { parseServerMessage, SESSION_ENDED } from "./protocol.ts";
 import { DocumentStore } from "./documents.ts";
 
 /** Where the browser's connection is: disconnected, connecting, connected or reconnecting. */
@@ -33,8 +33,6 @@ const CONNECTING = 0;
 const OPEN = 1;
 /** Sent by the server when it closes a healthy connection on purpose (for example before a platform timeout). */
 const SERVICE_RESTART = 1012;
-/** Sent by the server when the connection's session was revoked or expired (lib/realtime-bridge.ts). Retrying cannot help. */
-const SESSION_ENDED = 4401;
 
 function defaultUrl() {
   const { protocol, host } = globalThis.location;

@@ -8,6 +8,9 @@ export type RealtimeFrame = RealtimeChange | CursorUpdate;
 /** Anything the server may send a browser. */
 export type ServerMessage = RealtimeFrame | { type: "ready" } | { type: "error"; retryable: boolean; resync: boolean };
 
+/** Close code sent when the connection's session is no longer valid; the browser must not retry. */
+export const SESSION_ENDED = 4401;
+
 const MAX_DOC_BYTES = 64 * 1024;
 
 /**
