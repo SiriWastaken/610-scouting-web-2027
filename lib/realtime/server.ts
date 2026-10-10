@@ -1,3 +1,5 @@
+// Accepts WebSocket upgrades on a plain Node HTTP server: origin check, session check, then hands the socket
+// to the bridge.
 import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
 import { WebSocketServer } from "ws";
@@ -9,14 +11,16 @@ import { can } from "../auth/roles.ts";
 import type { Viewer } from "../auth/sessions.ts";
 import { realtimeMetrics, recordError } from "../ops/metrics.ts";
 
-export const REALTIME_PATH = "/api/realtime";
+const REALTIME_PATH = "/api/realtime";
 
+/** Options for the upgrade handler; tests replace the config and authentication. */
 export interface RealtimeUpgradeOptions extends Omit<BridgeOptions, "identity" | "revalidate"> {
   getConfig?: () => CouchbaseChangesConfig | null;
   /** Who is upgrading. Defaults to the session cookie checked against the account store. */
   authenticate?: (cookieHeader: string | string[] | undefined) => Promise<Authentication>;
 }
 
+/** Whether to accept a WebSocket upgrade, or the status and reason to refuse with. */
 export type UpgradeDecision =
   | { ok: true; viewer: Viewer }
   | { ok: false; status: 401 | 403 | 503; reason: "auth" | "unconfigured" };
@@ -49,6 +53,10 @@ export function sessionBridgeOptions(viewer: Viewer, recheck: () => Promise<Auth
 
 const STATUS_TEXT = { 401: "401 Unauthorized", 403: "403 Forbidden", 500: "500 Internal Server Error", 503: "503 Service Unavailable" } as const;
 
+function reject(socket: Duplex, status: keyof typeof STATUS_TEXT) {
+  socket.end(`HTTP/1.1 ${STATUS_TEXT[status]}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
+}
+
 /**
  * Handles `upgrade` requests for the realtime path on a plain Node HTTP server.
  * Returns false for any other path so the caller can hand it to Next.js.
@@ -56,9 +64,6 @@ const STATUS_TEXT = { 401: "401 Unauthorized", 403: "403 Forbidden", 500: "500 I
 export function createRealtimeUpgradeHandler(options: RealtimeUpgradeOptions = {}) {
   const { getConfig = getCouchbaseChangesConfig, authenticate = (cookie) => authenticateCookieHeader(cookie), ...bridgeOptions } = options;
   const webSockets = new WebSocketServer({ noServer: true, maxPayload: 8 * 1024 });
-  const reject = (socket: Duplex, status: keyof typeof STATUS_TEXT) => {
-    socket.end(`HTTP/1.1 ${STATUS_TEXT[status]}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
-  };
 
   return function handleUpgrade(request: IncomingMessage, socket: Duplex, head: Buffer): boolean {
     let pathname: string;

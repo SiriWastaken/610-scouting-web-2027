@@ -15,6 +15,10 @@ function defined<T extends Doc>(value: T): T {
   return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined)) as T;
 }
 
+/**
+ * A scouted match with every value checked to be of the expected type. The Match class 
+ * (lib/domain/match.ts) wraps it.
+ */
 export interface SanitizedMatch {
   _id?: string;
   teamNumber?: number | string;

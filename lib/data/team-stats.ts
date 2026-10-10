@@ -1,17 +1,20 @@
-// Pure helpers for reading and comparing team averages: whether a value was
-// really scouted, whether a sample is trustworthy, and how numbers are printed.
-// Used by the Strategy page; no React, no I/O, so it is unit-tested directly.
-import type { TeamAggregate } from "../../types/scouting.ts";
+// Pure number helpers behind the Strategy page: medians and outliers, comparing two values, and how
+// numbers are printed. Reading a team's statistics is the job of `Team` (lib/domain/team.ts); this file only
+// does arithmetic and formatting. No React, no I/O, so it is unit-tested directly.
+import { appConfig } from "../../app.config.ts";
+
+const { analysis } = appConfig;
 
 /** Shown wherever a value was never scouted. Distinct from a real 0. */
 export const NO_DATA = "—";
 
 /** Rating scales, as the scouting form records them (also printed on the team page). */
-export const DRIVER_SKILL_SCALE = 10;
-export const DEFENSE_RATING_SCALE = 5;
+export const DRIVER_SKILL_SCALE = analysis.driverSkillScale;
+/** The top of the defense rating scale. */
+export const DEFENSE_RATING_SCALE = analysis.defenseRatingScale;
 
 /** A team with fewer scouted matches than this is flagged "low sample". */
-export const LOW_SAMPLE_THRESHOLD = 3;
+export const LOW_SAMPLE_THRESHOLD = analysis.lowSampleThreshold;
 
 /**
  * Outlier rule (see `isOutlier`): a value is a likely outlier when, compared with
@@ -19,49 +22,11 @@ export const LOW_SAMPLE_THRESHOLD = 3;
  * `OUTLIER_SD` standard deviations from the mean, or more than
  * `OUTLIER_MEDIAN_MULTIPLE` times the median.
  */
-export const OUTLIER_SD = 2.5;
-export const OUTLIER_MEDIAN_MULTIPLE = 3;
+export const OUTLIER_SD = analysis.outlierSd;
+/** A value above this multiple of the field median is flagged as an outlier. */
+export const OUTLIER_MEDIAN_MULTIPLE = analysis.outlierMedianMultiple;
 /** Fewer teams than this and neither rule says anything useful, so nothing is flagged. */
-export const OUTLIER_MIN_FIELD = 5;
-
-/** Statistics on `TeamAggregate` that can be missing, mapped to the raw fields they are read from (first present wins). */
-const RAW_FIELDS = {
-  autoPpg: ["autoPPG"],
-  teleopPpg: ["teleopPPG"],
-  endgamePpg: ["endgamePPG"],
-  fuelAccuracy: ["teleopFuelaccuracy", "autoFuelaccuracy"],
-  driverSkill: ["avgDriverSkill"],
-  defenseRating: ["avgDefenseSkill"],
-} as const;
-
-export type StatKey = keyof typeof RAW_FIELDS;
-
-function isScouted(value: unknown): boolean {
-  if (typeof value === "number") return Number.isFinite(value);
-  if (typeof value === "string") return value.trim() !== "" && Number.isFinite(Number(value));
-  return false;
-}
-
-/**
- * The statistic's value, or `null` when it was never scouted: no matches, or the
- * field is absent, null or not a number. `TeamAggregate` stores those as 0, which
- * would otherwise be indistinguishable from a real zero.
- */
-export function statValue(team: TeamAggregate, key: StatKey): number | null {
-  if (team.matches <= 0) return null;
-  const raw = RAW_FIELDS[key].find((field) => isScouted(team.rawData[field]));
-  return raw === undefined ? null : team[key];
-}
-
-/** Auto + teleop + endgame points per game, or `null` unless all three phases have data. */
-export function totalPoints(team: TeamAggregate): number | null {
-  const phases = [statValue(team, "autoPpg"), statValue(team, "teleopPpg"), statValue(team, "endgamePpg")];
-  return phases.every((value): value is number => value !== null) ? phases.reduce((sum, value) => sum + value, 0) : null;
-}
-
-export function isLowSample(matches: number): boolean {
-  return matches < LOW_SAMPLE_THRESHOLD;
-}
+const OUTLIER_MIN_FIELD = analysis.outlierMinField;
 
 /** Median of the values (0 for none). */
 export function median(values: readonly number[]): number {
@@ -91,11 +56,7 @@ export function isOutlier(value: number, field: readonly number[]): boolean {
   return middle > 0 && value > OUTLIER_MEDIAN_MULTIPLE * middle;
 }
 
-/** Every team's value for `key` (or the total), missing values skipped. The field `isOutlier` compares against. */
-export function fieldValues(teams: readonly TeamAggregate[], key: StatKey | "total"): number[] {
-  return teams.map((team) => (key === "total" ? totalPoints(team) : statValue(team, key))).filter((value): value is number => value !== null);
-}
-
+/** Who is ahead in a comparison: 'a', 'b', 'tie', or null when either side has no data. */
 export type Leader = "a" | "b" | "tie" | null;
 
 /** Who is ahead (higher wins). `null` when either side has no data, so nobody "wins" against a blank. */
@@ -113,10 +74,12 @@ export function formatPoints(value: number | null): string {
   return value === null ? NO_DATA : value.toFixed(1);
 }
 
+/** An accuracy as a whole-number percent, or '—' when missing. */
 export function formatPercent(value: number | null): string {
   return value === null ? NO_DATA : `${Math.round(value)}%`;
 }
 
+/** A rating as '8.5 / 10', or '—' when missing. */
 export function formatRating(value: number | null, scale: number): string {
   return value === null ? NO_DATA : `${value.toFixed(1)} / ${scale}`;
 }

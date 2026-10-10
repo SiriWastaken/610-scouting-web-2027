@@ -1,8 +1,9 @@
+// Small pieces shared by the Teams panels: the bordered Section and the alliance tag.
 'use client';
 
 import type { ReactNode } from 'react';
-import { selectClass } from '@/components/ui/kit';
 
+/** A bordered panel with a title row and optional right-hand content. */
 export function Section({
   title,
   aside,
@@ -24,33 +25,6 @@ export function Section({
       </div>
       {children}
     </section>
-  );
-}
-
-export function NativeSelect({
-  id,
-  value,
-  onChange,
-  options,
-  placeholder,
-}: {
-  id: string;
-  value: string | null;
-  onChange: (value: string) => void;
-  options: { label: string; value: string }[];
-  placeholder: string;
-}) {
-  return (
-    <select id={id} value={value ?? ''} onChange={(e) => onChange(e.target.value)} className={`${selectClass} h-11 text-base sm:text-sm`}>
-      <option value="" disabled>
-        {placeholder}
-      </option>
-      {options.map((opt) => (
-        <option key={opt.value} value={opt.value}>
-          {opt.label}
-        </option>
-      ))}
-    </select>
   );
 }
 

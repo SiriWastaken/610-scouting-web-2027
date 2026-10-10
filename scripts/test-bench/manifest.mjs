@@ -12,8 +12,10 @@ export const suites = {
     timeoutMs: 20_000,
     files: {
       "tests/testTemplate.test.ts": 3,
+      "tests/unit/config/app-config.test.ts": 3,
       "tests/unit/config/couchbase-config.test.ts": 3,
       "tests/unit/data/aggregate-normalization.test.ts": 19,
+      "tests/unit/domain/domain-model.test.ts": 12,
       "tests/unit/data/match-data-sanitizer.test.ts": 4,
       "tests/unit/data/team-stats.test.ts": 15,
       "tests/unit/data/sync-invariants.property.test.ts": 7,
@@ -126,8 +128,7 @@ export const coverage = {
     "app/api/dashboard-documents/route.ts": { lines: 97, branches: 95, functions: 95 },
     // The upgrade itself runs only inside Vercel's runtime; its origin and configuration checks are covered.
     "app/api/realtime/route.ts": { lines: 70, branches: 75, functions: 45 },
-    // Persistence reads. Four exported helpers are unused by the app (queryDocsByType,
-    // listDocumentTypes, queryDocsByIdPrefix, fetchTeamAggregates), which caps line coverage.
+    // Persistence reads.
     "services/couchbase.ts": { lines: 70, branches: 85, functions: 75 },
     // Who may do what: every permission and management rule.
     "lib/auth/roles.ts": { lines: 97, branches: 95, functions: 85 },

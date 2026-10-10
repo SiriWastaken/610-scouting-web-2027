@@ -7,6 +7,10 @@ import { sha256Hex } from "./sign-in.ts";
 import { ASSIGNABLE_ROLES, accountStatus, can, canAssignRole, canManageUser, isAccountStatus, isAssignableRole, storedRole, type AccountStatus, type Principal, type Role } from "./roles.ts";
 import { ConflictError, type AccountStore, type StoredDoc } from "./store.ts";
 
+/**
+ * An account as stored: identity, role, status, sign-in history and who approved it. One document per 
+ * person.
+ */
 export interface UserDoc {
   type: "auth_user";
   email: string;
@@ -36,24 +40,29 @@ export interface UserDoc {
   approvedAt?: string;
 }
 
-export interface IdentityDoc { type: "auth_identity"; provider: ProviderId; userId: string; createdAt: string }
-export interface EmailIndexDoc { type: "auth_email"; userId: string }
+interface IdentityDoc { type: "auth_identity"; provider: ProviderId; userId: string; createdAt: string }
+interface EmailIndexDoc { type: "auth_email"; userId: string }
 
+/** What the identity provider vouched for after a successful sign-in. */
 export interface VerifiedIdentity { provider: ProviderId; subject: string; email?: string; emailVerified: boolean; name?: string; picture?: string }
 
+/** Prefix of account document ids. */
 export const USER_PREFIX = "user_";
+/** Whether a value is shaped like an account id ('u' plus 20 hex digits). */
 export const isUserId = (value: unknown): value is string => typeof value === "string" && /^u[0-9a-f]{20}$/.test(value);
+/** The document id of an account. */
 export const userDocId = (userId: string) => `${USER_PREFIX}${userId}`;
 const identityDocId = (provider: ProviderId, subject: string) => `identity_${provider}_${sha256Hex(`${provider}:${subject}`).slice(0, 40)}`;
 const emailDocId = (email: string) => `email_${sha256Hex(email.toLowerCase()).slice(0, 40)}`;
 const newUserId = () => `u${randomBytes(10).toString("hex")}`;
 
+/** A refused account operation, with a machine-readable code and a message safe to show. */
 export class AccountError extends Error {
   readonly code: "forbidden" | "invalid" | "not_found" | "conflict";
   constructor(code: AccountError["code"], message: string) { super(message); this.code = code; }
 }
 
-export function isOwnerEmail(config: AuthConfig, email: string) { return config.ownerEmails.has(email.toLowerCase()); }
+function isOwnerEmail(config: AuthConfig, email: string) { return config.ownerEmails.has(email.toLowerCase()); }
 
 /** Role and status as enforced: Owner emails are always an active OWNER, whatever the stored document says. */
 export function principalFor(config: AuthConfig, userId: string, user: UserDoc): Principal {
@@ -71,6 +80,10 @@ export function safePicture(value: unknown): string | undefined {
 }
 
 const CONTROL = /[\u0000-\u001f\u007f\u2028\u2029]/g;
+/**
+ * Replaces control characters and runs of whitespace with single spaces, trims, and limits to `max` 
+ * characters; undefined when nothing is left.
+ */
 export function cleanText(value: unknown, max: number): string | undefined {
   if (typeof value !== "string") return undefined;
   const text = value.replace(CONTROL, " ").replace(/\s+/g, " ").trim();
@@ -81,6 +94,10 @@ function defaultName(identity: VerifiedIdentity) {
   return cleanText(identity.name, 80) ?? identity.email?.split("@")[0] ?? "Scout";
 }
 
+/**
+ * The result of resolving a sign-in: success (with whether the account was created or linked), or the 
+ * reason it failed.
+ */
 export type SignInOutcome =
   | { ok: true; userId: string; user: UserDoc; created: boolean; linked: boolean }
   | { ok: false; reason: "email_unverified" | "no_email" | "disabled"; userId?: string; user?: UserDoc };
@@ -91,6 +108,8 @@ async function withRetry<T>(attempt: () => Promise<T>, tries = 3): Promise<T> {
   }
 }
 
+type Resolved = { userId: string; created: boolean; linked: boolean };
+
 /**
  * Finds or creates the account for a verified identity. Identities are looked
  * up by provider subject first; a new identity is linked to an existing account
@@ -98,71 +117,91 @@ async function withRetry<T>(attempt: () => Promise<T>, tries = 3): Promise<T> {
  * email index document can only be created once.
  */
 export async function resolveSignIn(store: AccountStore, config: AuthConfig, identity: VerifiedIdentity): Promise<SignInOutcome> {
-  const email = identity.email?.toLowerCase();
-  const identityId = identityDocId(identity.provider, identity.subject);
   const now = new Date().toISOString();
-  let userId = (await store.get<IdentityDoc>(identityId))?.body.userId;
-  let created = false; let linked = false;
-
-  if (!userId) {
-    if (!email) return { ok: false, reason: "no_email" };
-    if (!identity.emailVerified) return { ok: false, reason: "email_unverified" };
-    userId = (await store.get<EmailIndexDoc>(emailDocId(email)))?.body.userId;
-    if (userId) linked = true;
-    else {
-      const candidate = newUserId();
-      try {
-        await store.create<EmailIndexDoc>(emailDocId(email), { type: "auth_email", userId: candidate });
-        // Everyone starts as an active MEMBER; the Owner's power comes from configuration, not this document.
-        await store.create<UserDoc>(userDocId(candidate), {
-          type: "auth_user", email, emailVerified: true, displayName: defaultName(identity), providerName: cleanText(identity.name, 80),
-          picture: identity.provider === "google" ? safePicture(identity.picture) : undefined,
-          role: "MEMBER", status: "active",
-          providers: [], createdAt: now, updatedAt: now,
-          approvedBy: isOwnerEmail(config, email) ? "configuration" : "automatic", approvedAt: now,
-        });
-        userId = candidate; created = true;
-      } catch (error) {
-        if (!(error instanceof ConflictError)) throw error;
-        // Someone else created this email's account at the same moment: use theirs.
-        userId = (await store.get<EmailIndexDoc>(emailDocId(email)))?.body.userId;
-        if (!userId) throw error;
-        linked = true;
-      }
-    }
-    try { await store.create<IdentityDoc>(identityId, { type: "auth_identity", provider: identity.provider, userId, createdAt: now }); }
-    catch (error) { if (!(error instanceof ConflictError)) throw error; }
-  }
-
-  const finalUserId = userId;
-  const updated = await withRetry(async () => {
-    const current = await store.get<UserDoc>(userDocId(finalUserId));
-    if (!current) throw new AccountError("not_found", "The account for this sign-in no longer exists");
-    const user = current.body;
-    const next: UserDoc = {
-      ...user,
-      providers: [...new Set([...user.providers, identity.provider])],
-      providerName: cleanText(identity.name, 80) ?? user.providerName,
-      ...(identity.provider === "google" && safePicture(identity.picture) ? { picture: safePicture(identity.picture) } : {}),
-      lastSignInAt: now, lastSignInProvider: identity.provider, updatedAt: now,
-    };
-    if (isOwnerEmail(config, user.email) && next.status !== "active") { next.status = "active"; next.approvedBy = "configuration"; next.approvedAt = now; }
-    else if (next.status === "pending") { next.status = "active"; next.approvedBy = "automatic"; next.approvedAt = now; } // saved before open access
-    if (principalFor(config, finalUserId, next).status === "disabled") return next; // leave a disabled account untouched
-    await store.update(userDocId(finalUserId), current.rev, next);
-    return next;
-  });
-  if (principalFor(config, finalUserId, updated).status === "disabled") return { ok: false, reason: "disabled", userId: finalUserId, user: updated };
-  return { ok: true, userId: finalUserId, user: updated, created, linked };
+  const resolved = await resolveUserId(store, config, identity, now);
+  if ("reason" in resolved) return { ok: false, reason: resolved.reason };
+  const { userId, created, linked } = resolved;
+  const user = await recordSignIn(store, config, userId, identity, now);
+  if (principalFor(config, userId, user).status === "disabled") return { ok: false, reason: "disabled", userId, user };
+  return { ok: true, userId, user, created, linked };
 }
 
+async function resolveUserId(store: AccountStore, config: AuthConfig, identity: VerifiedIdentity, now: string): Promise<Resolved | { reason: "no_email" | "email_unverified" }> {
+  const identityId = identityDocId(identity.provider, identity.subject);
+  const known = (await store.get<IdentityDoc>(identityId))?.body.userId;
+  if (known) return { userId: known, created: false, linked: false };
+  const email = identity.email?.toLowerCase();
+  if (!email) return { reason: "no_email" };
+  if (!identity.emailVerified) return { reason: "email_unverified" };
+  const resolved = await findOrCreateByEmail(store, config, identity, email, now);
+  try { await store.create<IdentityDoc>(identityId, { type: "auth_identity", provider: identity.provider, userId: resolved.userId, createdAt: now }); }
+  catch (error) { if (!(error instanceof ConflictError)) throw error; }
+  return resolved;
+}
+
+async function findOrCreateByEmail(store: AccountStore, config: AuthConfig, identity: VerifiedIdentity, email: string, now: string): Promise<Resolved> {
+  const existing = (await store.get<EmailIndexDoc>(emailDocId(email)))?.body.userId;
+  if (existing) return { userId: existing, created: false, linked: true };
+  const candidate = newUserId();
+  try {
+    await store.create<EmailIndexDoc>(emailDocId(email), { type: "auth_email", userId: candidate });
+    await store.create<UserDoc>(userDocId(candidate), newUserDoc(config, identity, email, now));
+    return { userId: candidate, created: true, linked: false };
+  } catch (error) {
+    if (!(error instanceof ConflictError)) throw error;
+    // Someone else created this email's account at the same moment: use theirs.
+    const winner = (await store.get<EmailIndexDoc>(emailDocId(email)))?.body.userId;
+    if (!winner) throw error;
+    return { userId: winner, created: false, linked: true };
+  }
+}
+
+/** Everyone starts as an active MEMBER; the Owner's power comes from configuration, not this document. */
+function newUserDoc(config: AuthConfig, identity: VerifiedIdentity, email: string, now: string): UserDoc {
+  return {
+    type: "auth_user", email, emailVerified: true, displayName: defaultName(identity), providerName: cleanText(identity.name, 80),
+    picture: identity.provider === "google" ? safePicture(identity.picture) : undefined,
+    role: "MEMBER", status: "active",
+    providers: [], createdAt: now, updatedAt: now,
+    approvedBy: isOwnerEmail(config, email) ? "configuration" : "automatic", approvedAt: now,
+  };
+}
+
+/** Saves the sign-in on the account. A disabled account is returned untouched. */
+function recordSignIn(store: AccountStore, config: AuthConfig, userId: string, identity: VerifiedIdentity, now: string): Promise<UserDoc> {
+  return withRetry(async () => {
+    const current = await store.get<UserDoc>(userDocId(userId));
+    if (!current) throw new AccountError("not_found", "The account for this sign-in no longer exists");
+    const next = signedInUser(config, current.body, identity, now);
+    if (principalFor(config, userId, next).status === "disabled") return next;
+    await store.update(userDocId(userId), current.rev, next);
+    return next;
+  });
+}
+
+function signedInUser(config: AuthConfig, user: UserDoc, identity: VerifiedIdentity, now: string): UserDoc {
+  const next: UserDoc = {
+    ...user,
+    providers: [...new Set([...user.providers, identity.provider])],
+    providerName: cleanText(identity.name, 80) ?? user.providerName,
+    ...(identity.provider === "google" && safePicture(identity.picture) ? { picture: safePicture(identity.picture) } : {}),
+    lastSignInAt: now, lastSignInProvider: identity.provider, updatedAt: now,
+  };
+  if (isOwnerEmail(config, user.email) && next.status !== "active") { next.status = "active"; next.approvedBy = "configuration"; next.approvedAt = now; }
+  else if (next.status === "pending") { next.status = "active"; next.approvedBy = "automatic"; next.approvedAt = now; } // saved before open access
+  return next;
+}
+
+/** Reads one account, or null if the id is malformed or unknown. */
 export async function getUser(store: AccountStore, userId: string): Promise<StoredDoc<UserDoc> | null> {
   if (!isUserId(userId)) return null;
   const doc = await store.get<UserDoc>(userDocId(userId));
   return doc && doc.body.type === "auth_user" ? doc : null;
 }
 
+/** Changes a manager may request on someone else's account. */
 export interface AdminPatch { displayName?: string; scoutName?: string | null; adminNote?: string | null; role?: Exclude<Role, "OWNER">; status?: AccountStatus }
+/** Changes a person may request on their own account. */
 export interface ProfilePatch { displayName?: string; scoutName?: string | null }
 
 const ADMIN_FIELDS = new Set(["displayName", "scoutName", "adminNote", "role", "status", "expectedRev"]);
@@ -256,4 +295,3 @@ export function publicUser(config: AuthConfig, userId: string, user: UserDoc, vi
     ...(view === "admin" ? { providerName: user.providerName ?? null, adminNote: user.adminNote ?? null, approvedBy: user.approvedBy ?? null, approvedAt: user.approvedAt ?? null, updatedAt: user.updatedAt } : {}),
   };
 }
-export type PublicUser = ReturnType<typeof publicUser>;

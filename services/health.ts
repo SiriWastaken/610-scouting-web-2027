@@ -1,3 +1,5 @@
+// Health checks for the admin panel: API, Sync Gateway, Couchbase, realtime, account store and sign-in, plus
+// build and process information.
 import "server-only";
 import { enabledProviders, readAuthConfig } from "@/lib/auth/config";
 import { authRuntime } from "@/lib/auth/requests";
@@ -5,7 +7,9 @@ import { StoreUnavailableError } from "@/lib/auth/store";
 import { metricsSnapshot } from "@/lib/ops/metrics";
 import { probeSyncGateway, snapshotStatus, type SyncGatewayProbe } from "@/services/couchbase";
 
+/** The state of one check. */
 export type CheckStatus = "ok" | "degraded" | "down" | "idle" | "unknown" | "unconfigured";
+/** The result of one health check, with a human summary and timing. */
 export interface Check { status: CheckStatus; summary: string; checkedAt: number; latencyMs?: number | null; details?: Record<string, unknown> }
 
 const CACHE_MS = 10_000;
@@ -13,6 +17,7 @@ const FORCE_FLOOR_MS = 3_000;
 /** A connected client's long-poll answers at least every ~25 s; older than this means the feed is stuck. */
 const UPSTREAM_STALE_MS = 60_000;
 
+/** Build, process and platform facts for the admin overview. */
 export function serverInfo(now = Date.now()) {
   const startedAt = metricsSnapshot(now).startedAt;
   return {
@@ -120,6 +125,7 @@ export async function getHealth(options: { force?: boolean } = {}): Promise<Chec
   return state.value;
 }
 
+/** The worst status across a set of checks. */
 export function overallStatus(checks: Record<string, Check>): CheckStatus {
   const statuses = Object.values(checks).map((check) => check.status);
   if (statuses.includes("down")) return "down";

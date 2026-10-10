@@ -1,3 +1,4 @@
+// The /teams/<number> body: header, rank and the performance signals for one team.
 "use client";
 
 import Link from "next/link";
@@ -8,10 +9,39 @@ import { DEFENSE_RATING_SCALE, DRIVER_SKILL_SCALE } from "@/lib/data/team-stats"
 import { useAggregateRealtime } from "@/lib/realtime/hooks";
 import type { TeamAggregate } from "@/types/scouting";
 
+/** One team's profile, kept current by the realtime feed. */
 export function TeamDetailLive({ team: initialTeam, live }: { team: TeamAggregate; live?: ReactNode }) {
   const initialTeams = useMemo(() => [initialTeam], [initialTeam]);
   const teams = useAggregateRealtime(initialTeams);
   const team = teams.find((candidate) => candidate.team === initialTeam.team) ?? initialTeam;
+  return <div className="mx-auto max-w-[1120px]">
+    <div className="flex items-center justify-between gap-3">
+      <Link href="/teams" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-accent-text"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back to teams</Link>
+      {live}
+    </div>
+    <TeamHeader team={team} />
+    <PerformanceSignals team={team} />
+    <p className="mt-4 text-sm leading-6 text-muted">Want match-by-match detail, the pit interview, and cards? Open <Link href="/teams" className="font-medium text-accent-text hover:underline">Teams</Link> and pick {team.team}.</p>
+  </div>;
+}
+
+function TeamHeader({ team }: { team: TeamAggregate }) {
+  return <header className="mt-5 flex flex-col justify-between gap-5 border-b border-line pb-6 sm:flex-row sm:items-end">
+    <div className="flex items-baseline gap-4">
+      <span className="text-6xl font-semibold leading-none tracking-[-0.02em] text-accent-text">{team.team}</span>
+      <div>
+        <h1 className="text-[28px] font-semibold leading-9 tracking-[-0.01em]">{team.name}</h1>
+        <p className="mt-1 text-sm text-muted">Scouting profile from {team.matches} observed matches.</p>
+      </div>
+    </div>
+    <div className="flex gap-8">
+      <div><div className={labelClass}>Rank</div><div className="text-4xl font-semibold leading-none tracking-[-0.01em]">#{team.rank || "--"}</div></div>
+      <div><div className={labelClass}>Matches</div><div className="text-4xl font-semibold leading-none tracking-[-0.01em]">{team.matches}</div></div>
+    </div>
+  </header>;
+}
+
+function PerformanceSignals({ team }: { team: TeamAggregate }) {
   // Phase colours match the rest of the app: auto periwinkle, teleop cyan, endgame violet.
   const metrics: [string, string, string?][] = [
     ["Auto PPG", team.autoPpg.toFixed(1), "text-auto"], ["Teleop PPG", team.teleopPpg.toFixed(1), "text-teleop"],
@@ -19,28 +49,8 @@ export function TeamDetailLive({ team: initialTeam, live }: { team: TeamAggregat
     ["Fuel accuracy", `${team.fuelAccuracy}%`], ["Driver skill", `${team.driverSkill.toFixed(1)} / ${DRIVER_SKILL_SCALE}`],
     ["Defense rating", `${team.defenseRating.toFixed(1)} / ${DEFENSE_RATING_SCALE}`], ["Break rate", `${team.breakRate}%`],
   ];
-  return <div className="mx-auto max-w-[1120px]">
-    <div className="flex items-center justify-between gap-3">
-      <Link href="/teams" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-accent-text"><ArrowLeft className="h-4 w-4" aria-hidden="true" />Back to teams</Link>
-      {live}
-    </div>
-    <header className="mt-5 flex flex-col justify-between gap-5 border-b border-line pb-6 sm:flex-row sm:items-end">
-      <div className="flex items-baseline gap-4">
-        <span className="text-6xl font-semibold leading-none tracking-[-0.02em] text-accent-text">{team.team}</span>
-        <div>
-          <h1 className="text-[28px] font-semibold leading-9 tracking-[-0.01em]">{team.name}</h1>
-          <p className="mt-1 text-sm text-muted">Scouting profile from {team.matches} observed matches.</p>
-        </div>
-      </div>
-      <div className="flex gap-8">
-        <div><div className={labelClass}>Rank</div><div className="text-4xl font-semibold leading-none tracking-[-0.01em]">#{team.rank || "--"}</div></div>
-        <div><div className={labelClass}>Matches</div><div className="text-4xl font-semibold leading-none tracking-[-0.01em]">{team.matches}</div></div>
-      </div>
-    </header>
-    <section className="mt-6 overflow-hidden rounded-lg border border-line bg-surface">
-      <h2 className="border-b border-line px-5 py-3 text-sm font-semibold">Performance signals</h2>
-      <dl className="grid grid-cols-2 gap-px bg-line sm:grid-cols-4">{metrics.map(([label, value, tone]) => <div key={label} className="bg-surface px-5 py-4"><dt className={labelClass}>{label}</dt><dd className={`mt-1 text-[22px] font-semibold leading-7 ${tone ?? "text-ink"}`}>{value}</dd></div>)}</dl>
-    </section>
-    <p className="mt-4 text-sm leading-6 text-muted">Want match-by-match detail, the pit interview, and cards? Open <Link href="/teams" className="font-medium text-accent-text hover:underline">Teams</Link> and pick {team.team}.</p>
-  </div>;
+  return <section className="mt-6 overflow-hidden rounded-lg border border-line bg-surface">
+    <h2 className="border-b border-line px-5 py-3 text-sm font-semibold">Performance signals</h2>
+    <dl className="grid grid-cols-2 gap-px bg-line sm:grid-cols-4">{metrics.map(([label, value, tone]) => <div key={label} className="bg-surface px-5 py-4"><dt className={labelClass}>{label}</dt><dd className={`mt-1 text-[22px] font-semibold leading-7 ${tone ?? "text-ink"}`}>{value}</dd></div>)}</dl>
+  </section>;
 }

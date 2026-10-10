@@ -1,18 +1,24 @@
+// The Strategy page: a head-to-head comparison of two teams and a score prediction for two alliances. All
+// reading of statistics goes through Team, Alliance and ScoutingEvent (lib/domain).
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Activity, ArrowLeftRight, CircleAlert, Target } from "lucide-react";
 import { buttonClass, EmptyState, NoteChip, rowClass, selectClass } from "@/components/ui/kit";
 import type { TeamAggregate } from "@/types/scouting";
-import { useAggregateRealtime } from "@/lib/realtime/hooks";
+import { useScoutingEvent } from "@/lib/realtime/hooks";
+import { appConfig } from "@/app.config";
 import {
-  compareValues, DEFENSE_RATING_SCALE, DRIVER_SKILL_SCALE, fieldValues, formatMargin, formatMatches, formatPercent, formatPercentMargin, formatPoints, formatRating,
-  isLowSample, isOutlier, LOW_SAMPLE_THRESHOLD, NO_DATA, OUTLIER_MEDIAN_MULTIPLE, OUTLIER_SD, statValue, totalPoints, type Leader, type StatKey,
+  DEFENSE_RATING_SCALE, DRIVER_SKILL_SCALE, formatMargin, formatMatches, formatPercent, formatPercentMargin, formatPoints, formatRating,
+  LOW_SAMPLE_THRESHOLD, NO_DATA, OUTLIER_MEDIAN_MULTIPLE, OUTLIER_SD, type Leader,
 } from "@/lib/data/team-stats";
+import type { Alliance } from "@/lib/domain/alliance";
+import type { ScoutingEvent } from "@/lib/domain/scouting-event";
+import type { StatName, Team } from "@/lib/domain/team";
 
 /** Our own team: the "vs 610" shortcut compares against it. */
-const OWN_TEAM = 610;
-const ROBOTS_PER_ALLIANCE = 3;
+const OWN_TEAM = appConfig.team.number;
+const ROBOTS_PER_ALLIANCE = appConfig.analysis.robotsPerAlliance;
 /** Micro-labels are at least 12px (text-xs) everywhere on this page. */
 const microLabel = "text-xs font-medium text-muted";
 const OUTLIER_HINT = `Likely outlier: more than ${OUTLIER_SD} standard deviations from the field mean, or over ${OUTLIER_MEDIAN_MULTIPLE}× the field median.`;
@@ -27,7 +33,7 @@ const PHASE: Record<Phase, { text: string; lead: string; trail: string; tie: str
 };
 const NEUTRAL_BAR = { lead: "bg-ink-2", trail: "bg-ink-2/35", tie: "bg-ink-2/70" };
 
-interface Row { label: string; stat: StatKey | "total"; format: (value: number | null) => string; formatLead?: (margin: number) => string; phase?: Phase; total?: boolean }
+interface Row { label: string; stat: StatName; format: (value: number | null) => string; formatLead?: (margin: number) => string; phase?: Phase; total?: boolean }
 const GROUPS: { title: string; rows: Row[] }[] = [
   { title: "Scoring", rows: [
     { label: "Total PPG", stat: "total", format: formatPoints, total: true },
@@ -42,77 +48,80 @@ const GROUPS: { title: string; rows: Row[] }[] = [
   ] },
 ];
 
-const valueOf = (team: TeamAggregate, stat: StatKey | "total") => (stat === "total" ? totalPoints(team) : statValue(team, stat));
-const optionLabel = (team: TeamAggregate) => `${team.team} / ${team.name}`;
+const optionLabel = (team: Team) => `${team.number} / ${team.name}`;
 
+/** Which teams are picked for the head-to-head and for each alliance. */
+function useSelections(event: ScoutingEvent) {
+  const numberAt = (index: number) => event.teams[index]?.number ?? 0;
+  const [teamA, setTeamA] = useState(numberAt(0));
+  const [teamB, setTeamB] = useState(event.teams[1]?.number ?? numberAt(0));
+  const [red, setRed] = useState(() => Array.from({ length: ROBOTS_PER_ALLIANCE }, (_, index) => numberAt(index)));
+  const [blue, setBlue] = useState(() => Array.from({ length: ROBOTS_PER_ALLIANCE }, (_, index) => numberAt(ROBOTS_PER_ALLIANCE + index)));
+  return { teamA, setTeamA, teamB, setTeamB, red, setRed, blue, setBlue };
+}
+
+/** The Strategy page body. */
 export function StrategyTools({ teams: initialTeams }: { teams: TeamAggregate[] }) {
-  const teams = useAggregateRealtime(initialTeams);
-  const [teamA, setTeamA] = useState(teams[0]?.team ?? 0);
-  const [teamB, setTeamB] = useState(teams[1]?.team ?? teams[0]?.team ?? 0);
-  const [red, setRed] = useState(() => Array.from({ length: ROBOTS_PER_ALLIANCE }, (_, index) => teams[index]?.team ?? 0));
-  const [blue, setBlue] = useState(() => Array.from({ length: ROBOTS_PER_ALLIANCE }, (_, index) => teams[ROBOTS_PER_ALLIANCE + index]?.team ?? 0));
-  // "Every team's value for this statistic", the field an outlier is judged against.
-  const fields = useMemo(() => ({
-    total: fieldValues(teams, "total"), autoPpg: fieldValues(teams, "autoPpg"), teleopPpg: fieldValues(teams, "teleopPpg"), endgamePpg: fieldValues(teams, "endgamePpg"),
-    fuelAccuracy: fieldValues(teams, "fuelAccuracy"), driverSkill: fieldValues(teams, "driverSkill"), defenseRating: fieldValues(teams, "defenseRating"),
-  }), [teams]);
+  const event = useScoutingEvent(initialTeams);
+  const { teamA, setTeamA, teamB, setTeamB, red, setRed, blue, setBlue } = useSelections(event);
 
-  if (teams.length === 0) return <div className="rounded-lg border border-dashed border-line-strong bg-surface"><EmptyState icon={Target} title="Nothing to strategize with yet">Strategy tools need averages from scouted matches. They fill in as soon as data syncs.</EmptyState></div>;
-
-  const find = (number: number) => teams.find((team) => team.team === number);
-  const first = find(teamA) ?? teams[0];
-  const second = find(teamB) ?? teams[0];
-  const hasOwnTeam = Boolean(find(OWN_TEAM));
+  if (event.isEmpty) return <div className="rounded-lg border border-dashed border-line-strong bg-surface"><EmptyState icon={Target} title="Nothing to strategize with yet">Strategy tools need averages from scouted matches. They fill in as soon as data syncs.</EmptyState></div>;
 
   return <div className="space-y-5">
-    <section className="overflow-hidden rounded-lg border border-line bg-surface">
-      <SectionHead title="Head to head" description="Two teams' averages side by side. The leader in each row is bold and shaded; the margin sits under it." />
-      <div className="space-y-3 p-5">
-        <div className="grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-          <TeamSelect label="Team A" value={first.team} teams={teams} onChange={setTeamA} />
-          <button type="button" className={`${buttonClass} w-full sm:w-10 sm:px-0`} onClick={() => { setTeamA(second.team); setTeamB(first.team); }} aria-label="Swap Team A and Team B" title="Swap teams"><ArrowLeftRight className="h-4 w-4 rotate-90 sm:rotate-0" aria-hidden="true" /><span className="sm:hidden">Swap teams</span></button>
-          <TeamSelect label="Team B" value={second.team} teams={teams} onChange={setTeamB} />
-        </div>
-        <button type="button" className="h-8 rounded-md border border-line-strong px-2.5 text-xs font-medium text-ink-2 transition-colors hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50" disabled={!hasOwnTeam || first.team === OWN_TEAM || second.team === OWN_TEAM} onClick={() => setTeamB(OWN_TEAM)} aria-label={`Compare Team A against team ${OWN_TEAM}`}>vs {OWN_TEAM}</button>
-      </div>
-      <div className="overflow-x-auto border-t border-line px-3 pb-4 sm:px-5">
-        <table className="mx-auto w-full max-w-[38rem] table-fixed text-sm">
-          <caption className="sr-only">{`${first.team} versus ${second.team}: average points, accuracy and ratings`}</caption>
-          <colgroup><col /><col className="w-[7.5rem] sm:w-44" /><col /></colgroup>
-          <thead><tr className="border-b border-line align-bottom"><TeamHead team={first} side="a" /><th scope="col" className="sr-only">Statistic</th><TeamHead team={second} side="b" /></tr></thead>
-          {GROUPS.map((group) => <tbody key={group.title}>
-            <tr><th scope="colgroup" colSpan={3} className={`px-2 pb-1.5 pt-4 text-center ${microLabel}`}>{group.title}</th></tr>
-            {group.rows.map((row) => <CompareRow key={row.label} row={row} a={first} b={second} field={fields[row.stat]} />)}
-          </tbody>)}
-        </table>
-      </div>
-    </section>
-
-    <Prediction teams={teams} red={red} blue={blue} onRed={setRed} onBlue={setBlue} totals={fields.total} />
+    <HeadToHead event={event} first={event.teamOrFirst(teamA)!} second={event.teamOrFirst(teamB)!} onFirst={setTeamA} onSecond={setTeamB} />
+    <Prediction event={event} red={red} blue={blue} onRed={setRed} onBlue={setBlue} />
   </div>;
 }
 
-function TeamHead({ team, side }: { team: TeamAggregate; side: "a" | "b" }) {
+interface HeadToHeadProps { event: ScoutingEvent; first: Team; second: Team; onFirst: (team: number) => void; onSecond: (team: number) => void }
+
+function HeadToHead({ event, first, second, onFirst, onSecond }: HeadToHeadProps) {
+  const canCompareOwn = event.team(OWN_TEAM) !== undefined && first.number !== OWN_TEAM && second.number !== OWN_TEAM;
+  return <section className="overflow-hidden rounded-lg border border-line bg-surface">
+    <SectionHead title="Head to head" description="Two teams' averages side by side. The leader in each row is bold and shaded; the margin sits under it." />
+    <div className="space-y-3 p-5">
+      <div className="grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+        <TeamSelect label="Team A" value={first.number} teams={event.teams} onChange={onFirst} />
+        <button type="button" className={`${buttonClass} w-full sm:w-10 sm:px-0`} onClick={() => { onFirst(second.number); onSecond(first.number); }} aria-label="Swap Team A and Team B" title="Swap teams"><ArrowLeftRight className="h-4 w-4 rotate-90 sm:rotate-0" aria-hidden="true" /><span className="sm:hidden">Swap teams</span></button>
+        <TeamSelect label="Team B" value={second.number} teams={event.teams} onChange={onSecond} />
+      </div>
+      <button type="button" className="h-8 rounded-md border border-line-strong px-2.5 text-xs font-medium text-ink-2 transition-colors hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-50" disabled={!canCompareOwn} onClick={() => onSecond(OWN_TEAM)} aria-label={`Compare Team A against team ${OWN_TEAM}`}>vs {OWN_TEAM}</button>
+    </div>
+    <div className="overflow-x-auto border-t border-line px-3 pb-4 sm:px-5">
+      <table className="mx-auto w-full max-w-[38rem] table-fixed text-sm">
+        <caption className="sr-only">{`${first.number} versus ${second.number}: average points, accuracy and ratings`}</caption>
+        <colgroup><col /><col className="w-[7.5rem] sm:w-44" /><col /></colgroup>
+        <thead><tr className="border-b border-line align-bottom"><TeamHead team={first} side="a" /><th scope="col" className="sr-only">Statistic</th><TeamHead team={second} side="b" /></tr></thead>
+        {GROUPS.map((group) => <tbody key={group.title}>
+          <tr><th scope="colgroup" colSpan={3} className={`px-2 pb-1.5 pt-4 text-center ${microLabel}`}>{group.title}</th></tr>
+          {group.rows.map((row) => <CompareRow key={row.label} row={row} a={first} b={second} event={event} />)}
+        </tbody>)}
+      </table>
+    </div>
+  </section>;
+}
+
+function TeamHead({ team, side }: { team: Team; side: "a" | "b" }) {
   return <th scope="col" className={`px-2 pb-3 font-normal sm:px-3 ${side === "a" ? "text-right" : "text-left"}`}>
-    <div className="break-words text-sm leading-5"><span className="font-mono font-semibold text-ink">{team.team}</span><span className="text-muted"> · </span><span className="font-medium text-ink-2">{team.name}</span></div>
+    <div className="break-words text-sm leading-5"><span className="font-mono font-semibold text-ink">{team.number}</span><span className="text-muted"> · </span><span className="font-medium text-ink-2">{team.name}</span></div>
     <div className={`mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted ${side === "a" ? "justify-end" : "justify-start"}`}>
-      <span>{formatMatches(team.matches)}</span>
-      {isLowSample(team.matches) && <NoteChip icon={CircleAlert} title={LOW_SAMPLE_HINT}>Low sample</NoteChip>}
+      <span>{formatMatches(team.matchesPlayed)}</span>
+      {team.isLowSample() && <NoteChip icon={CircleAlert} title={LOW_SAMPLE_HINT}>Low sample</NoteChip>}
     </div>
   </th>;
 }
 
-function CompareRow({ row, a, b, field }: { row: Row; a: TeamAggregate; b: TeamAggregate; field: number[] }) {
-  const left = valueOf(a, row.stat);
-  const right = valueOf(b, row.stat);
-  const { leader, margin } = compareValues(left, right);
+function CompareRow({ row, a, b, event }: { row: Row; a: Team; b: Team; event: ScoutingEvent }) {
+  const left = a.statValue(row.stat);
+  const right = b.statValue(row.stat);
+  const { leader, margin } = a.compareTo(b, row.stat);
   return <tr className={rowClass}>
-    <ValueCell side="a" value={left} text={row.format(left)} leader={leader} margin={(row.formatLead ?? formatMargin)(margin)} outlier={left !== null && isOutlier(left, field)} big={row.total} />
+    <ValueCell side="a" value={left} text={row.format(left)} leader={leader} margin={(row.formatLead ?? formatMargin)(margin)} outlier={event.isOutlier(a, row.stat)} big={row.total} />
     <td className="px-1 py-2.5 text-center align-middle">
       <div className={`${row.total ? "text-sm font-semibold" : "text-sm font-medium"} ${row.phase ? PHASE[row.phase].text : "text-ink-2"}`}>{row.label}</div>
       <SplitBar left={left} right={right} leader={leader} phase={row.phase} />
     </td>
-    <ValueCell side="b" value={right} text={row.format(right)} leader={leader} margin={(row.formatLead ?? formatMargin)(margin)} outlier={right !== null && isOutlier(right, field)} big={row.total} />
+    <ValueCell side="b" value={right} text={row.format(right)} leader={leader} margin={(row.formatLead ?? formatMargin)(margin)} outlier={event.isOutlier(b, row.stat)} big={row.total} />
   </tr>;
 }
 
@@ -144,25 +153,23 @@ function SplitBar({ left, right, leader, phase }: { left: number | null; right: 
   </div>;
 }
 
-interface PredictionProps { teams: TeamAggregate[]; red: number[]; blue: number[]; onRed: (slots: number[]) => void; onBlue: (slots: number[]) => void; totals: number[] }
+interface PredictionProps { event: ScoutingEvent; red: number[]; blue: number[]; onRed: (slots: number[]) => void; onBlue: (slots: number[]) => void }
 
-function Prediction({ teams, red, blue, onRed, onBlue, totals }: PredictionProps) {
-  const pick = (slots: number[]) => slots.map((number) => teams.find((team) => team.team === number));
-  const redRobots = pick(red);
-  const blueRobots = pick(blue);
-  const redScore = allianceScore(redRobots);
-  const blueScore = allianceScore(blueRobots);
+function Prediction({ event, red, blue, onRed, onBlue }: PredictionProps) {
+  const redAlliance = event.alliance("red", red);
+  const blueAlliance = event.alliance("blue", blue);
+  const totals = event.fieldValues("total");
   // One scale for every bar on the page, so a robot is the same length in either alliance.
-  const biggest = Math.max(1, ...[...redRobots, ...blueRobots].map((team) => (team ? totalPoints(team) ?? 0 : 0)));
-  const { leader, margin } = compareValues(redScore.robots ? redScore.total : null, blueScore.robots ? blueScore.total : null);
+  const biggest = Math.max(1, ...[...redAlliance.robots, ...blueAlliance.robots].map((team) => team.totalPoints() ?? 0));
+  const { leader, margin } = redAlliance.compareTo(blueAlliance);
   const summary = leader === null ? "Pick robots for both alliances to compare them." : leader === "tie" ? "The alliances are even." : `${leader === "a" ? "Red" : "Blue"} alliance leads by ${margin.toFixed(1)} points.`;
 
   return <section className="overflow-hidden rounded-lg border border-line bg-surface">
     <SectionHead title="Match prediction" description="A transparent baseline: add up each alliance's average points in every phase, then compare the two totals." />
     <p className="border-b border-line px-5 py-3 text-sm font-medium text-ink" data-alliance-margin aria-live="polite">{summary}</p>
     <div className="grid gap-px bg-line lg:grid-cols-2">
-      <Alliance name="Red" slug="red" robots={redRobots} slots={red} onSlots={onRed} teams={teams} score={redScore} biggest={biggest} totals={totals} />
-      <Alliance name="Blue" slug="blue" robots={blueRobots} slots={blue} onSlots={onBlue} teams={teams} score={blueScore} biggest={biggest} totals={totals} />
+      <AllianceColumn name="Red" slug="red" alliance={redAlliance} slots={red} onSlots={onRed} event={event} biggest={biggest} totals={totals} />
+      <AllianceColumn name="Blue" slug="blue" alliance={blueAlliance} slots={blue} onSlots={onBlue} event={event} biggest={biggest} totals={totals} />
     </div>
     <div className="space-y-2 border-t border-line px-5 py-3 text-xs leading-5 text-muted">
       <div className="flex flex-wrap gap-x-4 gap-y-1">
@@ -173,24 +180,10 @@ function Prediction({ teams, red, blue, onRed, onBlue, totals }: PredictionProps
   </section>;
 }
 
-interface Score { total: number; robots: number }
+interface AllianceColumnProps { name: string; slug: string; alliance: Alliance; slots: number[]; onSlots: (slots: number[]) => void; event: ScoutingEvent; biggest: number; totals: number[] }
 
-/** Sums the selected robots' totals; a robot with no data adds 0. */
-function allianceScore(robots: (TeamAggregate | undefined)[]): Score {
-  const selected = robots.filter((team): team is TeamAggregate => Boolean(team));
-  return { total: selected.reduce((sum, team) => sum + (totalPoints(team) ?? 0), 0), robots: selected.length };
-}
-
-function Alliance({ name, slug, robots, slots, onSlots, teams, score, biggest, totals }: { name: string; slug: string; robots: (TeamAggregate | undefined)[]; slots: number[]; onSlots: (slots: number[]) => void; teams: TeamAggregate[]; score: Score; biggest: number; totals: number[] }) {
-  const selected = robots.filter((team): team is TeamAggregate => Boolean(team));
-  const reasons = selected.flatMap((team) => {
-    const total = totalPoints(team);
-    if (total === null) return [`${team.team}: no data`];
-    const found = [];
-    if (isLowSample(team.matches)) found.push(`${team.team}: ${formatMatches(team.matches).toLowerCase()}`);
-    if (isOutlier(total, totals)) found.push(`${team.team}: outlier`);
-    return found;
-  });
+function AllianceColumn({ name, slug, alliance, slots, onSlots, event, biggest, totals }: AllianceColumnProps) {
+  const reasons = alliance.confidenceReasons(totals);
   return <div className="bg-surface p-5" data-alliance={slug}>
     <div className="flex items-start justify-between gap-4">
       <div className="min-w-0">
@@ -198,27 +191,32 @@ function Alliance({ name, slug, robots, slots, onSlots, teams, score, biggest, t
         <div className={`mt-2 ${microLabel}`}>Estimated alliance score</div>
       </div>
       <div className="text-right">
-        <div className="text-[44px] font-semibold leading-none tracking-[-0.02em] tabular-nums text-ink" data-alliance-score={slug}>{score.robots ? score.total.toFixed(1) : NO_DATA}</div>
+        <div className="text-[44px] font-semibold leading-none tracking-[-0.02em] tabular-nums text-ink" data-alliance-score={slug}>{alliance.isEmpty ? NO_DATA : alliance.score.toFixed(1)}</div>
       </div>
     </div>
     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted">
-      <span>{selected.length ? `n = ${selected.map((team) => team.matches).join(", ")} matches` : "No robots selected"}</span>
+      <span>{alliance.isEmpty ? "No robots selected" : `n = ${alliance.sampleSizes.join(", ")} matches`}</span>
       {reasons.length > 0 && <><NoteChip icon={CircleAlert} title="A selected robot has a low sample, an outlier total or no data, so treat this score with caution.">Low confidence</NoteChip><span>{reasons.join(" · ")}</span></>}
     </div>
     <ul className="mt-5 space-y-4" aria-label={`${name} alliance robots`}>
-      {slots.map((slot, index) => <RobotSlot key={index} label={`Robot ${index + 1}`} value={robots[index] ? slot : 0} team={robots[index]} teams={teams} biggest={biggest} totals={totals} onChange={(value) => onSlots(slots.map((existing, at) => (at === index ? value : existing)))} />)}
+      {slots.map((slot, index) => {
+        const team = event.team(slot);
+        return <RobotSlot key={index} label={`Robot ${index + 1}`} value={team ? slot : 0} team={team} event={event} biggest={biggest} onChange={(value) => onSlots(slots.map((existing, at) => (at === index ? value : existing)))} />;
+      })}
     </ul>
   </div>;
 }
 
-function RobotSlot({ label, value, team, teams, biggest, totals, onChange }: { label: string; value: number; team?: TeamAggregate; teams: TeamAggregate[]; biggest: number; totals: number[]; onChange: (value: number) => void }) {
-  const total = team ? totalPoints(team) : null;
-  const parts = team && total !== null ? [["Auto", statValue(team, "autoPpg") ?? 0, PHASE.auto.segment], ["Teleop", statValue(team, "teleopPpg") ?? 0, PHASE.teleop.segment], ["Endgame", statValue(team, "endgamePpg") ?? 0, PHASE.endgame.segment]] as const : [];
+interface RobotSlotProps { label: string; value: number; team?: Team; event: ScoutingEvent; biggest: number; onChange: (value: number) => void }
+
+function RobotSlot({ label, value, team, event, biggest, onChange }: RobotSlotProps) {
+  const total = team?.totalPoints() ?? null;
+  const parts = team && total !== null ? [["Auto", team.statValue("autoPpg") ?? 0, PHASE.auto.segment], ["Teleop", team.statValue("teleopPpg") ?? 0, PHASE.teleop.segment], ["Endgame", team.statValue("endgamePpg") ?? 0, PHASE.endgame.segment]] as const : [];
   return <li>
     <label className="block"><span className={`mb-1.5 block ${microLabel}`}>{label}</span>
-      <select value={value} onChange={(event) => onChange(Number(event.target.value))} className={selectClass}>
+      <select value={value} onChange={(e) => onChange(Number(e.target.value))} className={selectClass}>
         <option value={0}>None</option>
-        {teams.map((option) => <option key={option.team} value={option.team}>{optionLabel(option)}</option>)}
+        {event.teams.map((option) => <option key={option.number} value={option.number}>{optionLabel(option)}</option>)}
       </select>
     </label>
     {team && <>
@@ -229,9 +227,9 @@ function RobotSlot({ label, value, team, teams, biggest, totals, onChange }: { l
         <span className={`text-right font-mono text-sm tabular-nums ${total === null ? "text-muted" : "font-medium text-ink"}`}>{formatPoints(total)}</span>
       </div>
       <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
-        <span>{formatMatches(team.matches)}</span>
-        {isLowSample(team.matches) && <NoteChip icon={CircleAlert} title={LOW_SAMPLE_HINT}>Low sample</NoteChip>}
-        {total !== null && isOutlier(total, totals) && <NoteChip icon={Activity} title={OUTLIER_HINT}>Outlier</NoteChip>}
+        <span>{formatMatches(team.matchesPlayed)}</span>
+        {team.isLowSample() && <NoteChip icon={CircleAlert} title={LOW_SAMPLE_HINT}>Low sample</NoteChip>}
+        {event.isOutlier(team, "total") && <NoteChip icon={Activity} title={OUTLIER_HINT}>Outlier</NoteChip>}
       </div>
     </>}
   </li>;
@@ -241,6 +239,6 @@ function SectionHead({ title, description }: { title: string; description: strin
   return <div className="border-b border-line px-5 py-3.5"><h2 className="text-sm font-semibold text-ink">{title}</h2><p className="mt-1 text-sm text-muted">{description}</p></div>;
 }
 
-function TeamSelect({ label, value, teams, onChange }: { label: string; value: number; teams: TeamAggregate[]; onChange: (value: number) => void }) {
-  return <label className="block"><span className={`mb-1.5 block ${microLabel}`}>{label}</span><select value={value} onChange={(event) => onChange(Number(event.target.value))} className={selectClass}>{teams.map((team) => <option key={team.team} value={team.team}>{optionLabel(team)}</option>)}</select></label>;
+function TeamSelect({ label, value, teams, onChange }: { label: string; value: number; teams: readonly Team[]; onChange: (value: number) => void }) {
+  return <label className="block"><span className={`mb-1.5 block ${microLabel}`}>{label}</span><select value={value} onChange={(event) => onChange(Number(event.target.value))} className={selectClass}>{teams.map((team) => <option key={team.number} value={team.number}>{optionLabel(team)}</option>)}</select></label>;
 }

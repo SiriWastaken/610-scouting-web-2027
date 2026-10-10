@@ -1,3 +1,4 @@
+// /admin/audit — the append-only audit log. Needs `audit:read`.
 import { AccessDenied } from "@/components/ui/kit";
 import { AuditLog } from "@/components/admin/audit-log";
 import { requirePage } from "@/lib/auth/pages";

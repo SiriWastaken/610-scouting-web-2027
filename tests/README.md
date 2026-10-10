@@ -154,7 +154,7 @@ Copy `tests/testTemplate.test.ts` into the right folder, then add the file to `s
 
 ## Security model (what "authorization" means here)
 
-Everyone signs in with Google; roles and permissions are decided on the server by `lib/auth/roles.ts` (see [docs/authentication.md](../docs/authentication.md)). Scouting tablets write to Sync Gateway directly with their own credentials, not through this app. The boundaries, and where they are tested:
+Everyone signs in with Google; roles and permissions are decided on the server by `lib/auth/roles.ts` (see [docs/10-authentication.md](../docs/10-authentication.md)). Scouting tablets write to Sync Gateway directly with their own credentials, not through this app. The boundaries, and where they are tested:
 
 1. **Authentication and authorization** on every protected page, API route, and the WebSocket: `security/authorization-matrix.test.ts` calls every protected route as anonymous, malformed, expired, denied (disabled), and each of the five roles, with hand-written expected statuses; it also covers forged role headers/cookies/bodies, self-elevation, IDOR, CSRF, and checks that every admin route calls the guard. `e2e/browser-auth-and-admin.e2e.test.ts` checks the rendered pages per role.
 2. **Sign-in**: forged, expired, misdirected, and replayed tokens and codes, state/login-CSRF, open redirects, session fixation (`integration/auth/sign-in-flow.test.ts`, `id-token-verification.test.ts`).
@@ -185,5 +185,5 @@ Any new protected route must call `guard()` with a permission and be added to th
 - Fault-injection tests (outages, hangs, garbage) need the fake gateway. The contract suite keeps the fake honest against real Sync Gateway in CI.
 - Each open dashboard tab holds its own long-poll to Sync Gateway (capped at 200 per server). The stress suite covers 120.
 - If a REST request fails, the Teams page shows an empty state rather than an error. Realtime status is the only visible failure indicator.
-- The account store and the Google provider are always fakes in tests. `tests/contract/account-store.contract.test.ts` keeps the account store's use of Sync Gateway honest against real Sync Gateway in CI; the real providers can only be checked by hand (docs/authentication.md).
+- The account store and the Google provider are always fakes in tests. `tests/contract/account-store.contract.test.ts` keeps the account store's use of Sync Gateway honest against real Sync Gateway in CI; the real providers can only be checked by hand (docs/10-authentication.md).
 - Admin metrics are per process; tests reset them with `resetMetrics()`.

@@ -18,8 +18,10 @@ import { storeKeyspace, type AuthStoreConfig } from "./config.ts";
 // never silently overwrite each other: the loser gets a ConflictError.
 
 export class StoreUnavailableError extends Error {}
+/** A write lost a race: the document changed or already exists. */
 export class ConflictError extends Error {}
 
+/** A stored document with its id and revision. */
 export interface StoredDoc<T> { id: string; rev: string; body: T }
 
 /**
@@ -40,6 +42,7 @@ export interface AccountStore {
 
 const TIMEOUT_MS = 8_000;
 
+/** The account store backed by a Sync Gateway collection. */
 export class AuthStore implements AccountStore {
   /** Documents: `/{db}` or, for a named collection, `/{db}.{scope}.{collection}`. */
   private readonly base: string;
@@ -90,13 +93,13 @@ export class AuthStore implements AccountStore {
   private describeFailure(method: string, status: number, json: Record<string, unknown>, missingDatabase: boolean): string {
     const reason = typeof json.reason === "string" ? json.reason.slice(0, 160) : "";
     if (missingDatabase && this.named && /keyspace|collection/i.test(reason)) {
-      return `Account store collection "${this.keyspace}" is not available on Sync Gateway (create it, and on Capella App Services link it to the "${this.database}" App Endpoint; see docs/authentication.md)`;
+      return `Account store collection "${this.keyspace}" is not available on Sync Gateway (create it, and on Capella App Services link it to the "${this.database}" App Endpoint; see docs/10-authentication.md)`;
     }
     if (missingDatabase && /keyspace/i.test(reason)) {
       // The database answers, but not its default collection: common on Capella, where App Endpoints serve one scope's collections.
       return `"${this.database}" has no default collection on Sync Gateway; set AUTH_STORE_SCOPE and AUTH_STORE_COLLECTION to the collection that holds accounts (e.g. app / auth)`;
     }
-    if (missingDatabase) return `Account store database "${this.database}" does not exist on Sync Gateway (create it; see docs/authentication.md)`;
+    if (missingDatabase) return `Account store database "${this.database}" does not exist on Sync Gateway (create it; see docs/10-authentication.md)`;
     if (status === 401) return `Account store rejected AUTH_STORE_USERNAME/AUTH_STORE_PASSWORD for "${this.database}" (HTTP 401)`;
     if (status === 403) return `Account store user may not ${method === "GET" ? "read" : "write"} documents in "${this.keyspace}" (HTTP 403${reason ? `: ${reason}` : ""}); give it access to all channels ("*") in that collection and a sync function that accepts its writes`;
     return `Account store returned HTTP ${status}${reason ? `: ${reason}` : ""}`;
@@ -224,6 +227,7 @@ const stateFor = (path: string): State => {
   return holder[key]!;
 };
 
+/** A file-based account store for development (AUTH_STORE=local). Refused in production. */
 export class LocalAuthStore implements AccountStore {
   private readonly state: State;
 

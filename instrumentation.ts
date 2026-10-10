@@ -1,3 +1,4 @@
+// Next.js hook that records server errors for the Admin → Overview 'recent errors' list.
 import type { Instrumentation } from "next";
 import { recordError } from "@/lib/ops/metrics";
 

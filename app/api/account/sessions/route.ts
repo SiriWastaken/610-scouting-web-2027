@@ -1,3 +1,4 @@
+// DELETE /api/account/sessions — 'Sign out other devices' for the signed-in user.
 import { recordAudit } from "@/lib/auth/audit";
 import { guard, json, jsonError } from "@/lib/auth/requests";
 import { authRuntime } from "@/lib/auth/requests";

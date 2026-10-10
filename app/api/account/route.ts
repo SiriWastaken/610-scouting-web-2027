@@ -1,3 +1,5 @@
+// GET /api/account — the signed-in user's own account and their sessions (devices). PATCH changes their own
+// names (Owner only, see lib/auth/roles.ts).
 import { AccountError, parsePatch, publicUser, updateOwnProfile } from "@/lib/auth/accounts";
 import { recordAudit } from "@/lib/auth/audit";
 import { guard, json, jsonError, readJson } from "@/lib/auth/requests";

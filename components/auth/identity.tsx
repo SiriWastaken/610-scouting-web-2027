@@ -18,13 +18,14 @@ export function GoogleIcon(props: SVGProps<SVGSVGElement>) {
 /** "Google"; an account that once used a provider that has been removed shows its name as saved. */
 export const providerLabel = (provider: string | null | undefined) => provider ? `${provider.charAt(0).toUpperCase()}${provider.slice(1)}` : "Unknown";
 
+/** The icon for a sign-in provider (Google today). */
 export function ProviderIcon({ provider, className }: { provider: string | null | undefined; className?: string }) {
   return provider === "google" ? <GoogleIcon className={className} /> : null;
 }
 
 // ── Avatar ──
 
-export function initials(name: string) {
+function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   const letters = parts.length > 1 ? `${parts[0][0]}${parts[parts.length - 1][0]}` : (parts[0] ?? "?").slice(0, 2);
   return letters.toUpperCase();
@@ -51,6 +52,7 @@ const tone: Record<Role, string> = {
   OWNER: "border-transparent bg-warn-soft text-warn",
 };
 
+/** A role as a small labelled badge. */
 export function RoleBadge({ role }: { role: Role }) {
   return <span className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-xs font-semibold ${tone[role]}`}>{ROLE_LABELS[role]}</span>;
 }

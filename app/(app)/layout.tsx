@@ -1,3 +1,5 @@
+// Frame for every signed-in page: requires an active account, then gives the page the sidebar shell and the
+// session (user, permissions) for the browser to display.
 import { AppShell } from "@/components/layout/app-shell";
 import { SessionProvider } from "@/components/auth/session";
 import { requireActiveViewer, viewerForClient } from "@/lib/auth/pages";

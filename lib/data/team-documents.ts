@@ -18,10 +18,12 @@ export type RawDoc = {
   [key: string]: unknown;
 };
 
+/** The document inside a { _default: doc } wrapper, or the value itself. */
 export function unwrapDoc(r: RawDoc): Record<string, unknown> {
   return (r._default ?? r) as Record<string, unknown>;
 }
 
+/** Fetches one team's documents of one kind from /api/dashboard-documents. */
 export async function queryDashboardDocuments(kind: 'matches' | 'pit' | 'reports', team: number): Promise<RawDoc[]> {
   const response = await fetch(`/api/dashboard-documents?kind=${kind}&team=${team}`, { cache: 'no-store' });
   if (!response.ok) throw new Error(`Unable to load ${kind} data (${response.status})`);
@@ -35,13 +37,14 @@ export async function queryDashboardDocuments(kind: 'matches' | 'pit' | 'reports
  * team field, so team (and match) numbers are pulled from `_id` as a
  * fallback whenever the doc/data body doesn't have them directly.
  */
-export function parseScoutingId(id: unknown): { team?: string; match?: string } {
+function parseScoutingId(id: unknown): { team?: string; match?: string } {
   if (typeof id !== 'string') return {};
   const match = id.match(/^(?:scouting|pit|aggregate|report(?:_card)?)_(\d+)(?:_(.+))?/);
   if (!match) return {};
   return { team: match[1], match: match[2] };
 }
 
+/** The team number of a document as a string, from its fields or its id. */
 export function docTeam(doc: Record<string, unknown>): string | undefined {
   const data = doc.data as Record<string, unknown> | undefined;
   const explicit = doc.team ?? doc.teamNumber ?? data?.team ?? data?.teamNumber;
@@ -52,6 +55,7 @@ export function docTeam(doc: Record<string, unknown>): string | undefined {
 /** Stable empty input for realtime merges while REST data is loading. */
 export const NO_DOCS: Record<string, unknown>[] = [];
 
+/** A match document as a SanitizedMatch, taking the match number from the id when the body lacks it. */
 export function toMatchData(doc: Record<string, unknown>): MatchData {
   // Fill in the match number from the doc id (`scouting_<team>_<match>`) if it
   // isn't already in the data, and drop values of the wrong type so one bad
@@ -69,6 +73,7 @@ function label(...values: unknown[]): string | undefined {
   return undefined;
 }
 
+/** A card document as a CardReport, rendering only strings and finite numbers. */
 export function toCardReport(doc: Record<string, unknown>): CardReport {
   const data = (doc.data && typeof doc.data === 'object' ? doc.data : {}) as Record<string, unknown>;
   return {
@@ -88,13 +93,14 @@ export function toCardReport(doc: Record<string, unknown>): CardReport {
  */
 export const MATCH_DOC_ID_PREFIX = 'scouting_';
 
-export interface CouchbaseBlob {
+interface CouchbaseBlob {
   content?: string;
   contentType?: string;
   data?: string;
   content_type?: string;
 }
 
+/** The answers of a pit interview, as scouted. */
 export interface PitData {
   driveBase?: string;
   drivetrainType?: string;
@@ -142,6 +148,7 @@ export interface PitData {
   scoutName?: string;
 }
 
+/** One yellow or red card. */
 export interface CardReport {
   sourceId?: string;
   match: string | number;

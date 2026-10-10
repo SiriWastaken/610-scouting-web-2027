@@ -1,5 +1,7 @@
+// GET /api/dashboard-documents?kind=matches|pit|reports&team=<n> — one team's documents, reduced to the
+// privacy allow-list. Needs `dashboard:read`.
 import { guard } from "@/lib/auth/requests";
-import { queryDashboardDocuments } from "@/services/couchbase";
+import { scoutingStore } from "@/services/scouting-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +16,6 @@ export async function GET(request: Request) {
   if (!kind || !kinds.has(kind) || !Number.isSafeInteger(team) || team <= 0 || team > 99999) {
     return Response.json({ error: "Invalid dashboard document query" }, { status: 400 });
   }
-  const documents = await queryDashboardDocuments(kind as "matches" | "pit" | "reports", team);
+  const documents = await scoutingStore.queryDashboardDocuments(kind as "matches" | "pit" | "reports", team);
   return Response.json({ documents }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
 }

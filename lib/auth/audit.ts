@@ -7,12 +7,13 @@ import { recordError, scrub } from "../ops/metrics.ts";
 import type { Role } from "./roles.ts";
 import type { AccountStore } from "./store.ts";
 
+/** How an audited action ended. */
 export type AuditResult = "success" | "denied" | "failure";
 
-export interface AuditActor { id: string; email?: string; role?: Role }
-export interface AuditTarget { type: "user" | "session" | "system"; id?: string; label?: string }
+interface AuditActor { id: string; email?: string; role?: Role }
+interface AuditTarget { type: "user" | "session" | "system"; id?: string; label?: string }
 
-export interface AuditEvent {
+interface AuditEvent {
   type: "audit";
   at: string;
   action: string;
@@ -22,12 +23,14 @@ export interface AuditEvent {
   reason?: string;
   meta?: Record<string, string | number | boolean | null>;
 }
+/** An audit event as stored, with its id. */
 export interface AuditEntry extends AuditEvent { id: string }
 
+/** Prefix of audit document ids. */
 export const AUDIT_PREFIX = "audit_";
 
 /** Ids sort by time: `audit_<ms, 14 digits>_<random>`. */
-export function auditId(now = Date.now()) {
+function auditId(now = Date.now()) {
   return `${AUDIT_PREFIX}${String(now).padStart(14, "0")}_${randomBytes(5).toString("hex")}`;
 }
 
@@ -48,6 +51,7 @@ function cleanMeta(meta: Record<string, unknown> | undefined): AuditEvent["meta"
 const DENIAL_WINDOW_MS = 60_000;
 const recentDenials = new Map<string, number>();
 
+/** What a caller supplies to record an audit event. */
 export interface AuditInput { action: string; result: AuditResult; actor?: AuditActor | null; target?: AuditTarget; reason?: string; meta?: Record<string, unknown> }
 
 /** Writes an audit entry. Never throws: a store outage must not turn a sign-out or an admin action into a crash. */
@@ -74,6 +78,7 @@ export async function recordAudit(store: AccountStore | null, input: AuditInput)
   try { await store.create(id, event); return id; } catch (error) { recordError("audit", error); return null; }
 }
 
+/** Filters and paging for reading the audit log. */
 export interface AuditQuery { limit?: number; before?: string; action?: string; result?: AuditResult; search?: string }
 
 const SCAN_WINDOW = 500;

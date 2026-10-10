@@ -1,3 +1,5 @@
+// POST /api/admin/diagnostics — run all health checks now plus a write/read/delete test in the account store.
+// Needs `ops:diagnose`.
 import { recordAudit } from "@/lib/auth/audit";
 import { guard, json } from "@/lib/auth/requests";
 import { authRuntime } from "@/lib/auth/requests";

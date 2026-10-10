@@ -1,22 +1,12 @@
+// The pit interview panel, grouped by who said it (asked, interviewed, observed).
 'use client';
 
 import type { ReactNode } from 'react';
 import { Check, FileQuestion, X } from 'lucide-react';
 import { EmptyState, labelClass } from '@/components/ui/kit';
 import type { PitData } from '@/lib/data/team-documents';
+import type { PitInterview } from '@/lib/domain/pit-interview';
 import { Section } from './primitives';
-
-function resolvePhotoUri(robotPhoto: PitData['robotPhoto']): string | null {
-  if (!robotPhoto) return null;
-  if (typeof robotPhoto === 'string') return robotPhoto;
-  const base64 = robotPhoto.content ?? robotPhoto.data;
-  const mime = robotPhoto.contentType ?? robotPhoto.content_type ?? 'image/jpeg';
-  if (base64) {
-    const clean = base64.replace(/^data:[^;]+;base64,/, '');
-    return `data:${mime};base64,${clean}`;
-  }
-  return null;
-}
 
 function capitalizeSelector(value?: string): string | undefined {
   if (!value) return value;
@@ -58,7 +48,7 @@ function ReportSection({ title, source, children }: { title: string; source?: 'A
   );
 }
 
-function InfoBlock({ label, value, highlight, wide }: { label: string; value?: string; half?: boolean; highlight?: boolean; wide?: boolean }) {
+function InfoBlock({ label, value, highlight, wide }: { label: string; value?: string; highlight?: boolean; wide?: boolean }) {
   return (
     <div className={wide ? 'sm:col-span-2' : ''}>
       <dt className={labelClass}>{label}</dt>
@@ -69,7 +59,7 @@ function InfoBlock({ label, value, highlight, wide }: { label: string; value?: s
   );
 }
 
-function BadgeBlock({ label, value }: { label: string; value?: string; half?: boolean }) {
+function BadgeBlock({ label, value }: { label: string; value?: string }) {
   const isYes = value?.toLowerCase() === 'yes';
   const isNo = value?.toLowerCase() === 'no';
   return (
@@ -83,31 +73,22 @@ function BadgeBlock({ label, value }: { label: string; value?: string; half?: bo
   );
 }
 
-function RatingBlock({
-  label,
-  value,
-  max,
-  descriptions,
-}: {
-  label: string;
-  value?: number;
-  max: number;
-  descriptions?: Record<number, string>;
-}) {
+interface RatingProps { label: string; value?: number; max: number; descriptions?: Record<number, string> }
+
+/** 1..max boxes with the chosen one solid and the lower ones tinted. */
+function ratingBoxClass(n: number, value?: number) {
+  if (!value || n > value) return 'bg-surface-2 text-muted';
+  return n === value ? 'bg-accent text-accent-foreground' : 'bg-accent-muted text-accent-text';
+}
+
+function RatingBlock({ label, value, max, descriptions }: RatingProps) {
   return (
     <div>
       <dt className={labelClass}>{label}</dt>
       <dd className="mt-1.5">
         <div className="flex gap-1" role="img" aria-label={value ? `${value} out of ${max}` : 'Not rated'}>
           {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
-            <span
-              key={n}
-              className={`flex h-7 flex-1 items-center justify-center rounded-sm text-xs font-bold ${
-                value && n <= value ? (n === value ? 'bg-accent text-accent-foreground' : 'bg-accent-muted text-accent-text') : 'bg-surface-2 text-muted'
-              }`}
-            >
-              {n}
-            </span>
+            <span key={n} className={`flex h-7 flex-1 items-center justify-center rounded-sm text-xs font-bold ${ratingBoxClass(n, value)}`}>{n}</span>
           ))}
         </div>
         <p className="mt-1 text-xs text-muted">{descriptions && value ? descriptions[value] : value ? `${value} of ${max}` : 'Not rated'}</p>
@@ -116,113 +97,149 @@ function RatingBlock({
   );
 }
 
-export function ExpertScoutReport({ pitData, teamNumber }: { pitData?: PitData; teamNumber: number }) {
-  if (!pitData) {
-    return (
-      <Section title="Expert Scout Report">
-        <EmptyState icon={FileQuestion} title={`No pit interview for ${teamNumber} yet`}>
-          Swing by their pit! The report appears here as soon as the interview is synced.
-        </EmptyState>
-      </Section>
-    );
-  }
+/** The pit interview, or a prompt to go and do one when there is none yet. */
+export function ExpertScoutReport({ pit, teamNumber }: { pit: PitInterview | null; teamNumber: number }) {
+  if (!pit) return <NoPitInterview teamNumber={teamNumber} />;
 
-  const photoUri = resolvePhotoUri(pitData.robotPhoto);
+  const pitData = pit.data;
+  const photoUri = pit.photoUri();
 
   return (
     <Section
       title="Expert Scout Report"
-     
-      aside={pitData.scoutName ? <span className="text-xs text-muted">Interviewed by {pitData.scoutName}</span> : undefined}
+      aside={pit.scoutName ? <span className="text-xs text-muted">Interviewed by {pit.scoutName}</span> : undefined}
     >
       <div className={photoUri ? 'grid md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]' : ''}>
-        {photoUri && (
-          <div className="border-b border-line bg-surface-2 p-3 md:border-b-0 md:border-r">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={photoUri} alt={`Team ${teamNumber} robot`} className="mx-auto h-64 w-full rounded-md object-contain" />
-          </div>
-        )}
-        <ReportSection title="Drivetrain" source="Ask">
-          <InfoBlock label="Drivetrain" value={capitalizeSelector(pitData.drivetrainType || pitData.driveBase)} />
-          <InfoBlock label="Swerve Orientation" value={capitalizeSelector(pitData.swerveOrientation)} />
-          <InfoBlock label="Drive Motors" value={capitalizeSelector(pitData.driveMotors)} />
-          <InfoBlock label="Dimensions + Bumper" value={capitalizeSelector(pitData.drivetrainDimensions)} />
-          <InfoBlock label="Weight (lbs)" value={pitData.robotWeight} />
-          <InfoBlock label="Height (in)" value={pitData.robotHeight} />
-        </ReportSection>
+        {photoUri && <RobotPhoto src={photoUri} teamNumber={teamNumber} />}
+        <DrivetrainSection pit={pitData} />
       </div>
 
       <div className="border-t border-line">
-        <ReportSection title="Subsystems" source="Ask">
-          <InfoBlock label="Top (Corral)" value={capitalizeSelector(pitData.openOrClosedTop)} />
-          <BadgeBlock label="Functional Intake?" value={pitData.funcIntake} />
-          <InfoBlock label="Type of Shooter" value={capitalizeSelector(pitData.typeOfShooter)} />
-          <InfoBlock label="Type of Indexer" value={capitalizeSelector(pitData.typeOfIndexer)} />
-          <InfoBlock label="Hopper Capacity" value={pitData.hopperCapacity?.toString()} />
-        </ReportSection>
-
-        <ReportSection title="Capabilities" source="Interview">
-          <BadgeBlock label="Over Bump?" value={capitalizeSelector(pitData.canDriveOverBump)} />
-          <BadgeBlock label="Under Trench?" value={capitalizeSelector(pitData.canGoUnderTrench)} />
-          <InfoBlock label="Scoring Zones (Claimed)" value={capitalizeSelector(pitData.scoringZones)} />
-          <InfoBlock label="Auton Start Position" value={capitalizeSelector(pitData.autonStartPosition)} />
-          <InfoBlock label="Climb Capability" value={capitalizeSelector(pitData.climbCapability)} highlight />
-          <BadgeBlock label="Can Pass Fuel?" value={capitalizeSelector(pitData.canPassFuel)} />
-          <BadgeBlock label="Practiced Passing?" value={capitalizeSelector(pitData.hasPassedBefore)} />
-        </ReportSection>
-
-        <ReportSection title="Driver & Strategy" source="Interview">
-          <RatingBlock
-            label="Driver Years Exp (1-4)"
-            value={pitData.driverYearsExperience || Number(pitData.driverExperience)}
-            max={4}
-          />
-          <RatingBlock
-            label="Defense Comfort (1-5)"
-            value={pitData.defenseComfortDetailed || pitData.defenseComfort}
-            max={5}
-            descriptions={DEFENSE_LABELS}
-          />
-          <RatingBlock label="Human Player Confidence (1-5)" value={pitData.humanPlayerConfidence} max={5} descriptions={HP_LABELS} />
-        </ReportSection>
-
-        <ReportSection title="Getting to know them" source="Interview">
-          <InfoBlock label="Favorite Part of Robot" value={capitalizeSelector(pitData.favoriteRobotPart)} />
-          <InfoBlock label="Team Fun Fact" value={capitalizeSelector(pitData.teamFunFact)} />
-          <InfoBlock label="Team Goals" value={capitalizeSelector(pitData.teamGoals)} wide />
-          {pitData.hasRobotName && (
-            <>
-              <BadgeBlock label="Has Robot Name?" value={pitData.hasRobotName} />
-              {pitData.hasRobotName.toLowerCase() === 'yes' && (
-                <>
-                  <InfoBlock label="Robot Name" value={pitData.robotName} />
-                  <InfoBlock label="Name Origin" value={pitData.robotNameOrigin} />
-                </>
-              )}
-            </>
-          )}
-        </ReportSection>
-
-        <ReportSection title="Pit Scouter Observations" source="Observed">
-          <BadgeBlock label="Zones Verified?" value={capitalizeSelector(pitData.scoringZonesVerified)} />
-          <BadgeBlock label="Vision Verified?" value={capitalizeSelector(pitData.hasVisionTracking)} />
-          <InfoBlock label="Scoring Aids Observed" value={capitalizeSelector(pitData.scoringAids)} />
-          <BadgeBlock label="Scoring Aids Verified?" value={capitalizeSelector(pitData.scoringAidsVerified)} />
-          <BadgeBlock label="Jank or Tippy?" value={capitalizeSelector(pitData.robotJankOrTippy)} />
-          <InfoBlock label="Red Flags" value={capitalizeSelector(pitData.redFlags)} highlight={!!pitData.redFlags} />
-          <InfoBlock label="Extra Comments" value={capitalizeSelector(pitData.extraComments)} wide />
-        </ReportSection>
-
-        {(pitData.qualStrategy || pitData.playoffStrategy || pitData.robotUnique || pitData.teamUnique || pitData.idealAlliance) && (
-          <ReportSection title="Legacy Data" source="Legacy">
-            {pitData.qualStrategy && <InfoBlock label="Qual Strategy" value={pitData.qualStrategy} />}
-            {pitData.playoffStrategy && <InfoBlock label="Playoff Strategy" value={pitData.playoffStrategy} />}
-            {pitData.robotUnique && <InfoBlock label="Robot Uniqueness" value={pitData.robotUnique} />}
-            {pitData.teamUnique && <InfoBlock label="Team Uniqueness" value={pitData.teamUnique} />}
-            {pitData.idealAlliance && <InfoBlock label="Dream Alliance" value={pitData.idealAlliance} highlight />}
-          </ReportSection>
-        )}
+        <SubsystemsSection pit={pitData} />
+        <CapabilitiesSection pit={pitData} />
+        <DriverSection pit={pitData} />
+        <GettingToKnowSection pit={pitData} />
+        <ObservationsSection pit={pitData} />
+        <LegacySection pit={pitData} hasLegacy={pit.hasLegacyAnswers()} />
       </div>
     </Section>
+  );
+}
+
+function NoPitInterview({ teamNumber }: { teamNumber: number }) {
+  return (
+    <Section title="Expert Scout Report">
+      <EmptyState icon={FileQuestion} title={`No pit interview for ${teamNumber} yet`}>
+        Swing by their pit! The report appears here as soon as the interview is synced.
+      </EmptyState>
+    </Section>
+  );
+}
+
+function RobotPhoto({ src, teamNumber }: { src: string; teamNumber: number }) {
+  return (
+    <div className="border-b border-line bg-surface-2 p-3 md:border-b-0 md:border-r">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt={`Team ${teamNumber} robot`} className="mx-auto h-64 w-full rounded-md object-contain" />
+    </div>
+  );
+}
+
+type SectionProps = { pit: PitData };
+
+function DrivetrainSection({ pit }: SectionProps) {
+  return (
+    <ReportSection title="Drivetrain" source="Ask">
+      <InfoBlock label="Drivetrain" value={capitalizeSelector(pit.drivetrainType || pit.driveBase)} />
+      <InfoBlock label="Swerve Orientation" value={capitalizeSelector(pit.swerveOrientation)} />
+      <InfoBlock label="Drive Motors" value={capitalizeSelector(pit.driveMotors)} />
+      <InfoBlock label="Dimensions + Bumper" value={capitalizeSelector(pit.drivetrainDimensions)} />
+      <InfoBlock label="Weight (lbs)" value={pit.robotWeight} />
+      <InfoBlock label="Height (in)" value={pit.robotHeight} />
+    </ReportSection>
+  );
+}
+
+function SubsystemsSection({ pit }: SectionProps) {
+  return (
+    <ReportSection title="Subsystems" source="Ask">
+      <InfoBlock label="Top (Corral)" value={capitalizeSelector(pit.openOrClosedTop)} />
+      <BadgeBlock label="Functional Intake?" value={pit.funcIntake} />
+      <InfoBlock label="Type of Shooter" value={capitalizeSelector(pit.typeOfShooter)} />
+      <InfoBlock label="Type of Indexer" value={capitalizeSelector(pit.typeOfIndexer)} />
+      <InfoBlock label="Hopper Capacity" value={pit.hopperCapacity?.toString()} />
+    </ReportSection>
+  );
+}
+
+function CapabilitiesSection({ pit }: SectionProps) {
+  return (
+    <ReportSection title="Capabilities" source="Interview">
+      <BadgeBlock label="Over Bump?" value={capitalizeSelector(pit.canDriveOverBump)} />
+      <BadgeBlock label="Under Trench?" value={capitalizeSelector(pit.canGoUnderTrench)} />
+      <InfoBlock label="Scoring Zones (Claimed)" value={capitalizeSelector(pit.scoringZones)} />
+      <InfoBlock label="Auton Start Position" value={capitalizeSelector(pit.autonStartPosition)} />
+      <InfoBlock label="Climb Capability" value={capitalizeSelector(pit.climbCapability)} highlight />
+      <BadgeBlock label="Can Pass Fuel?" value={capitalizeSelector(pit.canPassFuel)} />
+      <BadgeBlock label="Practiced Passing?" value={capitalizeSelector(pit.hasPassedBefore)} />
+    </ReportSection>
+  );
+}
+
+function DriverSection({ pit }: SectionProps) {
+  return (
+    <ReportSection title="Driver & Strategy" source="Interview">
+      <RatingBlock label="Driver Years Exp (1-4)" value={pit.driverYearsExperience || Number(pit.driverExperience)} max={4} />
+      <RatingBlock label="Defense Comfort (1-5)" value={pit.defenseComfortDetailed || pit.defenseComfort} max={5} descriptions={DEFENSE_LABELS} />
+      <RatingBlock label="Human Player Confidence (1-5)" value={pit.humanPlayerConfidence} max={5} descriptions={HP_LABELS} />
+    </ReportSection>
+  );
+}
+
+function GettingToKnowSection({ pit }: SectionProps) {
+  return (
+    <ReportSection title="Getting to know them" source="Interview">
+      <InfoBlock label="Favorite Part of Robot" value={capitalizeSelector(pit.favoriteRobotPart)} />
+      <InfoBlock label="Team Fun Fact" value={capitalizeSelector(pit.teamFunFact)} />
+      <InfoBlock label="Team Goals" value={capitalizeSelector(pit.teamGoals)} wide />
+      {pit.hasRobotName && (
+        <>
+          <BadgeBlock label="Has Robot Name?" value={pit.hasRobotName} />
+          {pit.hasRobotName.toLowerCase() === 'yes' && (
+            <>
+              <InfoBlock label="Robot Name" value={pit.robotName} />
+              <InfoBlock label="Name Origin" value={pit.robotNameOrigin} />
+            </>
+          )}
+        </>
+      )}
+    </ReportSection>
+  );
+}
+
+function ObservationsSection({ pit }: SectionProps) {
+  return (
+    <ReportSection title="Pit Scouter Observations" source="Observed">
+      <BadgeBlock label="Zones Verified?" value={capitalizeSelector(pit.scoringZonesVerified)} />
+      <BadgeBlock label="Vision Verified?" value={capitalizeSelector(pit.hasVisionTracking)} />
+      <InfoBlock label="Scoring Aids Observed" value={capitalizeSelector(pit.scoringAids)} />
+      <BadgeBlock label="Scoring Aids Verified?" value={capitalizeSelector(pit.scoringAidsVerified)} />
+      <BadgeBlock label="Jank or Tippy?" value={capitalizeSelector(pit.robotJankOrTippy)} />
+      <InfoBlock label="Red Flags" value={capitalizeSelector(pit.redFlags)} highlight={!!pit.redFlags} />
+      <InfoBlock label="Extra Comments" value={capitalizeSelector(pit.extraComments)} wide />
+    </ReportSection>
+  );
+}
+
+function LegacySection({ pit, hasLegacy }: SectionProps & { hasLegacy: boolean }) {
+  if (!hasLegacy) return null;
+  return (
+    <ReportSection title="Legacy Data" source="Legacy">
+      {pit.qualStrategy && <InfoBlock label="Qual Strategy" value={pit.qualStrategy} />}
+      {pit.playoffStrategy && <InfoBlock label="Playoff Strategy" value={pit.playoffStrategy} />}
+      {pit.robotUnique && <InfoBlock label="Robot Uniqueness" value={pit.robotUnique} />}
+      {pit.teamUnique && <InfoBlock label="Team Uniqueness" value={pit.teamUnique} />}
+      {pit.idealAlliance && <InfoBlock label="Dream Alliance" value={pit.idealAlliance} highlight />}
+    </ReportSection>
   );
 }

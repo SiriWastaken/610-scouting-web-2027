@@ -46,7 +46,27 @@ interface OpsContextValue {
 }
 
 const OpsContext = createContext<OpsContextValue | null>(null);
-export const POLL_MS = 15_000;
+const POLL_MS = 15_000;
+
+/** Calls `tick` when the tab becomes visible and every POLL_MS while it stays visible. */
+function useVisiblePolling(tick: () => Promise<void>, enabled: boolean) {
+  useEffect(() => {
+    if (!enabled) return;
+    const first = setTimeout(() => void tick(), 0);
+    const timer = setInterval(() => { if (document.visibilityState === "visible") void tick(); }, POLL_MS);
+    const onVisible = () => { if (document.visibilityState === "visible") void tick(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { clearTimeout(first); clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };
+  }, [enabled, tick]);
+}
+
+async function readOverview(response: Response): Promise<Overview> {
+  const body = await response.json().catch(() => null) as (Overview & { message?: string }) | null;
+  if (!response.ok || !body) throw new Error(body?.message ?? `The API answered HTTP ${response.status}`);
+  return body;
+}
+
+const describeFailure = (reason: unknown) => reason instanceof Error && reason.message !== "Failed to fetch" ? reason.message : "The API did not answer. The server may be down or unreachable from this device.";
 
 /**
  * One overview request for the whole admin area, every 15 s while the tab is
@@ -70,29 +90,20 @@ export function OpsProvider({ enabled, children }: { enabled: boolean; children:
       const response = await fetch("/api/admin/overview", { cache: "no-store" });
       setClientLatencyMs(Math.round(performance.now() - started));
       if (response.status === 401) { router.replace(`/welcome?reason=expired&next=${encodeURIComponent(window.location.pathname)}`); return; }
-      const body = await response.json().catch(() => null) as (Overview & { message?: string }) | null;
-      if (!response.ok || !body) throw new Error(body?.message ?? `The API answered HTTP ${response.status}`);
-      setData(body); setError(null); setUpdatedAt(Date.now());
+      setData(await readOverview(response)); setError(null); setUpdatedAt(Date.now());
     } catch (reason) {
       setClientLatencyMs(null);
-      setError(reason instanceof Error && reason.message !== "Failed to fetch" ? reason.message : "The API did not answer. The server may be down or unreachable from this device.");
+      setError(describeFailure(reason));
     } finally { inFlight.current = false; setLoading(false); }
   }, [enabled, router]);
-
-  useEffect(() => {
-    if (!enabled) return;
-    const first = setTimeout(() => void refresh(), 0);
-    const timer = setInterval(() => { if (document.visibilityState === "visible") void refresh(); }, POLL_MS);
-    const onVisible = () => { if (document.visibilityState === "visible") void refresh(); };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => { clearTimeout(first); clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };
-  }, [enabled, refresh]);
+  useVisiblePolling(refresh, enabled);
 
   const replace = useCallback((overview: Overview) => { setData(overview); setError(null); setUpdatedAt(Date.now()); }, []);
   const value = useMemo(() => ({ data, error, loading, updatedAt, clientLatencyMs, refresh, replace }), [data, error, loading, updatedAt, clientLatencyMs, refresh, replace]);
   return <OpsContext.Provider value={value}>{children}</OpsContext.Provider>;
 }
 
+/** The shared overview data for the admin area. Throws if used outside OpsProvider. */
 export function useOps(): OpsContextValue {
   const value = useContext(OpsContext);
   if (!value) throw new Error("useOps must be used inside OpsProvider");

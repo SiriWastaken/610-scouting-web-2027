@@ -47,3 +47,6 @@ next-env.d.ts
 
 # test bench results
 /.test-bench
+
+# JetBrains IDE settings
+.idea/

@@ -1,41 +1,37 @@
+// The panel for one scouted match: scout, position, fuel scored, climb and notes.
 'use client';
 
+import type { ReactNode } from 'react';
 import { labelClass } from '@/components/ui/kit';
-import type { MatchData } from '@/lib/data/team-documents';
+import type { Match } from '@/lib/domain/match';
 import { AllianceTag, Section } from './primitives';
 
-export function MatchDetails({ match }: { match: MatchData }) {
-  const climb = match.teleop?.L3hang ? 'L3' : match.teleop?.L2hang ? 'L2' : match.teleop?.L1hang ? 'L1' : '-';
+function Fact({ label, labelTone = '', big = false, children }: { label: string; labelTone?: string; big?: boolean; children: ReactNode }) {
+  return (
+    <div className="bg-surface px-4 py-3 sm:px-5">
+      <dt className={`${labelClass} ${labelTone}`}>{label}</dt>
+      <dd className={big ? 'mt-0.5 text-[28px] font-semibold leading-8 tracking-[-0.01em] text-ink' : 'mt-1 text-sm font-medium text-ink'}>{children}</dd>
+    </div>
+  );
+}
+
+/** One match's facts: scout, position, fuel, climb and notes. */
+export function MatchDetails({ match }: { match: Match }) {
+  const { start, teleop } = match;
 
   return (
-    <Section
-      title={`Match ${match.start?.match ?? 'N/A'}`}
-     
-      aside={<AllianceTag alliance={match.start?.alliance} />}
-    >
+    <Section title={`Match ${start?.match ?? 'N/A'}`} aside={<AllianceTag alliance={start?.alliance} />}>
       <dl className="grid grid-cols-2 gap-px bg-line">
-        <div className="bg-surface px-4 py-3 sm:px-5">
-          <dt className={labelClass}>Scout</dt>
-          <dd className="mt-1 truncate text-sm font-medium text-ink">{match.start?.scoutName || 'Unknown'}</dd>
-        </div>
-        <div className="bg-surface px-4 py-3 sm:px-5">
-          <dt className={labelClass}>Position</dt>
-          <dd className="mt-1 text-sm font-medium text-ink">{match.start?.position?.toUpperCase() || 'Unknown'}</dd>
-        </div>
-        <div className="bg-surface px-4 py-3 sm:px-5">
-          <dt className={`${labelClass} !text-teleop`}>Fuel scored</dt>
-          <dd className="mt-0.5 text-[28px] font-semibold leading-8 tracking-[-0.01em] text-ink">{match.teleop?.fuelscored ?? 0}</dd>
-        </div>
-        <div className="bg-surface px-4 py-3 sm:px-5">
-          <dt className={`${labelClass} !text-endgame`}>Climb</dt>
-          <dd className="mt-0.5 text-[28px] font-semibold leading-8 tracking-[-0.01em] text-ink">{climb}</dd>
-        </div>
+        <Fact label="Scout"><span className="block truncate">{start?.scoutName || 'Unknown'}</span></Fact>
+        <Fact label="Position">{start?.position?.toUpperCase() || 'Unknown'}</Fact>
+        <Fact label="Fuel scored" labelTone="!text-teleop" big>{teleop?.fuelscored ?? 0}</Fact>
+        <Fact label="Climb" labelTone="!text-endgame" big>{match.climbLevel}</Fact>
       </dl>
 
       <div className="border-t border-line px-4 py-3 sm:px-5">
         <p className={labelClass}>Match notes</p>
-        <p className={`mt-1 text-sm leading-6 ${match.teleop?.general ? 'text-ink' : 'text-muted'}`}>
-          {match.teleop?.general || 'The scout left no notes for this match.'}
+        <p className={`mt-1 text-sm leading-6 ${teleop?.general ? 'text-ink' : 'text-muted'}`}>
+          {teleop?.general || 'The scout left no notes for this match.'}
         </p>
       </div>
     </Section>

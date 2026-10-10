@@ -1,3 +1,6 @@
+// Reads the scouting database's connection settings (COUCHBASE_*) from the environment and builds the changes-feed
+// URL and Authorization header from them. Server-only values; never sent to a browser.
+/** Connection details for the scouting database on Sync Gateway. */
 export interface CouchbaseConnectionConfig {
   baseUrl: string;
   database: string;
@@ -7,6 +10,7 @@ export interface CouchbaseConnectionConfig {
   collection: string;
 }
 
+/** The scouting database settings, or null when any of the four required variables is missing or empty. */
 export function readCouchbaseConfig(env: NodeJS.ProcessEnv = process.env): CouchbaseConnectionConfig | null {
   // Keep Couchbase connection details on the server. `.env.local` is ignored
   // by Git; production should set these same names in the hosting environment.
@@ -25,6 +29,7 @@ export function readCouchbaseConfig(env: NodeJS.ProcessEnv = process.env): Couch
   };
 }
 
+/** The changes-feed URL (http/https, database name encoded) and Basic auth header, or null when unconfigured. */
 export function getCouchbaseChangesConfig(config = readCouchbaseConfig()): { url: string; authorization: string } | null {
   if (!config) return null;
   return {

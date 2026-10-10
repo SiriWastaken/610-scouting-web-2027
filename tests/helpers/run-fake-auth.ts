@@ -1,6 +1,6 @@
 // Starts a fake account store and fake Google provider for trying
 // sign-in locally without real OAuth credentials, and prints the AUTH_*
-// variables to put in .env.local (see docs/authentication.md, "Local development").
+// variables to put in .env.local (see docs/10-authentication.md, "Local development").
 import { CONFIGURED_OWNER, startTestAuth } from "./auth.ts";
 
 const auth = await startTestAuth({ baseUrl: process.env.AUTH_URL ?? "http://localhost:3000" });

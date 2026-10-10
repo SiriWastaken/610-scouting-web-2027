@@ -22,7 +22,7 @@ section("Configuration");
 const result = readAuthConfig();
 if (!result.ok) {
   for (const problem of result.problems) bad(problem);
-  console.log("\nSee docs/authentication.md#environment-variables.");
+  console.log("\nSee docs/10-authentication.md#environment-variables.");
   process.exit(1);
 }
 const { config } = result;

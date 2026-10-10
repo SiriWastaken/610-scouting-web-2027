@@ -1,0 +1,104 @@
+610 SCOUTING WEB — PROPRIETARY SOURCE-AVAILABLE LICENSE
+Version 1.0 — all rights reserved
+
+Copyright (c) 2026 FIRST Robotics Competition Team 610 ("Team 610").
+All rights reserved.
+
+NOTE TO THE TEAM (delete this paragraph once reviewed): this text was drafted by an AI assistant to express the
+team's intent. It is not legal advice. Have a lawyer, or the school or organisation that sponsors Team 610,
+review it before relying on it, and fill in the two bracketed items near the end (governing law, contact).
+
+-------------------------------------------------------------------------------------------------------------
+
+1. WHAT THIS IS
+
+"The Software" means everything in this repository: source code, tests, scripts, configuration, design tokens,
+documentation (including everything in docs/), text, and any other material, in any form, together with any copy
+or part of it. The Software is the confidential and proprietary intellectual property of Team 610.
+
+The Software is NOT open source. Nothing in this license, in the repository's visibility on any website, or in
+any other conduct of Team 610 grants you rights that are not written in this license.
+
+2. WHO MAY USE IT, AND HOW
+
+2.1  Team members. Current members and mentors of Team 610, while they are members, may use, run and modify the
+     Software on devices and accounts controlled by the team, solely for Team 610's scouting and strategy work
+     and for the team's own training of its members.
+
+2.2  Reading for education. Anyone else who lawfully has access to the Software may read it, in place, for their
+     own private education. This permission covers reading and learning from it. It does not cover anything
+     listed in section 3.
+
+2.3  Nothing else. Every right not granted in 2.1 or 2.2 is reserved by Team 610.
+
+3. WHAT YOU MAY NOT DO
+
+Unless Team 610 has given you written permission signed by a mentor or officer of the team, you may not:
+
+ (a) copy, reproduce, download for retention, mirror, fork, clone for any purpose other than reading under 2.2,
+     or archive the Software, in whole or in part;
+ (b) modify it, translate it, adapt it, port it to another language or framework, or create derivative works,
+     including works that closely follow its structure, design, algorithms, data model or documentation;
+ (c) distribute, publish, sublicense, sell, rent, lend, host or make it available to any third party, including
+     as a service;
+ (d) run it for any team, event, organisation or purpose other than those in 2.1;
+ (e) use it, or any part of it, to train, fine-tune, evaluate or prompt a machine-learning or AI model, or to
+     build a dataset for one, except that members of Team 610 may use AI coding assistants on the Software
+     while working on it for the team, and that does not allow the assistant's provider to retain or train on it
+     beyond what the team's agreement with that provider already allows;
+ (f) remove, hide or alter any copyright, license or ownership notice;
+ (g) use Team 610's name, number, logos or the names of its members to suggest endorsement of anything else;
+ (h) try to extract, discover or publish any secret, credential, private data or non-public design it contains.
+
+4. CONTRIBUTIONS
+
+A person who contributes code, text or design to the Software (a "Contribution") does so as a member of Team 610
+and, by contributing, assigns to Team 610 all of their copyright in the Contribution, to the extent the law
+allows, and otherwise grants Team 610 an exclusive, perpetual, worldwide, irrevocable, royalty-free license to use
+it for any purpose. A contributor keeps the right to describe their own role and general skills. Contributors
+who are minors confirm that a parent or guardian has agreed to this section where the law requires it.
+
+5. THIRD-PARTY COMPONENTS
+
+The Software depends on third-party packages (for example Next.js, React, Tailwind CSS, Lucide, ws, and the
+fonts and tools listed in package.json and package-lock.json). Those packages are NOT covered by this license and
+remain under their own licenses. This license applies only to Team 610's own work. Nothing here restricts what
+you may do with those packages obtained from their own sources under their own terms.
+
+6. DATA
+
+Scouting data processed by the Software belongs to the people and teams who collected it and is governed by the
+team's own data practices. This license does not grant any right to that data.
+
+7. NO AFFILIATION
+
+Team 610 is a team that takes part in the FIRST Robotics Competition. "FIRST" and "FIRST Robotics Competition"
+are trademarks of For Inspiration and Recognition of Science and Technology (FIRST). This Software is made by
+Team 610, is not made, endorsed or sponsored by FIRST, and does not transfer or claim any FIRST intellectual
+property. "The Blue Alliance" and other names belong to their owners.
+
+8. NO WARRANTY, LIMIT OF LIABILITY
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING FITNESS FOR A
+PARTICULAR PURPOSE AND NON-INFRINGEMENT. TO THE FULLEST EXTENT THE LAW ALLOWS, TEAM 610 AND ITS MEMBERS, MENTORS
+AND SPONSORS ARE NOT LIABLE FOR ANY CLAIM OR DAMAGE ARISING FROM THE SOFTWARE OR ITS USE.
+
+9. TERMINATION
+
+Your permissions end automatically if you break this license, and for team members when they stop being members.
+On termination you must stop using the Software and delete every copy you hold. Sections 3 to 5 and 7 to 11
+survive termination.
+
+10. GOVERNING LAW
+
+This license is governed by the laws of [JURISDICTION — to be filled in by the team's sponsor], without regard to
+conflict-of-law rules. Any dispute is for the courts of that place.
+
+11. CONTACT AND PERMISSION REQUESTS
+
+To ask for permission to do something this license does not allow, write to: [CONTACT — a team email address].
+
+12. IF PART OF THIS IS UNENFORCEABLE
+
+If a court finds any part of this license unenforceable, that part is limited to the smallest extent necessary
+and the rest stays in force.

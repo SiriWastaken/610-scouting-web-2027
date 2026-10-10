@@ -10,6 +10,10 @@ import type { Principal } from "./roles.ts";
 import type { AccountStore } from "./store.ts";
 import { authMetrics } from "../ops/metrics.ts";
 
+/**
+ * A sign-in session as stored. The browser holds a secret token; only a hash of it appears in this 
+ * document's id.
+ */
 export interface SessionDoc {
   type: "auth_session";
   userId: string;
@@ -21,6 +25,9 @@ export interface SessionDoc {
   device?: string;
 }
 
+/**
+ * A signed-in person for one request: the account, their principal (role and status), and the session.
+ */
 export interface Viewer {
   userId: string;
   user: UserDoc;
@@ -28,7 +35,9 @@ export interface Viewer {
   session: { id: string; provider: ProviderId; createdAt: string; expiresAt: string; idleExpiresAt: string; lastSeenAt: string; device?: string };
 }
 
+/** Prefix of session document ids. */
 export const SESSION_PREFIX = "session_";
+/** The session cookie's name; the '__Host-' form is used when cookies are secure. */
 export const sessionCookieName = (config: Pick<AuthConfig, "secureCookies">) => (config.secureCookies ? "__Host-610_session" : "610_session");
 
 const TOUCH_INTERVAL_MS = 5 * 60_000;
@@ -43,6 +52,10 @@ function parseToken(token: string | undefined | null): { userId: string; secret:
   return { userId, secret };
 }
 
+/**
+ * A short device description such as 'Chrome on macOS' from a User-Agent, for the devices list. 
+ * 'Unknown device' when nothing is recognised, undefined when there is no User-Agent.
+ */
 export function describeDevice(userAgent: string | null | undefined): string | undefined {
   if (!userAgent) return undefined;
   const browser = /Edg\//.test(userAgent) ? "Edge" : /Firefox\//.test(userAgent) ? "Firefox" : /Chrome\//.test(userAgent) ? "Chrome" : /Safari\//.test(userAgent) ? "Safari" : undefined;
@@ -60,6 +73,7 @@ export function invalidateUserSessions(userId: string) {
   for (const [key, entry] of cache()) if (entry.viewer.userId === userId) cache().delete(key);
 }
 
+/** Stores a new session and returns the token to put in the cookie and when it expires. */
 export async function createSession(store: AccountStore, config: AuthConfig, userId: string, provider: ProviderId, userAgent?: string | null): Promise<{ token: string; expiresAt: Date }> {
   const secret = randomToken(32);
   const now = Date.now();
@@ -72,6 +86,7 @@ export async function createSession(store: AccountStore, config: AuthConfig, use
   return { token: `${userId}.${secret}`, expiresAt };
 }
 
+/** The outcome of checking a session token: the viewer, or the reason it is not valid. */
 export type SessionCheck = { ok: true; viewer: Viewer } | { ok: false; reason: "missing" | "malformed" | "unknown" | "expired" | "disabled" };
 
 /**
@@ -88,29 +103,14 @@ export async function validateSession(store: AccountStore, config: AuthConfig, t
   if (cached && now - cached.cachedAt < CACHE_MS && Date.parse(cached.viewer.session.expiresAt) > now && Date.parse(cached.viewer.session.idleExpiresAt) > now) return { ok: true, viewer: cached.viewer };
 
   const session = await store.get<SessionDoc>(id);
-  if (!session || session.body.type !== "auth_session" || session.body.userId !== parsed.userId) { cache().delete(id); authMetrics.sessionRejected(); return { ok: false, reason: "unknown" }; }
-  const idleExpiresAt = Date.parse(session.body.lastSeenAt) + config.sessionIdleMs;
-  if (Date.parse(session.body.expiresAt) <= now || idleExpiresAt <= now) {
-    cache().delete(id); authMetrics.sessionRejected();
-    await store.remove(id, session.rev).catch(() => {});
-    return { ok: false, reason: "expired" };
-  }
+  if (!session || session.body.type !== "auth_session" || session.body.userId !== parsed.userId) return reject(store, id, "unknown");
+  if (Date.parse(session.body.expiresAt) <= now || Date.parse(session.body.lastSeenAt) + config.sessionIdleMs <= now) return reject(store, id, "expired", session.rev);
   const user = await getUser(store, parsed.userId);
-  if (!user) { cache().delete(id); authMetrics.sessionRejected(); return { ok: false, reason: "unknown" }; }
+  if (!user) return reject(store, id, "unknown");
   const principal = principalFor(config, parsed.userId, user.body);
-  if (principal.status === "disabled") {
-    cache().delete(id); authMetrics.sessionRejected();
-    await store.remove(id, session.rev).catch(() => {});
-    return { ok: false, reason: "disabled" };
-  }
+  if (principal.status === "disabled") return reject(store, id, "disabled", session.rev);
 
-  let lastSeenAt = session.body.lastSeenAt;
-  let rev = session.rev;
-  if (now - Date.parse(lastSeenAt) > TOUCH_INTERVAL_MS) {
-    // Sliding idle expiry. A concurrent touch from another tab is harmless, so conflicts are ignored.
-    const touched = { ...session.body, lastSeenAt: new Date(now).toISOString() };
-    try { rev = await store.update(id, session.rev, touched); lastSeenAt = touched.lastSeenAt; } catch { /* keep the old value */ }
-  }
+  const { lastSeenAt, rev } = await touchSession(store, id, session, now);
   const viewer: Viewer = {
     userId: parsed.userId, user: user.body, principal,
     session: { id, provider: session.body.provider, createdAt: session.body.createdAt, expiresAt: session.body.expiresAt, idleExpiresAt: new Date(Date.parse(lastSeenAt) + config.sessionIdleMs).toISOString(), lastSeenAt, device: session.body.device },
@@ -118,6 +118,22 @@ export async function validateSession(store: AccountStore, config: AuthConfig, t
   cache().set(id, { viewer, rev, cachedAt: now });
   if (cache().size > 5000) cache().clear();
   return { ok: true, viewer };
+}
+
+/** Forgets a session that failed validation; `rev` also deletes it from the store (best effort). */
+async function reject(store: AccountStore, id: string, reason: Extract<SessionCheck, { ok: false }>["reason"], rev?: string): Promise<SessionCheck> {
+  cache().delete(id);
+  authMetrics.sessionRejected();
+  if (rev !== undefined) await store.remove(id, rev).catch(() => {});
+  return { ok: false, reason };
+}
+
+/** Sliding idle expiry. A concurrent touch from another tab is harmless, so conflicts are ignored. */
+async function touchSession(store: AccountStore, id: string, session: { body: SessionDoc; rev: string }, now: number) {
+  if (now - Date.parse(session.body.lastSeenAt) <= TOUCH_INTERVAL_MS) return { lastSeenAt: session.body.lastSeenAt, rev: session.rev };
+  const touched = { ...session.body, lastSeenAt: new Date(now).toISOString() };
+  try { return { lastSeenAt: touched.lastSeenAt, rev: await store.update(id, session.rev, touched) }; }
+  catch { return { lastSeenAt: session.body.lastSeenAt, rev: session.rev }; }
 }
 
 /** Ends one session (sign-out). Returns false when it was already gone. */
@@ -130,6 +146,7 @@ export async function revokeSession(store: AccountStore, token: string | undefin
   return session ? store.remove(id, session.rev).catch(() => false) : false;
 }
 
+/** Every stored session of an account. */
 export async function listUserSessions(store: AccountStore, userId: string): Promise<Array<{ id: string; rev: string; session: SessionDoc }>> {
   if (!isUserId(userId)) return [];
   return (await store.list<SessionDoc>(`${SESSION_PREFIX}${userId}_`)).flatMap((doc) => doc.body?.type === "auth_session" ? [{ id: doc.id, rev: doc.rev, session: doc.body }] : []);
@@ -147,7 +164,7 @@ export async function revokeUserSessions(store: AccountStore, userId: string, op
 }
 
 /** Deletes sessions that can no longer be used, so the store does not grow without bound. */
-export async function pruneExpiredSessions(store: AccountStore, config: AuthConfig, userId: string, now = Date.now()) {
+async function pruneExpiredSessions(store: AccountStore, config: AuthConfig, userId: string, now = Date.now()) {
   for (const { id, rev, session } of await listUserSessions(store, userId)) {
     if (Date.parse(session.expiresAt) <= now || Date.parse(session.lastSeenAt) + config.sessionIdleMs <= now) await store.remove(id, rev).catch(() => {});
   }

@@ -1,15 +1,18 @@
 # 610 Scouting Web
 
+> **Proprietary.** Copyright (c) 2026 FIRST Robotics Competition Team 610. All rights reserved. This is not open-source software: you may read it to learn, and team members may use it for the team; copying, modifying, redistributing, hosting or using it to train AI models is not allowed. See [LICENSE](LICENSE) and [the ownership chapter](docs/20-ownership-and-license.md).
+
 Next.js web platform for Team 610 scouting analysis. The Teams, Averages, and Box Plot pages read aggregate data from Couchbase through the server-only repository at `services/couchbase.ts`.
 
 Everyone signs in with Google first, and anyone Google lets through is in straight away; managers can deny access afterwards. The server enforces five roles: **Owner** (set in configuration; everything, including names), **Mentor**, **Scout lead**, **Scout**, and **Member**. Mentors and the Owner get an operations panel for system health, realtime, sync, users, and the audit log.
 
 | Guide | What's in it |
 |---|---|
-| [docs/index.md](docs/index.md) | Start here: reading order and every page below |
-| [docs/authentication.md](docs/authentication.md) | Sign-in setup (Google, the account store), environment variables, roles and permissions, sessions, account management, audit log, security, local development, troubleshooting |
-| [docs/operations.md](docs/operations.md) | The admin panel: health checks, WebSocket and sync monitoring, API metrics, diagnostics, limitations, event-day troubleshooting |
-| [docs/architecture.md](docs/architecture.md), [data-model.md](docs/data-model.md), [realtime.md](docs/realtime.md), [pages.md](docs/pages.md), [design-system.md](docs/design-system.md), [development.md](docs/development.md) | How the app is built and how to change it |
+| [docs/00-preface.md](docs/00-preface.md) | **Start here.** The docs are a numbered book (00 Preface to 23 Log): chapters on how we scout and work, each followed by its reference page |
+| [docs/10-authentication.md](docs/10-authentication.md) | Sign-in setup (Google, the account store), environment variables, roles and permissions, sessions, account management, audit log, security, local development, troubleshooting |
+| [docs/16-operations.md](docs/16-operations.md) | The admin panel: health checks, WebSocket and sync monitoring, API metrics, diagnostics, limitations, event-day troubleshooting |
+| [04 architecture](docs/04-architecture.md), [05 data model](docs/05-data-model.md), [12 realtime](docs/12-realtime.md), [13 pages](docs/13-pages.md), [design-system.md](docs/14-design-system.md), [development.md](docs/18-development.md) | How the app is built and how to change it |
+| [docs/08-configuration.md](docs/08-configuration.md) | `app.config.ts`: change the team, pages, columns, thresholds or storage backend |
 | [tests/README.md](tests/README.md) | The test bench |
 
 ## Project map
@@ -26,7 +29,7 @@ requires (one folder per URL); everything else is grouped by topic.
 | `app/(app)/layout.tsx` | Everything behind sign-in: the sidebar shell and the signed-in user |
 | `app/(app)/page.tsx` | `/` sends you to Teams |
 | `app/(app)/teams/page.tsx`, `teams/[teamNumber]/page.tsx` | Teams list and one team |
-| `app/(app)/averages/page.tsx`, `box-plot/page.tsx`, `strategy/page.tsx`, `coverage/page.tsx` | The other dashboard tabs |
+| `app/(app)/averages/page.tsx`, `box-plot/page.tsx`, `strategy/page.tsx`, `coverage/page.tsx` | The other dashboard tabs (each is a few lines on top of `LivePage`) |
 | `app/(app)/account/page.tsx` | Your account |
 | `app/(app)/admin/layout.tsx` | The admin area's header, tabs, and access check |
 | `app/(app)/admin/**/page.tsx` | One file per admin tab (overview, realtime, sync, api, users, users/[id], audit, diagnostics) |
@@ -51,6 +54,7 @@ requires (one folder per URL); everything else is grouped by topic.
 | `layout/app-shell.tsx`, `layout/nav-links.tsx` | The sidebar and its tab links |
 | `dashboard/teams-view.tsx`, `dashboard/teams/*` | The Teams tab: state and layout, plus one file per panel (match log, auto path, pit report, cards) |
 | `dashboard/team-detail.tsx`, `metric-board.tsx`, `coverage.tsx`, `strategy-tools.tsx` | One team, the Averages/Box Plot board, Coverage, Strategy |
+| `dashboard/live-page.tsx` | The shared body of every dashboard page: access, snapshot, header from `app.config.ts`, live badge |
 | `dashboard/live-status.tsx` | The "Live updates on" bar that keeps a page connected |
 | `auth/identity.tsx` | Avatars, the Google icon, role and status badges |
 | `auth/session.tsx` | The signed-in user in the browser, and the account chip with sign-out |
@@ -81,13 +85,17 @@ requires (one folder per URL); everything else is grouped by topic.
 | `lib/realtime/server.ts`, `bridge.ts`, `couchbase-feed.ts` | The WebSocket server: upgrade checks, per-connection relay, Sync Gateway long-poll |
 | `lib/data/couchbase-config.ts` | Couchbase connection settings |
 | `lib/data/aggregates.ts`, `match-data.ts`, `team-documents.ts` | Turning scouting documents into team rows and match rows, and the Teams page's document helpers |
-| `lib/data/team-stats.ts` | Missing-vs-zero, outliers, and number formatting for comparisons |
+| `lib/data/team-stats.ts` | Number helpers for comparisons: median, outliers, who leads, formatting |
+| `lib/domain/*` | The object model: `ScoutingEvent` → `Team` → `Match` / `PitInterview`, and `Alliance` ([docs 06 - The objects](docs/06-the-objects.md)) |
 | `lib/ops/metrics.ts` | Counters for the admin panel (connections, requests, errors) |
-| `services/couchbase.ts` | Reading scouting data from Sync Gateway (with a 20 s cache) and Sync Gateway health probes |
+| `services/scouting-store.ts` | The interface the pages read scouting data through; the backend is chosen in `app.config.ts` |
+| `services/couchbase.ts` | The Sync Gateway implementation: reads with a 20 s cache, and health probes |
 | `services/health.ts` | The admin panel's health checks |
-| `tba/blueAlliance.ts` | The Blue Alliance API client (team nicknames on the Teams page, when `TBA_API_KEY` is set) |
+| `services/blue-alliance.ts` | The Blue Alliance API client (team nicknames on the Teams page, when `TBA_API_KEY` is set) |
 | `types/scouting.ts` | Shared scouting data types |
 | `public/field.png` | The field diagram behind the auto path |
+| `app.config.ts` | **The one file that describes this deployment**: team, pages, Averages columns, analysis thresholds, backend |
+| `LICENSE` | Proprietary, all rights reserved ([docs 20 - Ownership and license](docs/20-ownership-and-license.md)) |
 | `proxy.ts` | Sends signed-out visitors to the sign-in page (pages re-check for real) |
 | `instrumentation.ts` | Records server errors for the admin panel |
 | `next.config.ts` | Build info and security headers |
@@ -98,7 +106,7 @@ requires (one folder per URL); everything else is grouped by topic.
 |---|---|
 | `scripts/server.mjs` | The Node server `npm run dev` / `npm start` run (Next.js plus WebSockets) |
 | `scripts/check-auth.mjs` | `npm run auth:check`: diagnose sign-in setup |
-| `scripts/test-bench/*` | The test runner, its manifest of required tests and coverage floors, and hygiene checks |
+| `scripts/test-bench/*` | The test runner, its manifest of required tests and coverage floors, hygiene, documentation-coverage and function-length checks |
 | `scripts/test-infra/*` | Start/stop a real Couchbase + Sync Gateway in Docker for tests |
 | `tests/` | The test suites; each folder's README lists its files ([tests/README.md](tests/README.md)) |
 | `.env.example` | Every setting, with placeholders; copy to `.env.local` |
@@ -114,7 +122,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Configuration
 
-Copy `.env.example` to `.env.local` (ignored by Git) and fill it in. Sign-in needs the `AUTH_*` variables and a separate Sync Gateway database for accounts; see [docs/authentication.md](docs/authentication.md#setup). Without them, every page shows the welcome screen with "Sign-in isn't configured".
+Copy `.env.example` to `.env.local` (ignored by Git) and fill it in. Sign-in needs the `AUTH_*` variables and a separate Sync Gateway database for accounts; see [docs/10-authentication.md](docs/10-authentication.md#setup). Without them, every page shows the welcome screen with "Sign-in isn't configured".
 
 ### Couchbase
 
@@ -157,4 +165,4 @@ npm run validate                  # the full bench: adds contract, stress, build
 
 CI runs all of it on every pull request into `main`, plus the contract and browser suites against a real Couchbase Server + Sync Gateway in Docker.
 
-To try the app by hand without real credentials or data, see [Local development](docs/authentication.md#local-development) (a fake account store and fake Google sign-in). To try live updates, start the fake Sync Gateway with `FAKE_SG_PORT=4985 node --experimental-strip-types tests/helpers/run-fake-sync-gateway.ts`, point the `COUCHBASE_*` variables at it (`http://127.0.0.1:4985`, database `scouting`, user `dashboard-reader`, password `fake-sg-secret-7f3a91c2`), and write documents with `PUT http://127.0.0.1:4985/scouting/<id>` (updates need `?rev=<current revision>`).
+To try the app by hand without real credentials or data, see [Local development](docs/10-authentication.md#local-development) (a fake account store and fake Google sign-in). To try live updates, start the fake Sync Gateway with `FAKE_SG_PORT=4985 node --experimental-strip-types tests/helpers/run-fake-sync-gateway.ts`, point the `COUCHBASE_*` variables at it (`http://127.0.0.1:4985`, database `scouting`, user `dashboard-reader`, password `fake-sg-secret-7f3a91c2`), and write documents with `PUT http://127.0.0.1:4985/scouting/<id>` (updates need `?rev=<current revision>`).

@@ -1,6 +1,6 @@
 // Every protected API route, called directly (no UI), by every kind of caller.
 // Expected statuses are written out by hand from the role model in
-// docs/authentication.md. The server's decision depends only on the session
+// docs/10-authentication.md. The server's decision depends only on the session
 // cookie: forged roles in headers, cookies, or bodies change nothing.
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";

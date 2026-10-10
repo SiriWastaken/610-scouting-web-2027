@@ -1,3 +1,4 @@
+// POST /api/auth/signout — ends this browser's session. POST and same-origin only.
 import { recordAudit } from "@/lib/auth/audit";
 import { clearCookie, json, jsonError } from "@/lib/auth/requests";
 import { authRuntime, authenticateCookieHeader, isTrustedOrigin } from "@/lib/auth/requests";

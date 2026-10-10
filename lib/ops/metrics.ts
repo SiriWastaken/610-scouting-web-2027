@@ -6,14 +6,14 @@
 // Next.js route handlers (bundled) load separate copies of this module in the
 // same process; a module-level variable would split the numbers between them.
 // Numbers are per server process: on a platform that runs several instances
-// each instance reports its own (see docs/operations.md).
+// each instance reports its own (see docs/16-operations.md).
 
 const RING = { events: 200, errors: 50, durations: 200, latencies: 500 };
 const RECONNECT_WINDOW_MS = 60_000;
 
-export interface RealtimeEvent { at: number; type: string; connection?: number; detail?: string }
-export interface ErrorEntry { at: number; source: string; message: string; path?: string }
-export interface ActiveConnection { id: number; openedAt: number; userId?: string; role?: string; subscribedAt?: number; since?: string; framesSent: number; changesSent: number; lastFrameAt?: number }
+interface RealtimeEvent { at: number; type: string; connection?: number; detail?: string }
+interface ErrorEntry { at: number; source: string; message: string; path?: string }
+interface ActiveConnection { id: number; openedAt: number; userId?: string; role?: string; subscribedAt?: number; since?: string; framesSent: number; changesSent: number; lastFrameAt?: number }
 
 interface Registry {
   startedAt: number;
@@ -54,7 +54,7 @@ function fresh(): Registry {
   };
 }
 
-export function registry(): Registry {
+function registry(): Registry {
   const holder = globalThis as GlobalWithRegistry;
   return (holder[KEY] ??= fresh());
 }
@@ -74,6 +74,7 @@ export function scrub(message: unknown): string {
     .slice(0, 300);
 }
 
+/** Remembers a server error for the admin panel (message scrubbed of secrets). */
 export function recordError(source: string, error: unknown, path?: string) {
   push(registry().errors, { at: Date.now(), source, message: scrub(error), ...(path ? { path: path.slice(0, 200) } : {}) }, RING.errors);
 }
@@ -84,6 +85,7 @@ function realtimeEvent(type: string, connection?: number, detail?: string) {
   push(registry().realtime.events, { at: Date.now(), type, ...(connection ? { connection } : {}), ...(detail ? { detail: scrub(detail) } : {}) }, RING.events);
 }
 
+/** Counters and a recent-events log for WebSocket connections. Per server process. */
 export const realtimeMetrics = {
   rejected(reason: keyof Registry["realtime"]["rejected"]) {
     registry().realtime.rejected[reason] += 1;
@@ -170,6 +172,7 @@ export function routeKey(path: string): string {
     .slice(0, 80);
 }
 
+/** Counts one HTTP request by route class and status, and its latency. */
 export function recordHttpRequest(method: string, path: string, status: number, durationMs: number) {
   const http = registry().http;
   http.measured = true;
@@ -193,6 +196,7 @@ export const authMetrics = {
   sessionRejected() { registry().auth.sessionRejections += 1; },
 };
 
+/** Records the outcome of a server snapshot fetch. */
 export function recordSnapshot(result: { ok: true; durationMs: number; documents: number; byKind: Record<string, number>; lastSeq: unknown } | { ok: false; error: unknown }) {
   const snapshot = registry().snapshot;
   snapshot.fetches += 1;
@@ -205,6 +209,7 @@ export function recordSnapshot(result: { ok: true; durationMs: number; documents
   }
 }
 
+/** Records the outcome and latency of an account-store request. */
 export function recordStoreRequest(ok: boolean, latencyMs: number, error?: unknown) {
   const store = registry().store;
   store.requests += 1; store.lastLatencyMs = latencyMs;
@@ -250,4 +255,5 @@ export function metricsSnapshot(now = Date.now()) {
     errors: [...state.errors].reverse(),
   };
 }
+/** Everything the admin panel shows from counters, as plain data. */
 export type MetricsSnapshot = ReturnType<typeof metricsSnapshot>;

@@ -1,6 +1,9 @@
-import { parseServerMessage } from "./protocol.ts";
+// Browser side of the realtime connection: the connection state machine (connect, back off, resume from the
+// last cursor, resync) and the store of live documents.
+import { parseServerMessage, SESSION_ENDED } from "./protocol.ts";
 import { DocumentStore } from "./documents.ts";
 
+/** Where the browser's connection is: disconnected, connecting, connected or reconnecting. */
 export type RealtimeStatus = "disconnected" | "connecting" | "connected" | "reconnecting";
 
 /** The subset of the browser WebSocket API the client relies on (the `ws` package matches it too). */
@@ -14,6 +17,7 @@ export interface SocketLike {
   addEventListener(type: "error", listener: () => void): void;
 }
 
+/** Timeouts and backoff for the client, and the socket factory (replaceable in tests). */
 export interface RealtimeClientOptions {
   url?: () => string;
   createSocket?: (url: string) => SocketLike;
@@ -29,14 +33,26 @@ const CONNECTING = 0;
 const OPEN = 1;
 /** Sent by the server when it closes a healthy connection on purpose (for example before a platform timeout). */
 const SERVICE_RESTART = 1012;
-/** Sent by the server when the connection's session was revoked or expired (lib/realtime-bridge.ts). Retrying cannot help. */
-const SESSION_ENDED = 4401;
 
 function defaultUrl() {
   const { protocol, host } = globalThis.location;
   return `${protocol === "https:" ? "wss:" : "ws:"}//${host}/api/realtime`;
 }
 
+/** State of one connection attempt; a newer socket makes every older attempt's events ignorable. */
+interface Attempt {
+  socket: SocketLike;
+  ready: boolean;
+  /** The server said it cannot resume from our cursor. */
+  resync: boolean;
+  handshakeTimeout: ReturnType<typeof setTimeout>;
+  readyTimeout: ReturnType<typeof setTimeout> | undefined;
+}
+
+/**
+ * The browser's one realtime connection. One per tab, shared by every component (the `realtime` 
+ * export).
+ */
 export class RealtimeClient {
   readonly store = new DocumentStore();
   private readonly options: Required<RealtimeClientOptions>;
@@ -100,8 +116,7 @@ export class RealtimeClient {
   setSnapshotNames(names: Record<string, string>) {
     if (JSON.stringify(names) === JSON.stringify(this.snapshotNames)) return;
     this.snapshotNames = { ...names };
-    this.version += 1;
-    this.storeListeners.forEach((listener) => listener());
+    this.notifyStore();
   }
 
   getCursor() { return this.cursor; }
@@ -121,83 +136,97 @@ export class RealtimeClient {
   private open() {
     if (this.cursor === undefined) return;
     this.setStatus(this.retryAttempt ? "reconnecting" : "connecting");
-    let next: SocketLike;
-    try { next = this.options.createSocket(this.options.url()); } catch { this.retryAttempt += 1; this.setStatus("reconnecting"); this.scheduleOpen(this.backoffDelay()); return; }
-    this.socket = next;
-    let ready = false;
-    let resync = false;
-    const handshakeTimeout = setTimeout(() => { if (next.readyState === CONNECTING) next.close(4000, "Handshake timed out"); }, this.options.handshakeTimeoutMs);
-    let readyTimeout: ReturnType<typeof setTimeout> | undefined;
-    const armIdle = () => {
-      clearTimeout(this.idleTimer);
-      this.idleTimer = setTimeout(() => { if (this.socket === next) next.close(4002, "Realtime feed went quiet"); }, this.options.idleTimeoutMs);
+    let socket: SocketLike;
+    try { socket = this.options.createSocket(this.options.url()); } catch { this.retryAttempt += 1; this.setStatus("reconnecting"); this.scheduleOpen(this.backoffDelay()); return; }
+    this.socket = socket;
+    const attempt: Attempt = {
+      socket, ready: false, resync: false, readyTimeout: undefined,
+      handshakeTimeout: setTimeout(() => { if (socket.readyState === CONNECTING) socket.close(4000, "Handshake timed out"); }, this.options.handshakeTimeoutMs),
     };
-
-    next.addEventListener("open", () => {
-      clearTimeout(handshakeTimeout);
-      next.send(JSON.stringify({ type: "subscribe", since: this.cursor }));
-      // Browsers only allow close codes 1000 or 3000-4999 from the client side.
-      readyTimeout = setTimeout(() => { if (next.readyState === OPEN && !ready) next.close(4001, "Realtime feed did not become ready"); }, this.options.readyTimeoutMs);
-    });
-    next.addEventListener("message", (event) => {
-      if (this.socket !== next) return;
-      const message = parseServerMessage(typeof event.data === "string" ? event.data : String(event.data));
-      if (!message) { console.warn("Ignoring malformed realtime message"); return; }
-      armIdle();
-      if (message.type === "ready") {
-        ready = true; clearTimeout(readyTimeout);
-        this.retryAttempt = 0;
-        this.setStatus("connected");
-      } else if (message.type === "error") {
-        resync = message.resync;
-      } else {
-        // Advance the cursor only after the change is recorded, so a reconnect
-        // resumes from the last event this client actually processed.
-        if (message.type === "change" && this.store.apply(message)) {
-          this.version += 1;
-          this.storeListeners.forEach((listener) => listener());
-        }
-        this.cursor = message.seq;
-      }
-    });
-    next.addEventListener("close", (event) => {
-      clearTimeout(handshakeTimeout); clearTimeout(readyTimeout);
-      if (this.socket !== next) return;
-      clearTimeout(this.idleTimer);
-      this.socket = null;
-      // A feed outage (1011) closes every retry the same way; warn once, not per attempt.
-      const repeatOutage = event.code === 1011 && this.retryAttempt > 0;
-      if (event.code !== 1000 && event.code !== SERVICE_RESTART && !repeatOutage) {
-        console.warn("Realtime WebSocket closed", { code: event.code, reason: event.reason, wasClean: event.wasClean });
-      }
-      if (event.code === SESSION_ENDED) {
-        // Keep the cursor: after signing in again the page can resume from it.
-        this.setStatus("disconnected");
-        this.sessionEndedListeners.forEach((listener) => listener());
-        return;
-      }
-      if (resync) {
-        // The cursor is unusable; drop everything derived from the feed and let
-        // the page supply a fresh snapshot and cursor.
-        this.cursor = undefined;
-        this.store.clear();
-        this.version += 1;
-        this.retryAttempt += 1;
-        this.setStatus("reconnecting");
-        this.storeListeners.forEach((listener) => listener());
-        this.resyncListeners.forEach((listener) => listener());
-        return;
-      }
-      this.setStatus("reconnecting");
-      if (ready && event.code === SERVICE_RESTART) {
-        this.scheduleOpen(Math.random() * this.options.retryBaseMs);
-      } else {
-        this.retryAttempt += 1;
-        this.scheduleOpen(this.backoffDelay());
-      }
-    });
+    socket.addEventListener("open", () => this.onOpen(attempt));
+    socket.addEventListener("message", (event) => this.onMessage(attempt, event.data));
+    socket.addEventListener("close", (event) => this.onClose(attempt, event));
     // A transport error is always followed by close, which drives the retry.
-    next.addEventListener("error", () => {});
+    socket.addEventListener("error", () => {});
+  }
+
+  private armIdle(socket: SocketLike) {
+    clearTimeout(this.idleTimer);
+    this.idleTimer = setTimeout(() => { if (this.socket === socket) socket.close(4002, "Realtime feed went quiet"); }, this.options.idleTimeoutMs);
+  }
+
+  private onOpen(attempt: Attempt) {
+    const { socket } = attempt;
+    clearTimeout(attempt.handshakeTimeout);
+    socket.send(JSON.stringify({ type: "subscribe", since: this.cursor }));
+    // Browsers only allow close codes 1000 or 3000-4999 from the client side.
+    attempt.readyTimeout = setTimeout(() => { if (socket.readyState === OPEN && !attempt.ready) socket.close(4001, "Realtime feed did not become ready"); }, this.options.readyTimeoutMs);
+  }
+
+  private onMessage(attempt: Attempt, data: unknown) {
+    if (this.socket !== attempt.socket) return;
+    const message = parseServerMessage(typeof data === "string" ? data : String(data));
+    if (!message) { console.warn("Ignoring malformed realtime message"); return; }
+    this.armIdle(attempt.socket);
+    if (message.type === "ready") {
+      attempt.ready = true; clearTimeout(attempt.readyTimeout);
+      this.retryAttempt = 0;
+      this.setStatus("connected");
+    } else if (message.type === "error") {
+      attempt.resync = message.resync;
+    } else {
+      // Advance the cursor only after the change is recorded, so a reconnect
+      // resumes from the last event this client actually processed.
+      if (message.type === "change" && this.store.apply(message)) this.notifyStore();
+      this.cursor = message.seq;
+    }
+  }
+
+  private onClose(attempt: Attempt, event: { code: number; reason: string; wasClean: boolean }) {
+    clearTimeout(attempt.handshakeTimeout); clearTimeout(attempt.readyTimeout);
+    if (this.socket !== attempt.socket) return;
+    clearTimeout(this.idleTimer);
+    this.socket = null;
+    // A feed outage (1011) closes every retry the same way; warn once, not per attempt.
+    const repeatOutage = event.code === 1011 && this.retryAttempt > 0;
+    if (event.code !== 1000 && event.code !== SERVICE_RESTART && !repeatOutage) {
+      console.warn("Realtime WebSocket closed", { code: event.code, reason: event.reason, wasClean: event.wasClean });
+    }
+    if (event.code === SESSION_ENDED) {
+      // Keep the cursor: after signing in again the page can resume from it.
+      this.setStatus("disconnected");
+      this.sessionEndedListeners.forEach((listener) => listener());
+    } else if (attempt.resync) {
+      this.dropCursor();
+    } else {
+      this.reconnect(attempt.ready && event.code === SERVICE_RESTART);
+    }
+  }
+
+  private notifyStore() {
+    this.version += 1;
+    this.storeListeners.forEach((listener) => listener());
+  }
+
+  /** The cursor is unusable: drop everything derived from the feed and let the page supply a fresh snapshot and cursor. */
+  private dropCursor() {
+    this.cursor = undefined;
+    this.store.clear();
+    this.retryAttempt += 1;
+    this.setStatus("reconnecting");
+    this.notifyStore();
+    this.resyncListeners.forEach((listener) => listener());
+  }
+
+  /** A deliberate server restart reconnects almost at once; anything else backs off. */
+  private reconnect(serverRestart: boolean) {
+    this.setStatus("reconnecting");
+    if (serverRestart) {
+      this.scheduleOpen(Math.random() * this.options.retryBaseMs);
+    } else {
+      this.retryAttempt += 1;
+      this.scheduleOpen(this.backoffDelay());
+    }
   }
 
   private backoffDelay() {
