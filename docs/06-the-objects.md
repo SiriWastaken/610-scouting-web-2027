@@ -18,7 +18,7 @@ sources:
 
 ## Why the code has a vocabulary
 
-Ask a student on the team about the app and they will say things like "team 254's last match", "our alliance", "the field
+Ask a student on the team about the app and they will say things like "team 11270's last match", "our alliance", "the field
 for auto points". Those are the nouns of the sport. For a long time the code used a different vocabulary: loose rows of
 numbers and a bag of helper functions that each took a row and a statistic name and returned an answer. It worked, but every
 screen that needed "does this team have enough data?" had to know which helper to call and which threshold to pass.
@@ -51,11 +51,11 @@ questions that only make sense about *all* the teams together:
 - `fieldValues("autoPpg")`: every team's value for a statistic, teams with no data skipped. This is "the field" an outlier is
   judged against.
 - `isOutlier(team, "autoPpg")`: does this team's value stand out from the field?
-- `alliance("red", [254, 1114, 971])`: build an `Alliance` from team numbers.
+- `alliance("red", [2056, 1114, 4946])`: build an `Alliance` from team numbers.
 - `observedMatches`, `completeTeams`, `coveragePercent`: the numbers on the Coverage page.
 
 It is named `ScoutingEvent` and not `Event` because `Event` is already a name the browser owns (the thing click handlers
-receive), and shadowing it would confuse readers and tools alike.
+receive), and shadowing it would confuse readers and tools alike. As learned by experience - SG
 
 ### Team: the heart of it
 

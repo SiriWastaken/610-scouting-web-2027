@@ -12,7 +12,7 @@ sources:
 
 **Start reading:** [[01-the-team-and-the-problem]]
 
-This is the documentation of the Team 610 scouting dashboard, and it is meant to be read as a book. A new student, a new mentor, or
+This is the documentation of the Team 610 scouting app, and it is meant to be read as a book. A new student, or
 a returning member who has forgotten why things are the way they are can start here and read forward. It tells the story of a
 piece of data from a tablet to a strategist's screen, explains the objects the software thinks in, says who is allowed to do what
 and why, and records the habits that keep a team of changing hands from breaking its own tool.
@@ -85,4 +85,4 @@ let the check find every link that needs updating ([[19-how-we-document]]).
 
 A book about software goes stale faster than a book about anything else. Two habits fight that: every page records the commit it was
 last checked against (`verified_at`), and the rules for changing code say which pages to update with the change
-([[19-how-we-document]]). If you find something here that is wrong, fixing the page is a real contribution, not a chore.
+([[19-how-we-document]]). If you find something here that is wrong, fixing the page is a real contribution, not a chore. This "book" was written by Claude Code, with key sections on topics such as contributing, data models, objects, decisions, and the how-we-XYZ section were written by Sri Ganty, the assistant head of strategy-scouting on FRC Team 610.

@@ -23,7 +23,8 @@ or showing one person another person's data.
 ## The problem in one sentence
 
 A page is a photograph; the event is a film. We render a photograph and then want to keep it matching the film, and the film is
-being shot by dozens of tablets whose changes arrive at any time, in any order, over venue Wi-Fi that drops.
+being shot by dozens of tablets whose changes arrive at any time, in any order, over either venue wifi that drops, or our own
+toaster. The toaster will be documented in excruciating detail shortly. Stay tuned!
 
 ## The solution: a photograph with a bookmark
 

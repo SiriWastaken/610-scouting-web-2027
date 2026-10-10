@@ -9,7 +9,7 @@ sources:
 
 # 0007. Proprietary license
 
-**Status:** accepted, **needs legal review**  **Date:** 2026-10-08  **Decided by:** the maintainer's direction: "no copy, education only, intellectual property of Team 610"
+**Status:** accepted, **Date:** 2026-10-08  **Decided by:** the maintainer's direction: "no copy, education only, intellectual property of Team 610"
 
 ## Context
 

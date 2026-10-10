@@ -22,10 +22,12 @@ a lot of noise: one lucky match, one broken robot, one hot-headed driver can mak
 The remedy is to watch carefully and to write it down. Team 610 (the Crescent Coyotes) does this with scouts: members who
 sit in the stands with tablets and record what each robot does in each match, and who walk the pits to ask each team how
 their robot works. One scout's single match is not very informative. A hundred matches, averaged by robot, is a picture.
+We want that picture to be as holistic and as accurate as possible, so that our team has the
+best information for alliance selection.
 
-The scouting dashboard is what turns the pile of records into that picture.
+The scouting app is what turns the pile of records into that picture.
 
-## What the dashboard is for
+## What the app is for
 
 The dashboard answers the questions a strategist actually asks, in the order they ask them:
 

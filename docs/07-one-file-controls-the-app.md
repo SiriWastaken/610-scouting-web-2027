@@ -54,8 +54,10 @@ actually be met. A typo in the config fails the bench rather than the event.
 A tempting simplification is to put everything in one file. We did not, and the reasons are the useful part of this chapter.
 
 **Secrets and connection settings stay in environment variables.** The file is committed to the repository. A password in it
-would be published to everyone who can read the repository. Environment variables are set per machine and never committed
-(`.env.example` shows the names with placeholders; [[10-authentication]] explains each).
+would be published to everyone who can read the repository. Environment variables are set per machine, and on the deployment server, but never committed
+(`.env.example` shows the names with placeholders; [[10-authentication]] explains each). This was learned after the 2026 app, where important
+API keys and private database connection strings to Couchbase were left in a 
+`globalVars.ts` file. Do NOT, do NOT, do NOT EVER DO THIS. - SG
 
 **Who may do what stays in `lib/auth/roles.ts`.** Roles and permissions are a security rule, not a preference. They have their
 own tests (a full matrix of every role against every action), and they must be read by the server on every request. Moving them

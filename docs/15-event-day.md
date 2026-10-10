@@ -15,7 +15,12 @@ sources:
 **Previous:** [[14-design-system]]  ·  **Contents:** [[00-preface]]  ·  **Next:** [[16-operations]]
 
 Software gets its real test at an event, on a crowded network, with people waiting for it. This chapter is the human side of
-running it. The exact checks and the troubleshooting table are in [[16-operations]]; here is how to think.
+running it. The exact checks and the troubleshooting table are in [[16-operations]]; here is how to think. 
+
+At an event, you need to forget everything you know about building software. This is the real world.
+We build our systems so that they're as reliable as possible, so that whenever changes are needed,
+you aren't fightiing anything or anyone. You change, run the testbench, commit to the change branch
+(yes, at events, changes are on branches and NEVER main), P/R review and then merge it.
 
 ## Before you leave
 
@@ -38,6 +43,10 @@ Watch three things on **Admin → Overview**, in this order:
    tick up as scouts submit. If scouts are submitting and "changes delivered" is flat, the problem is between the tablets and
    Sync Gateway, not in the dashboard ([[03-a-match-travels]], hop 1).
 3. **Errors (15 min).** A few are normal. A rising count deserves a look at *Recent errors*, which names the source and path.
+    
+We're working on a better way, via a Discord bot to notify scout leads and key people when
+and where attention is needed. This will also be used to notify scouts of their upcoming
+scouting shift, as well as the pit crew for broken robots. Stay tuned!
 
 ## Reading the cards
 

@@ -51,7 +51,9 @@ evaluate an AI model, or to build a dataset for one. Remove the notices. Use the
 or private data.
 
 One carve-out for AI assistants: members may use a coding assistant *on the code while working on it for the team*; that does not
-let the assistant's provider keep or train on it beyond whatever agreement the team already has.
+let the assistant's provider keep or train on it beyond whatever agreement the team already has. We reccomend that you have
+your agent's toggles regarding model training to be off while you're working on these repos, but it's not
+required. 
 
 ## Contributing
 
@@ -77,29 +79,21 @@ anyone) and still have every right reserved. That is what `LICENSE` says. Two pr
 ## Questions you will actually have
 
 **"Can I show this at my college interview?"** Showing it on your own screen, describing your role, and linking to what the team
-publishes about it is fine. Sending someone the code is not, without permission.
+publishes about it is fine. Sending someone the source code, ANY part of it whatsoever is not, without permission.
 
-**"Can I reuse an idea or a technique I learned here in my own project?"** General skills and knowledge are yours. The license
+**"Can I reuse an idea or a technique I learned here in my own project?"** General skills and knowledge are yours. If we tried to
+copyright that or claim that your knowledge belonged to us, that would be wrong. The license
 restricts copying and adapting *the expression* in this repository, not what you have learned. If you are not sure whether
 something is a general technique or this code's particular design, ask.
 
-**"Can another team use it?"** Only with written permission from a mentor or officer.
+**"Can another team use it?"** Only with written permission from a mentor. Not even a student exec can approve this decision.
 
 **"Can I share a screenshot?"** Screenshots of the running app without private data are ordinary team communication. Screenshots
-that include credentials, user lists or scouting data about other teams are not.
+that include credentials, user lists or scouting data about other teams are not. We're working on a
+function where the app goes in to a "display" mode, triggered
+by an NPM script, so that you can take screenshots of the app for a portfolio or resume.
 
 **"Who do I ask?"** The contact address in `LICENSE` (the team fills it in), or a mentor.
-
-## Open items for the team
-
-These need a human decision, not a developer one:
-
-1. Have the sponsor, or a lawyer, review `LICENSE`.
-2. Fill in the two bracketed placeholders in `LICENSE`: the governing law and the contact address.
-3. Make the GitHub repository private (see above).
-4. Decide how contributor agreements from minors are collected, and where they are kept.
-5. Decide whether files should also carry a one-line copyright notice. The license applies without it; a notice makes the claim
-   easier to see.
 
 ## Where to go next
 

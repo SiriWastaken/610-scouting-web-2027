@@ -71,6 +71,11 @@ Rules of thumb:
   nothing makes the useful ones harder to find.
 - **Keep them near the code.** A comment that must be updated in two files will be updated in one.
 
+When I document, I like to make it entertaining to read, while still being valuable and making sure that
+any reader garners valuable information from it. That's why these docs have been
+written in a less formal way, and I use analogies a lot to explain technical and 
+complicated topics, like how the WebSocket system works. - SG
+
 ## Reference pages
 
 A reference page answers **one question** and is short enough to read in a minute or two. When it grows past about three thousand

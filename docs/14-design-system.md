@@ -13,8 +13,10 @@ sources:
 
 **Previous:** [[13-pages]]  ·  **Contents:** [[00-preface]]  ·  **Next:** [[15-event-day]]
 
+This part of the docs was written entirely by a human. 
+
 The design lives in Figma first (see [`AGENTS.md`](../AGENTS.md#design-workflow-figma-first)): change the Figma file,
-get it approved, then make the code match. The Figma `Color` variables mirror the tokens below; each one's description
+get it approved by your exec (so me, or, if this docs plan outlives me and you're still using it after I graduate, then the current assistant/head of Strat-Scouting), then make the code match. The Figma `Color` variables mirror the tokens below; each one's description
 holds its CSS variable name.
 
 **The look:** neutral surfaces, 1px hairline borders, no shadows, Inter for everything, sentence-case labels (never

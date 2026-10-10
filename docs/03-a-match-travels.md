@@ -15,13 +15,13 @@ sources:
 
 **Previous:** [[02-overview]]  ·  **Contents:** [[00-preface]]  ·  **Next:** [[04-architecture]]
 
-Follow one match. Qualification match 31. A scout, call her Ada, watched team 254 play it and has just pressed *Submit*.
+Follow one match. Qualification match 31. A scout, call him John, watched team 254 play it and has just pressed *Submit*.
 Within seconds a strategist in the stands, call him Bo, sees team 254's averages change on his screen without touching
 anything. This chapter is how that happens, one hop at a time, and what protects the data at each hop.
 
 ## Hop 1. The tablet writes a document
 
-The scouting tablet app is separate from this repository. When Ada submits, it stores a **document**: a small JSON record
+The scouting tablet app is separate from this repository. When John submits, it stores a **document**: a small JSON record
 named `scouting_254_31`, meaning "scouting data, team 254, match 31". The record has three parts: where the robot started
 (alliance colour, position, who scouted it), what it did in autonomous (how much fuel it scored, where it drove, drawn as a
 path), and what it did in teleop (fuel scored, passed and plowed, climb attempts and misses, defence played, breakdowns, and

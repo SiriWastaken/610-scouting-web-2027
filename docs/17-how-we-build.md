@@ -15,7 +15,9 @@ sources:
 
 **Previous:** [[16-operations]]  ·  **Contents:** [[00-preface]]  ·  **Next:** [[18-development]]
 
-A team whose members change every year needs habits that survive turnover. These are ours. None is exotic; the discipline is in
+A team whose members change every year needs habits that survive turnover. These are 610's. Each "law" that you
+see here has been put in place because of our experience in building world-class software, 
+because that's truly what this is. Nothing here is exotic; the discipline is in
 doing them every time, and in the places where we wrote them down so that a tired person at midnight before an event does not
 have to remember.
 
